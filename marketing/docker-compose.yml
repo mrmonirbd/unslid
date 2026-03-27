@@ -1,0 +1,30 @@
+# ============================================================
+#  Marketing site — standalone Docker Compose
+#
+#  Run from this directory:
+#    docker-compose up --build
+#
+#  Or in development (no Docker):
+#    npm run dev        → http://localhost:3001
+# ============================================================
+
+services:
+  marketing:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://app.unslid.com}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Unslid}
+        NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://unslid.com}
+    container_name: marketing
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://app.unslid.com}
+      - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-Unslid}
+      - NEXT_PUBLIC_GA_MEASUREMENT_ID=${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-https://unslid.com}

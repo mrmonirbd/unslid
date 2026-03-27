@@ -1,0 +1,256 @@
+# ============================================================
+#  PRODUCTION docker-compose — Linode VPS deployment
+#  Usage:
+#    docker compose -f docker-compose.prod.yml up -d
+#
+#  All secrets come from the .env file (copy .env.example → .env).
+#  DO NOT commit .env to git.
+# ============================================================
+
+services:
+
+  # ── Database ──────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}        # required — no default
+      POSTGRES_DB: ${POSTGRES_DB:-aipresentation}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-aipresentation}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Cache / Queue ─────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── FastAPI backend ───────────────────────────────────────
+  fastapi:
+    build:
+      context: ./servers/fastapi
+      dockerfile: Dockerfile
+    image: aipresentation-fastapi:latest
+    container_name: fastapi
+    restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    ports:
+      - "127.0.0.1:8000:8000"     # bind to loopback only — Caddy is the public entry point
+    environment:
+      - APP_DATA_DIRECTORY=/app_data
+      - TEMP_DIRECTORY=/tmp/presenton
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-aipresentation}
+      - SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - WASABI_ACCESS_KEY_ID=${WASABI_ACCESS_KEY_ID}
+      - WASABI_SECRET_ACCESS_KEY=${WASABI_SECRET_ACCESS_KEY}
+      - WASABI_ENDPOINT_URL=${WASABI_ENDPOINT_URL}
+      - WASABI_BUCKET_DEV=${WASABI_BUCKET_DEV}
+      - WASABI_BUCKET_US=${WASABI_BUCKET_US}
+      - WASABI_BUCKET_EU=${WASABI_BUCKET_EU}
+      - WASABI_BUCKET_AP_SE=${WASABI_BUCKET_AP_SE}
+      - WASABI_BUCKET_AP_NE=${WASABI_BUCKET_AP_NE}
+      - SECRET_KEY=${SECRET_KEY}
+      - LLM=${LLM}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - GOOGLE_MODEL=${GOOGLE_MODEL}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL}
+      - IMAGE_PROVIDER=${IMAGE_PROVIDER}
+      - REDIS_URL=redis://redis:6379
+      - MIGRATE_DATABASE_ON_STARTUP=true
+      - CAN_CHANGE_KEYS=false
+      - ENVIRONMENT=production
+      - APP_DOMAIN=${APP_DOMAIN}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - STRIPE_PRICE_PRO_MONTHLY=${STRIPE_PRICE_PRO_MONTHLY}
+      - STRIPE_PRICE_PRO_ANNUAL=${STRIPE_PRICE_PRO_ANNUAL}
+      - STRIPE_PRICE_TEAM_MONTHLY=${STRIPE_PRICE_TEAM_MONTHLY}
+      - STRIPE_PRICE_TEAM_ANNUAL=${STRIPE_PRICE_TEAM_ANNUAL}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - SENTRY_DSN=${SENTRY_DSN_FASTAPI}
+    volumes:
+      - app_data:/app_data
+      - fastapi_chroma:/app/chroma
+    networks:
+      - app-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── ARQ background worker ─────────────────────────────────
+  worker:
+    build:
+      context: ./servers/fastapi
+      dockerfile: Dockerfile
+    image: aipresentation-fastapi:latest
+    container_name: worker
+    restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    command: ["python", "-m", "arq", "api.worker.WorkerSettings"]
+    environment:
+      - APP_DATA_DIRECTORY=/app_data
+      - TEMP_DIRECTORY=/tmp/presenton
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-aipresentation}
+      - SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - WASABI_ACCESS_KEY_ID=${WASABI_ACCESS_KEY_ID}
+      - WASABI_SECRET_ACCESS_KEY=${WASABI_SECRET_ACCESS_KEY}
+      - WASABI_ENDPOINT_URL=${WASABI_ENDPOINT_URL}
+      - WASABI_BUCKET_DEV=${WASABI_BUCKET_DEV}
+      - WASABI_BUCKET_US=${WASABI_BUCKET_US}
+      - WASABI_BUCKET_EU=${WASABI_BUCKET_EU}
+      - WASABI_BUCKET_AP_SE=${WASABI_BUCKET_AP_SE}
+      - WASABI_BUCKET_AP_NE=${WASABI_BUCKET_AP_NE}
+      - SECRET_KEY=${SECRET_KEY}
+      - LLM=${LLM}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - GOOGLE_MODEL=${GOOGLE_MODEL}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL}
+      - IMAGE_PROVIDER=${IMAGE_PROVIDER}
+      - REDIS_URL=redis://redis:6379
+      - ENVIRONMENT=production
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - APP_DOMAIN=${APP_DOMAIN}
+      - SENTRY_DSN=${SENTRY_DSN_FASTAPI}
+    volumes:
+      - app_data:/app_data
+    networks:
+      - app-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # ── Next.js frontend ──────────────────────────────────────
+  nextjs:
+    build:
+      context: ./servers/nextjs
+      dockerfile: Dockerfile
+      target: runner           # production build — NOT dev
+      args:
+        - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        - NEXT_PUBLIC_API_URL=https://${APP_DOMAIN}
+        - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+        - NEXT_PUBLIC_LEGAL_DOMAIN=${NEXT_PUBLIC_LEGAL_DOMAIN}
+        - NEXT_PUBLIC_GA_MEASUREMENT_ID=${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+    image: aipresentation-nextjs:latest
+    container_name: nextjs
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"  # bind to loopback only
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - NEXT_PUBLIC_API_URL=https://${APP_DOMAIN}
+      - FASTAPI_INTERNAL_URL=http://fastapi:8000
+      - SENTRY_DSN=${SENTRY_DSN_NEXTJS}
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - CAN_CHANGE_KEYS=false
+      - NEXT_PUBLIC_LEGAL_DOMAIN=${NEXT_PUBLIC_LEGAL_DOMAIN}
+      - NEXT_PUBLIC_GA_MEASUREMENT_ID=${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+      - TEMP_DIRECTORY=/tmp/presenton
+      - APP_DATA_DIRECTORY=/app_data
+    volumes:
+      - app_data:/app_data
+    networks:
+      - app-network
+    depends_on:
+      - fastapi
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ── Caddy reverse proxy (HTTPS + auto SSL) ────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - app-network
+    depends_on:
+      - nextjs
+      - fastapi
+
+  # ── Automated database backups ─────────────────────────────
+  db-backup:
+    image: postgres:16-alpine
+    container_name: db-backup
+    restart: unless-stopped
+    environment:
+      - PGPASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-aipresentation}
+      - BACKUP_RETAIN_DAYS=${BACKUP_RETAIN_DAYS:-14}
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+      - ./scripts/backup-crontab:/var/spool/cron/crontabs/root:ro
+    entrypoint: ["/bin/sh", "-c", "chmod +x /backup.sh && crond -f -d 8"]
+    networks:
+      - app-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  app_data:
+  redis_data:
+  postgres_data:
+  fastapi_chroma:
+  caddy_data:
+  caddy_config:
+
+networks:
+  app-network:
+    driver: bridge

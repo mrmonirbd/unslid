@@ -1,0 +1,54 @@
+# ============================================================
+#  Caddyfile — SaaS app reverse proxy
+#
+#  Domain:
+#    {env.APP_DOMAIN}  → SaaS app (app.unslid.com)
+#
+#  Set APP_DOMAIN in your .env before deploying.
+#  Caddy auto-provisions and renews Let's Encrypt SSL certs.
+#
+#  For the marketing site (unslid.com), see ../marketing/Caddyfile
+# ============================================================
+
+{env.APP_DOMAIN} {
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    # ── Route /api/* directly to FastAPI ─────────────────────────────
+    handle /api/* {
+        reverse_proxy fastapi:8000 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # ── Route /app_data/* to FastAPI (static exports) ────────────────
+    handle /app_data/* {
+        reverse_proxy fastapi:8000
+    }
+
+    # ── Everything else → Next.js SaaS app ───────────────────────────
+    handle {
+        reverse_proxy nextjs:3000 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    encode gzip
+
+    log {
+        output file /var/log/caddy/app-access.log {
+            roll_size 50mb
+            roll_keep 5
+        }
+    }
+}

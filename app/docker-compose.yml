@@ -1,0 +1,181 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdevpass}
+      POSTGRES_DB: ${POSTGRES_DB:-aipresentation}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-aipresentation}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  fastapi:
+    build:
+      context: ./servers/fastapi
+      dockerfile: Dockerfile
+    container_name: fastapi
+    restart: on-failure
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_DATA_DIRECTORY=/app_data
+      - TEMP_DIRECTORY=/tmp/presenton
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-localdevpass}@postgres:5432/${POSTGRES_DB:-aipresentation}
+      - SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - WASABI_ACCESS_KEY_ID=${WASABI_ACCESS_KEY_ID}
+      - WASABI_SECRET_ACCESS_KEY=${WASABI_SECRET_ACCESS_KEY}
+      - WASABI_ENDPOINT_URL=${WASABI_ENDPOINT_URL}
+      - WASABI_BUCKET_DEV=${WASABI_BUCKET_DEV}
+      - WASABI_BUCKET_US=${WASABI_BUCKET_US}
+      - WASABI_BUCKET_EU=${WASABI_BUCKET_EU}
+      - WASABI_BUCKET_AP_SE=${WASABI_BUCKET_AP_SE}
+      - WASABI_BUCKET_AP_NE=${WASABI_BUCKET_AP_NE}
+      - SECRET_KEY=${SECRET_KEY}
+      - LLM=${LLM}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - GOOGLE_MODEL=${GOOGLE_MODEL}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL}
+      - IMAGE_PROVIDER=${IMAGE_PROVIDER}
+      - REDIS_URL=redis://redis:6379
+      - MIGRATE_DATABASE_ON_STARTUP=true
+      - CAN_CHANGE_KEYS=false
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - APP_DOMAIN=${APP_DOMAIN:-localhost}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - STRIPE_PRICE_PRO_MONTHLY=${STRIPE_PRICE_PRO_MONTHLY}
+      - STRIPE_PRICE_PRO_ANNUAL=${STRIPE_PRICE_PRO_ANNUAL}
+      - STRIPE_PRICE_TEAM_MONTHLY=${STRIPE_PRICE_TEAM_MONTHLY}
+      - STRIPE_PRICE_TEAM_ANNUAL=${STRIPE_PRICE_TEAM_ANNUAL}
+      - SENTRY_DSN=${SENTRY_DSN_FASTAPI}
+    volumes:
+      - app_data:/app_data
+      - fastapi_chroma:/app/chroma   # cache Chroma ONNX model (~79 MB) across restarts
+    networks:
+      - app-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    build:
+      context: ./servers/fastapi
+      dockerfile: Dockerfile
+    container_name: worker
+    restart: on-failure
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    command: ["python", "-m", "arq", "api.worker.WorkerSettings"]
+    environment:
+      - APP_DATA_DIRECTORY=/app_data
+      - TEMP_DIRECTORY=/tmp/presenton
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-localdevpass}@postgres:5432/${POSTGRES_DB:-aipresentation}
+      - SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - WASABI_ACCESS_KEY_ID=${WASABI_ACCESS_KEY_ID}
+      - WASABI_SECRET_ACCESS_KEY=${WASABI_SECRET_ACCESS_KEY}
+      - WASABI_ENDPOINT_URL=${WASABI_ENDPOINT_URL}
+      - WASABI_BUCKET_DEV=${WASABI_BUCKET_DEV}
+      - WASABI_BUCKET_US=${WASABI_BUCKET_US}
+      - WASABI_BUCKET_EU=${WASABI_BUCKET_EU}
+      - WASABI_BUCKET_AP_SE=${WASABI_BUCKET_AP_SE}
+      - WASABI_BUCKET_AP_NE=${WASABI_BUCKET_AP_NE}
+      - SECRET_KEY=${SECRET_KEY}
+      - LLM=${LLM}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - GOOGLE_MODEL=${GOOGLE_MODEL}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL}
+      - IMAGE_PROVIDER=${IMAGE_PROVIDER}
+      - REDIS_URL=redis://redis:6379
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - APP_DOMAIN=${APP_DOMAIN:-localhost}
+      - SENTRY_DSN=${SENTRY_DSN_FASTAPI}
+    volumes:
+      - app_data:/app_data
+    networks:
+      - app-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  nextjs:
+    build:
+      context: ./servers/nextjs
+      dockerfile: Dockerfile
+      target: dev          # uses the lightweight dev stage (no full prod build)
+    container_name: nextjs
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      - FASTAPI_INTERNAL_URL=http://fastapi:8000
+      - SENTRY_DSN=${SENTRY_DSN_NEXTJS}
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - CAN_CHANGE_KEYS=false
+      - NEXT_PUBLIC_LEGAL_DOMAIN=${NEXT_PUBLIC_LEGAL_DOMAIN:-https://yourcompany.com}
+      - NEXT_PUBLIC_GA_MEASUREMENT_ID=${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+      # Puppeteer / Chromium — uses system ARM64 Chromium installed in the image
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+      - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
+      # Directories for export temp files; /tmp is always writable
+      - TEMP_DIRECTORY=/tmp/presenton
+      - APP_DATA_DIRECTORY=/app_data
+    volumes:
+      - ./servers/nextjs:/app          # mount source for hot reload
+      - nextjs_nm:/app/node_modules    # keep container's node_modules intact
+      - app_data:/app_data             # shared with FastAPI for exported PPTX/PDF downloads
+    networks:
+      - app-network
+    depends_on:
+      - fastapi
+
+
+volumes:
+  app_data:
+  redis_data:
+  postgres_data:
+  nextjs_nm:        # preserves node_modules installed in the dev image
+  fastapi_chroma:   # caches Chroma ONNX embedding model (~79 MB) so rebuilds skip download
+
+networks:
+  app-network:
+    driver: bridge

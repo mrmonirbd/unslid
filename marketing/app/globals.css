@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Font is loaded via next/font/google in layout.tsx (build-time download, no Google DNS leak) */
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+  }
+
+  * {
+    @apply border-gray-200;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-white text-gray-900;
+    font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "ss01" 1;
+    letter-spacing: -0.025em;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-brand-600 to-indigo-400 bg-clip-text text-transparent;
+  }
+
+  .glass {
+    @apply bg-white/80 backdrop-blur-md border border-white/20;
+  }
+
+  .section-padding {
+    @apply px-6 py-24 sm:py-32 lg:px-8;
+  }
+
+  .hero-headline {
+    font-size: clamp(2.75rem, 7vw, 5rem);
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+    font-weight: 900;
+  }
+}

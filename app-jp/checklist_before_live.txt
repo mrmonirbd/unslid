@@ -1,0 +1,571 @@
+================================================================================
+  CHECKLIST BEFORE GOING LIVE — AI Presentation SaaS
+  Created: 2026-03-26
+================================================================================
+
+Legend:  [ ] = todo   [x] = done   [!] = critical blocker
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 1 — 🔴 CRITICAL BLOCKERS (app will not work correctly without these)
+────────────────────────────────────────────────────────────────────────────────
+
+[ ] 1.1  Switch NextJS from dev mode to production build
+         WHY:  Current docker-compose.yml uses `target: dev` which runs
+               `npm run dev` — not suitable for real traffic, very slow.
+         HOW:  In docker-compose.yml (or docker-compose.prod.yml):
+               - Change `target: dev` → `target: runner`
+               - Change `NODE_ENV=development` → `NODE_ENV=production`
+               - Remove the source volume mount:
+                   `- ./servers/nextjs:/app`  ← delete this line
+               - Remove the node_modules volume:
+                   `- nextjs_nm:/app/node_modules`  ← delete this line
+               - Pass NEXT_PUBLIC_* vars as build ARGs (they are baked at build time)
+         FILE: docker-compose.yml → nextjs service
+
+[ ] 1.2  Set ENVIRONMENT and APP_DOMAIN correctly
+         WHY:  Currently ENVIRONMENT=development causes Stripe to redirect users
+               back to http://localhost after checkout — breaks on a real server.
+         HOW:  In .env (production copy):
+               ENVIRONMENT=production
+               APP_DOMAIN=app.yourdomain.com
+         FILE: .env
+
+[ ] 1.3  Add a reverse proxy with SSL (Nginx or Caddy)
+         WHY:  Ports 3000 and 8000 are exposed directly. Production needs HTTPS
+               and a single entry point on port 443.
+         HOW:  Recommended — use Caddy (simplest, auto SSL via Let's Encrypt):
+               - Create a Caddyfile in the project root
+               - Add a caddy service to docker-compose.yml
+               - Caddy routes app.yourdomain.com → nextjs:3000
+               - Caddy auto-renews Let's Encrypt certificates
+         ALTERNATIVE: Nginx + Certbot (more config, same result)
+
+[ ] 1.4  Change the PostgreSQL password
+         WHY:  Currently hardcoded as "localdevpass" — must never be used in prod.
+         HOW:  Generate a strong password:
+               python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+               Update in docker-compose.yml:
+                 POSTGRES_PASSWORD: <new-strong-password>
+               Update DATABASE_URL in fastapi and worker services to match.
+         FILE: docker-compose.yml
+
+[ ] 1.5  Point your DNS to the VPS
+         HOW:  In your domain registrar / DNS provider:
+               - A record: app.yourdomain.com → <VPS IP address>
+               - A record: yourdomain.com     → <marketing site IP> (if separate)
+               Wait for DNS propagation (up to 48h, usually <30 min)
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 2 — 🟡 IMPORTANT (won't stop the app but needed for full functionality)
+────────────────────────────────────────────────────────────────────────────────
+
+[ ] 2.1  Register Stripe webhook
+         WHY:  Plan upgrades (free→pro, pro→team) are applied via webhook.
+               Without it, users pay but their plan never changes in the DB.
+         HOW:  In Stripe Dashboard → Developers → Webhooks → Add endpoint:
+               URL: https://app.yourdomain.com/api/v1/webhooks/stripe
+               Events to listen for:
+                 - checkout.session.completed
+                 - customer.subscription.updated
+                 - customer.subscription.deleted
+                 - invoice.payment_failed
+                 - invoice.paid
+               Copy the "Signing secret" (whsec_...) and enter it in:
+               Admin Panel → Payment Settings → Webhook Signing Secret
+
+[ ] 2.2  Configure Stripe keys in Admin Panel
+         HOW:  Log in as admin → go to /admin → Payment Settings:
+               - Set mode to "Live" (use live keys, not test keys)
+               - Enter Publishable Key (pk_live_...)
+               - Enter Secret Key (sk_live_...)
+               - Enter Webhook Signing Secret (whsec_...)
+               Then go to Plan Pricing & Features:
+               - Enter Stripe Price IDs for Pro Monthly, Pro Annual,
+                 Team Monthly, Team Annual
+
+[ ] 2.3  Set up Resend for email delivery
+         WHY:  Invite emails, welcome emails, payment failure notices are all
+               silently dropped without a real email provider.
+         HOW:  Sign up at resend.com → create API key → add to .env:
+               RESEND_API_KEY=re_...
+               EMAIL_FROM=hello@yourdomain.com
+               Verify your sending domain in Resend dashboard.
+
+[ ] 2.4  Set up Sentry for error monitoring
+         WHY:  Without this you are flying blind — no visibility into crashes
+               or exceptions in production.
+         HOW:  Sign up at sentry.io → create two projects (Python + Next.js):
+               SENTRY_DSN_FASTAPI=https://...@sentry.io/...
+               SENTRY_DSN_NEXTJS=https://...@sentry.io/...
+               Add to .env
+
+[ ] 2.5  Set legal domain
+         WHY:  ToS and Privacy Policy links in signup and cookie banner
+               currently point to https://yourcompany.com (placeholder).
+         HOW:  In .env:
+               NEXT_PUBLIC_LEGAL_DOMAIN=https://yourdomain.com
+               Make sure /terms and /privacy exist on that domain.
+
+[ ] 2.6  Configure AI models in Admin Panel
+         HOW:  Log in as admin → /admin → AI Model Configuration:
+               - Set provider and API key for Free plan
+               - Set provider and API key for Pro plan
+               - Set provider and API key for Team plan
+               - Optionally enable "user override" toggles for Pro/Team
+
+[ ] 2.7  Delete or reset demo accounts
+         WHY:  The demo accounts (admin@, free@, pro@, team@, member@ aipresentation.dev)
+               are development-only and should not exist in production.
+         HOW:  Either:
+               a) Use a fresh Supabase project for production (recommended)
+               b) Delete the demo users in Supabase Auth dashboard
+               c) Change all demo passwords to something unguessable
+         FILE: demo_accounts.txt (do not commit this file to git)
+
+[ ] 2.8  Set a strong SECRET_KEY for encryption
+         WHY:  This key encrypts all API keys stored in the database.
+               If lost, all saved keys must be re-entered.
+         HOW:  Generate once, store safely:
+               python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+               Add to .env: SECRET_KEY=<generated-key>
+               NEVER rotate this after data is in the database.
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 3 — 🟢 ALREADY PRODUCTION-READY (implemented — no further action needed)
+────────────────────────────────────────────────────────────────────────────────
+
+─── Infrastructure & Docker ────────────────────────────────────────────────────
+
+[x] All Docker services have restart policies (unless-stopped / on-failure)
+[x] Database migrations run automatically on startup (MIGRATE_DATABASE_ON_STARTUP=true)
+[x] FastAPI uses a proper production Python image
+[x] Redis and Postgres use named volumes (data survives container restarts)
+[x] All secrets are in .env (not hardcoded in source code)
+[x] NextJS Dockerfile has a production `runner` stage ready to use
+
+─── Security ───────────────────────────────────────────────────────────────────
+
+[x] API keys encrypted with Fernet before being stored in the database
+[x] HTTP security headers added (X-Frame-Options, X-Content-Type-Options,
+    Referrer-Policy, Permissions-Policy, Content-Security-Policy)
+    File: servers/nextjs/next.config.js → headers()
+[x] File upload endpoints require authentication (Bearer token check)
+    File: servers/fastapi/api/v1/ppt/endpoints/presentation.py
+[x] File upload size limited (10 MB per file, 50 MB total)
+    File: servers/fastapi/api/main.py → RequestSizeLimitMiddleware
+[x] Email verification enforced in production before login is allowed
+    File: servers/fastapi/api/auth.py → get_current_user()
+[x] Mock/debug router disabled in production environments
+    Guarded by ENVIRONMENT != "development" check
+
+─── Reliability & Monitoring ───────────────────────────────────────────────────
+
+[x] FastAPI health check endpoint (GET /health) for load balancers & uptime checks
+    File: servers/fastapi/api/main.py → /health
+[x] API rate limiting via slowapi (per-IP limits on sensitive endpoints)
+    File: servers/fastapi/api/main.py + utils/rate_limit.py
+[x] Structured JSON logging (python-json-logger) for production log aggregation
+    File: servers/fastapi/api/main.py → logging configuration
+[x] Sentry error tracking integrated (FastAPI + Next.js)
+    Configured via SENTRY_DSN_FASTAPI / SENTRY_DSN_NEXTJS in .env
+
+─── Data & Billing ─────────────────────────────────────────────────────────────
+
+[x] Automated daily database backups (pg_dump → /backups, 7-day rotation)
+    File: servers/fastapi/api/worker.py → backup_database cron (daily 02:00)
+[x] Stripe subscription auto-cancelled when user deletes their account
+    File: servers/fastapi/api/v1/account/router.py → delete_account()
+[x] Monthly presentation count reset cron (1st of each month, 00:05)
+    Also resets tokens_used_this_month and images_generated_this_month
+    File: servers/fastapi/api/worker.py → reset_monthly_presentation_counts
+[x] Alembic migration configuration fixed (env.py reads DATABASE_URL from env,
+    not from the hardcoded sqlalchemy.url in alembic.ini)
+[x] Stripe keys and AI model keys manageable via Admin Panel (no redeploy needed)
+
+─── User Plans & Limits ────────────────────────────────────────────────────────
+
+[x] Free plan: 1 active presentation slot (DB-enforced — delete to recreate)
+[x] Free plan: 1 concurrent generation maximum
+[x] Pro plan: 100 presentations/month soft cap (returns 429 with "contact us" above)
+    File: servers/fastapi/api/v1/ppt/endpoints/presentation.py
+[x] Pro plan: 3 concurrent generations maximum
+[x] Team plan: 5 concurrent generations maximum
+[x] Spark trial package: one-time $9.90 payment → 7 days Pro access,
+    auto-expires via daily cron (stripe mode=payment, no subscription)
+    Files: billing/router.py, admin/router.py, worker.py
+
+─── Abuse Prevention ───────────────────────────────────────────────────────────
+
+[x] Concurrent session tracking: active client IPs stored per user in Redis
+    (30-minute window). Admin is warned when 3+ simultaneous IPs detected.
+    File: utils/rate_limit.py → track_session()
+[x] LLM token usage tracking: estimated tokens (chars÷4) tracked per user
+    per month in Redis after each generate() and generate_structured() call
+    File: services/llm_client.py → post-generate hooks
+[x] Image generation tracking: count incremented per user per month in Redis
+    File: services/image_generation_service.py → generate_image() hook
+[x] Admin Usage Monitor: /admin → "Usage Monitor" section shows top 25 users
+    by presentations, tokens, images and simultaneous IPs this month
+    Flags: ⚠️ = near Pro soft cap · 🚨 = 3+ simultaneous IPs
+    API: GET /api/v1/admin/usage-monitor
+
+─── Legal & Compliance ─────────────────────────────────────────────────────────
+
+[x] GDPR cookie consent banner implemented
+[x] Terms of Service acceptance tracked at signup
+[x] Data storage region (EU/US) notified to user at signup per GDPR
+[x] Account deletion anonymises user data (email → deleted+id@deleted.invalid)
+
+─── Admin & Configuration ──────────────────────────────────────────────────────
+
+[x] Admin panel at /admin (requires is_admin=true)
+[x] Admin growth analytics at /admin/stats
+    (signups by day, plan distribution, UTM attribution, activation rate)
+[x] Template tier management (Free/Premium, thumbnails, name editing)
+[x] Spark trial package settings (name, days, price, Stripe Price ID, features)
+    Configurable from Admin → Trial Package Settings
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 4 — 🔵 VPS SETUP STEPS (one-time server provisioning)
+────────────────────────────────────────────────────────────────────────────────
+
+[ ] 4.1  Provision a Linode VPS
+         Recommended spec for starting out:
+         - 4 GB RAM, 2 vCPUs, 80 GB SSD (Linode Shared 4GB — ~$24/month)
+         - Ubuntu 22.04 LTS
+         - Enable backups
+
+[ ] 4.2  Install Docker and Docker Compose on the VPS
+         sudo apt update && sudo apt install -y docker.io docker-compose-plugin
+         sudo usermod -aG docker $USER
+
+[ ] 4.3  Clone the repository onto the VPS
+         git clone <your-repo-url> /opt/aipresentation
+         cd /opt/aipresentation
+
+[ ] 4.4  Create the production .env file on the VPS
+         Copy .env, update all values for production (see sections above)
+         chmod 600 .env   ← restrict file permissions
+
+[ ] 4.5  Build and start the containers
+         docker compose -f docker-compose.yml up -d --build
+
+[ ] 4.6  Set up automatic container restart on VPS reboot
+         Docker's restart policies handle this automatically.
+         Verify with: docker compose ps
+
+[ ] 4.7  Set up a firewall
+         Only expose ports 80 and 443 publicly:
+         sudo ufw allow 22    # SSH
+         sudo ufw allow 80    # HTTP (redirects to HTTPS via Caddy)
+         sudo ufw allow 443   # HTTPS
+         sudo ufw enable
+         Note: Do NOT expose 3000 or 8000 publicly — Caddy handles routing.
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 5 — ESTIMATED TIME TO GO LIVE
+────────────────────────────────────────────────────────────────────────────────
+
+  VPS provisioning + Docker setup          ~30 min
+  DNS setup + propagation                  ~5 min setup, up to 48h to propagate
+  docker-compose.prod.yml changes          ~15 min
+  Caddy / Nginx SSL config                 ~30 min
+  .env production values                   ~15 min
+  Stripe webhook + price IDs               ~15 min
+  Resend domain verification               ~15 min
+  Admin panel AI config                    ~10 min
+  Delete demo accounts                     ~5 min
+  ─────────────────────────────────────────────────
+  TOTAL                                    ~2–3 hours (excluding DNS wait)
+
+================================================================================
+  Next step: Ask the AI agent to generate docker-compose.prod.yml and
+  a Caddyfile for SSL/reverse proxy setup.
+================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 6 — BRANDING REPLACEMENT (do before go-live)
+────────────────────────────────────────────────────────────────────────────────
+
+The codebase was built on top of the open-source Presenton project. The word
+"presenton" still appears in several places that users will see. Replace these
+with your brand name before launching.
+
+─── USER-FACING UI (MUST change) ───────────────────────────────────────────────
+
+[ ] 6.1  Onboarding mode selection screen
+         File: servers/nextjs/components/OnBoarding/ModeSelectStep.tsx (line 24)
+         Change: "Presenton" heading shown to users during onboarding
+
+[ ] 6.2  Onboarding PRESENTON badge
+         File: servers/nextjs/components/OnBoarding/PresentonMode.tsx (line 322)
+         Change: "PRESENTON" badge text visible in onboarding flow
+
+[ ] 6.3  Onboarding sidebar logo alt text
+         File: servers/nextjs/components/OnBoarding/OnBoardingSlidebar.tsx (line 6)
+         Change: alt="Presenton logo" on the logo image
+
+[ ] 6.4  Header logo alt text
+         File: servers/nextjs/components/Header.tsx (line 13)
+         Change: alt="Presenton" on the header logo
+
+[ ] 6.5  Configuration initializer logo alt text
+         File: servers/nextjs/app/ConfigurationInitializer.tsx (line 118)
+         Change: alt="PresentOn" on the logo shown during initial setup
+
+[ ] 6.6  Sample contact email in slide template
+         File: servers/nextjs/app/presentation-templates/neo-standard/TitleDescriptionContactCards.tsx (line 10)
+         Change: "presenton@gmail.com" placeholder email in sample slide data
+         Replace with your company contact email
+
+─── INTERNAL / PACKAGE NAMES (optional, low priority) ──────────────────────────
+
+[ ] 6.7  Next.js package name
+         File: servers/nextjs/package.json (line 2)
+         Change: "name": "presenton" → your app name
+         Note: Not visible to users, but good housekeeping
+
+[ ] 6.8  FastAPI package name
+         File: servers/fastapi/pyproject.toml (line 2)
+         Change: name = "presenton-backend" → your app name
+
+─── DO NOT CHANGE ───────────────────────────────────────────────────────────────
+
+  servers/nextjs/app/presentation-templates/**/*.tsx  — Many files reference
+  presenton-public.s3.ap-southeast-1.amazonaws.com for slide icons and
+  placeholder images. These are live CDN URLs from the original open-source
+  project serving real assets. Changing them will break slide previews.
+
+  /tmp/presenton (docker-compose.yml, Dockerfile, test-local.sh) — Internal
+  temp directory paths. Invisible to users. Safe to leave as-is.
+
+  docs/ — Internal documentation files only. No user impact.
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 7 — 🔵 ABUSE PREVENTION — PRE-LAUNCH CONFIGURATION
+────────────────────────────────────────────────────────────────────────────────
+
+These features are code-complete. The following steps require configuration
+decisions before going live.
+
+[ ] 7.1  Review and adjust Pro plan soft cap (currently 100/month)
+         WHY:  100 presentations/month is a reasonable starting point but may
+               need tuning based on your actual user base and AI costs.
+         HOW:  In servers/fastapi/utils/rate_limit.py:
+               PLAN_MONTHLY_SOFT_CAPS = {
+                   "pro":  100,    ← change this number
+                   "team": None,   ← None = unlimited
+               }
+               Redeploy after changing.
+         NOTE: This is a soft cap — users see a "contact us" message, not a
+               hard block. Legitimate power users can be whitelisted on request.
+
+[ ] 7.2  Set up a support email / contact page for soft-cap inquiries
+         WHY:  When Pro users hit the 100/month cap, they are directed to
+               "contact support". Make sure that path actually works.
+         HOW:  Decide your support email (e.g. support@yourdomain.com) and
+               ensure it is reachable. Optionally add a Zendesk/Intercom link
+               to the 429 error message in the billing page.
+
+[ ] 7.3  Configure SUSPICIOUS_SESSION_THRESHOLD if needed
+         WHY:  Currently logs a WARNING when a user is active from 3+ IPs
+               simultaneously. No auto-block — admin-visible only.
+         HOW:  In utils/rate_limit.py:
+               SUSPICIOUS_SESSION_THRESHOLD = {
+                   "free": 2,
+                   "pro":  3,    ← 3+ concurrent IPs triggers warning log
+                   "team": 5,
+               }
+               Review admin/usage-monitor regularly after launch to catch patterns.
+
+[ ] 7.4  Configure Spark trial Stripe product (before enabling trial card)
+         WHY:  The Spark card only appears on the billing page when a Stripe
+               Price ID is configured. Until you set this up, the card is hidden.
+         HOW:  In Stripe Dashboard:
+               1. Products → Create Product → "Spark 7-Day Trial"
+               2. Add a one-time Price of $9.90 (NOT recurring)
+               3. Copy the price_1... ID
+               4. In Admin Panel → Trial Package Settings → paste the Price ID
+               5. Set mode to Live when ready
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 8 — 🟡 POST-LAUNCH MONITORING CHECKLIST (first 30 days)
+────────────────────────────────────────────────────────────────────────────────
+
+Do these after launch, on a regular schedule:
+
+[ ] 8.1  Weekly: review Admin → Usage Monitor for high-usage / suspicious users
+[ ] 8.2  Weekly: check FastAPI structured logs for ABUSE_FLAG warnings
+         docker compose logs fastapi | grep ABUSE_FLAG
+[ ] 8.3  Weekly: verify database backups are being created in /backups/
+         ls -lh /opt/aipresentation/backups/
+[ ] 8.4  Monthly: rotate AI provider API keys if any are approaching usage limits
+[ ] 8.5  Monthly: review Stripe failed payments list in Admin Panel
+[ ] 8.6  Monthly: check Sentry for new error patterns
+[ ] 8.7  Monthly: review UTM source breakdown in Admin → Growth Stats to
+         understand which marketing channels are converting
+
+
+================================================================================
+  PHASE 2 ROADMAP — POST-LAUNCH FEATURES
+  (Do not build before go-live — focus on SaaS stability first)
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 2A — DESKTOP APP (Installable Mac & Windows)
+────────────────────────────────────────────────────────────────────────────────
+
+  BACKGROUND:
+  The original Presenton codebase was a desktop app built with Electron,
+  packaging Next.js and FastAPI into a single downloadable installer (.dmg /
+  .exe). The SaaS modifications (Supabase Auth, PostgreSQL, Redis, Stripe,
+  multi-tenant data model) broke compatibility with the desktop build pipeline.
+  Phase 2A restores desktop capability as a separate "offline/personal" tier.
+
+  TARGET USERS:
+  - Users who want a private, fully offline installation (air-gapped)
+  - Users who prefer a native desktop experience
+  - Enterprise customers who cannot use cloud services
+
+  TECHNICAL APPROACH:
+  The desktop version will be a "lite" single-user build from the same codebase,
+  controlled by a BUILD_TARGET=electron environment variable. Key differences:
+
+  [ ] P2A-1  Strip multi-tenant auth for desktop build
+             - Replace Supabase Auth with a local session (no login required)
+             - Or offer optional single-user local account
+             - Controlled via BUILD_TARGET=electron flag in Next.js
+
+  [ ] P2A-2  Replace PostgreSQL with SQLite for desktop
+             - Use SQLite via SQLAlchemy sync driver (no Docker needed)
+             - All new models (BrandKit, SlideComment, PresentationVersion, etc.)
+               must be tested with SQLite dialect
+
+  [ ] P2A-3  Remove Redis / ARQ dependency for desktop
+             - Background tasks run synchronously or via Python threading
+             - No worker container needed
+
+  [ ] P2A-4  Remove Stripe billing for desktop
+             - Desktop version uses a one-time purchase or is free/open-source
+             - Remove all billing routes from desktop build
+
+  [ ] P2A-5  Bundle all services into Electron
+             - FastAPI compiled to single binary via PyInstaller (server.spec
+               already exists in /electron/servers/fastapi/server.spec but
+               needs updating for new models and dependencies)
+             - Next.js built with BUILD_TARGET=electron (static or server mode)
+             - Electron app starts both services on launch, stops on quit
+
+  [ ] P2A-6  Desktop sync with SaaS cloud (optional post-desktop)
+             - Allow desktop users to optionally connect a cloud account
+             - Two-way sync of presentations between local and cloud
+             - Conflict resolution strategy (last-write-wins or manual merge)
+             - This was the original "post-launch sync" feature discussed earlier
+
+  [ ] P2A-7  Code-sign and notarise macOS build (.dmg)
+             - Requires Apple Developer account ($99/yr)
+             - Use electron-builder with notarisation scripts
+
+  [ ] P2A-8  Windows installer code-signing (.exe)
+             - Requires an EV Code Signing Certificate
+             - Use electron-builder NSIS target
+
+  [ ] P2A-9  Auto-update mechanism for desktop app
+             - Use electron-updater (electron-builder built-in)
+             - Host update manifests on S3 or GitHub Releases
+
+  EFFORT ESTIMATE: 6–10 weeks (2 engineers)
+  DEPENDENCY: SaaS version must be stable and generating revenue first
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 2B — OTHER PLANNED FEATURES (from Gamma gap analysis)
+────────────────────────────────────────────────────────────────────────────────
+
+  [ ] P2B-1  Auto-apply brand kit at slide generation time
+             - Inject brand colors/fonts into the generation prompt context
+             - Apply brand logo to slide footer/header via template
+
+  [ ] P2B-2  PNG export (slides as images)
+             - Render each slide via headless Chromium → save as PNG
+             - Useful for social media posts, email headers
+
+  [ ] P2B-3  Inline rich text formatting toolbar
+             - Bold, italic, underline, bullet list directly on slide text
+             - Requires Tiptap or similar integration in the slide editor
+
+  [ ] P2B-4  Native chart element (bar, pie, line with data input)
+             - New slide layout type: "chart"
+             - User enters data, AI suggests chart type
+             - Renders via Recharts or Chart.js, exports to PPTX image
+
+  [ ] P2B-5  Generate presentation from URL
+             - User pastes a URL, backend scrapes content
+             - AI converts scraped content into slide outline
+             - Use Playwright or httpx + BeautifulSoup for scraping
+
+  [ ] P2B-6  Audience Q&A and live reactions on shared decks
+             - Viewers can submit questions or emoji reactions in real-time
+             - Presenter sees questions in their presenter panel
+             - Uses Supabase Realtime (already in stack)
+
+  [ ] P2B-7  Laser pointer in present mode
+             - CSS cursor overlay dot that follows mouse
+             - Toggle with keyboard shortcut (L key)
+
+  [ ] P2B-8  Watermark / logo on exported PPTX and PDF
+             - Apply brand kit logo to slide footer at export time
+             - Option to disable watermark for Pro/Team plans
+
+================================================================================
+SECTION 9 — MONOREPO & MARKETING SITE
+================================================================================
+
+[x] 9.1  Monorepo structure established
+         - /servers/fastapi     → FastAPI backend
+         - /servers/nextjs      → SaaS app (app.abc.com)
+         - /marketing/          → Marketing site (abc.com)  ← NEW
+         All share one docker-compose.yml and one .env
+
+[x] 9.2  Marketing site scaffolded (marketing/)
+         - Next.js 14, TypeScript, Tailwind CSS
+         - Pages: Home, Pricing, Blog, Privacy, Terms
+         - Sticky header + responsive mobile menu
+         - Professional footer with social links
+         - Production Dockerfile (standalone output)
+         - Builds and runs — confirmed 200 OK on localhost:3001
+
+[x] 9.3  docker-compose.yml updated
+         - Added `marketing` service (port 3001)
+         - Passes NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_APP_NAME, GA ID
+
+[x] 9.4  Caddyfile updated for two-domain routing
+         - {env.MAIN_DOMAIN}  → marketing:3001
+         - {env.APP_DOMAIN}   → nextjs:3000 + fastapi:8000
+
+[ ] 9.5  BEFORE GOING LIVE — update branding on marketing site
+         Files to update:
+           marketing/app/layout.tsx     → metadata description
+           marketing/app/page.tsx       → hero copy, feature text
+           marketing/app/pricing/page.tsx → plan prices (match Stripe)
+           marketing/components/Footer.tsx → social links, contact email
+           marketing/.env.local.example → NEXT_PUBLIC_APP_NAME, APP_URL
+
+[ ] 9.6  BEFORE GOING LIVE — set production environment variables
+         Add to server .env (see .env.production.example):
+           MAIN_DOMAIN=yourdomain.com
+           NEXT_PUBLIC_SITE_URL=https://yourdomain.com
+           NEXT_PUBLIC_APP_URL=https://app.yourdomain.com
+           NEXT_PUBLIC_APP_NAME=<your brand name>
+
+[ ] 9.7  BEFORE GOING LIVE — point DNS
+         - A record: yourdomain.com     → VPS IP
+         - A record: app.yourdomain.com → VPS IP
+         Caddy will auto-provision SSL for both via Let's Encrypt
+
+================================================================================

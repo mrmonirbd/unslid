@@ -1,0 +1,179 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-jp
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdevpass}
+      POSTGRES_DB: ${POSTGRES_DB:-aipresentation}
+    volumes:
+      - postgres_data_jp:/var/lib/postgresql/data
+    networks:
+      - app-jp-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-aipresentation}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis-jp
+    restart: unless-stopped
+    volumes:
+      - redis_data_jp:/data
+    networks:
+      - app-jp-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  fastapi:
+    build:
+      context: ./servers/fastapi
+      dockerfile: Dockerfile
+    container_name: fastapi-jp
+    restart: on-failure
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    ports:
+      - "8001:8000"
+    environment:
+      - APP_DATA_DIRECTORY=/app_data
+      - TEMP_DIRECTORY=/tmp/unslid
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-localdevpass}@postgres-jp:5432/${POSTGRES_DB:-aipresentation}
+      - SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - WASABI_ACCESS_KEY_ID=${WASABI_ACCESS_KEY_ID}
+      - WASABI_SECRET_ACCESS_KEY=${WASABI_SECRET_ACCESS_KEY}
+      - WASABI_ENDPOINT_URL=${WASABI_ENDPOINT_URL}
+      - WASABI_BUCKET_DEV=${WASABI_BUCKET_DEV}
+      - WASABI_BUCKET_US=${WASABI_BUCKET_US}
+      - WASABI_BUCKET_EU=${WASABI_BUCKET_EU}
+      - WASABI_BUCKET_AP_SE=${WASABI_BUCKET_AP_SE}
+      - WASABI_BUCKET_AP_NE=${WASABI_BUCKET_AP_NE}
+      - SECRET_KEY=${SECRET_KEY}
+      - LLM=${LLM}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - GOOGLE_MODEL=${GOOGLE_MODEL}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL}
+      - IMAGE_PROVIDER=${IMAGE_PROVIDER}
+      - REDIS_URL=redis://redis-jp:6379
+      - MIGRATE_DATABASE_ON_STARTUP=true
+      - CAN_CHANGE_KEYS=false
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - APP_DOMAIN=${APP_DOMAIN:-localhost}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - STRIPE_PRICE_PRO_MONTHLY=${STRIPE_PRICE_PRO_MONTHLY}
+      - STRIPE_PRICE_PRO_ANNUAL=${STRIPE_PRICE_PRO_ANNUAL}
+      - STRIPE_PRICE_TEAM_MONTHLY=${STRIPE_PRICE_TEAM_MONTHLY}
+      - STRIPE_PRICE_TEAM_ANNUAL=${STRIPE_PRICE_TEAM_ANNUAL}
+      - SENTRY_DSN=${SENTRY_DSN_FASTAPI}
+    volumes:
+      - app_data_jp:/app_data
+      - fastapi_chroma_jp:/app/chroma
+    networks:
+      - app-jp-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    build:
+      context: ./servers/fastapi
+      dockerfile: Dockerfile
+    container_name: worker-jp
+    restart: on-failure
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    command: ["python", "-m", "arq", "api.worker.WorkerSettings"]
+    environment:
+      - APP_DATA_DIRECTORY=/app_data
+      - TEMP_DIRECTORY=/tmp/unslid
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-localdevpass}@postgres-jp:5432/${POSTGRES_DB:-aipresentation}
+      - SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - WASABI_ACCESS_KEY_ID=${WASABI_ACCESS_KEY_ID}
+      - WASABI_SECRET_ACCESS_KEY=${WASABI_SECRET_ACCESS_KEY}
+      - WASABI_ENDPOINT_URL=${WASABI_ENDPOINT_URL}
+      - WASABI_BUCKET_DEV=${WASABI_BUCKET_DEV}
+      - WASABI_BUCKET_US=${WASABI_BUCKET_US}
+      - WASABI_BUCKET_EU=${WASABI_BUCKET_EU}
+      - WASABI_BUCKET_AP_SE=${WASABI_BUCKET_AP_SE}
+      - WASABI_BUCKET_AP_NE=${WASABI_BUCKET_AP_NE}
+      - SECRET_KEY=${SECRET_KEY}
+      - LLM=${LLM}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - GOOGLE_MODEL=${GOOGLE_MODEL}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL}
+      - IMAGE_PROVIDER=${IMAGE_PROVIDER}
+      - REDIS_URL=redis://redis-jp:6379
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - APP_DOMAIN=${APP_DOMAIN:-localhost}
+      - SENTRY_DSN=${SENTRY_DSN_FASTAPI}
+    volumes:
+      - app_data_jp:/app_data
+    networks:
+      - app-jp-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  nextjs:
+    build:
+      context: ./servers/nextjs
+      dockerfile: Dockerfile
+      target: dev
+    container_name: nextjs-jp
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8001}
+      - FASTAPI_INTERNAL_URL=http://fastapi-jp:8000
+      - SENTRY_DSN=${SENTRY_DSN_NEXTJS}
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - CAN_CHANGE_KEYS=false
+      - NEXT_PUBLIC_LEGAL_DOMAIN=${NEXT_PUBLIC_LEGAL_DOMAIN:-https://yourcompany.com}
+      - NEXT_PUBLIC_GA_MEASUREMENT_ID=${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+      - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
+      - TEMP_DIRECTORY=/tmp/unslid
+      - APP_DATA_DIRECTORY=/app_data
+    volumes:
+      - ./servers/nextjs:/app
+      - nextjs_nm_jp:/app/node_modules
+      - app_data_jp:/app_data
+    networks:
+      - app-jp-network
+    depends_on:
+      - fastapi
+
+
+volumes:
+  app_data_jp:
+  redis_data_jp:
+  postgres_data_jp:
+  nextjs_nm_jp:
+  fastapi_chroma_jp:
+
+networks:
+  app-jp-network:
+    driver: bridge

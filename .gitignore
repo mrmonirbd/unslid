@@ -1,0 +1,69 @@
+# ============================================================
+#  Root .gitignore — applies to app/, app-jp/, and marketing/
+# ============================================================
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+# Secrets — never commit real env files
+.env
+.env.local
+.env.production
+.env.production.local
+.env.development.local
+.env.test.local
+
+# Node
+node_modules/
+.next/
+.next-build/
+dist/
+build/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Electron build artifacts — compiled binaries, never commit
+electron/servers/fastapi/build/
+electron/resources/export/
+app/electron/servers/fastapi/build/
+app/electron/resources/export/
+app-jp/electron/servers/fastapi/build/
+app-jp/electron/resources/export/
+app-jp/app/electron/servers/fastapi/build/
+**/electron/servers/fastapi/build/
+**/electron/resources/export/
+
+# Next.js webpack cache
+**/.next-build/
+
+# Docker volumes / runtime data
+app_data/
+backups/
+chroma/
+
+# Logs
+*.log
+logs/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Cursor
+.cursor/
+
+# Demo / test accounts (contains real credentials)
+demo_accounts.txt

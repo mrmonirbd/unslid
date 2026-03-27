@@ -1,0 +1,247 @@
+================================================================================
+  AI MODEL PROVIDER REFERENCE — AiPresentation SaaS
+  Use this as a reference when configuring AI models in the Admin panel.
+  Admin panel: http://localhost:3000/admin → AI Model Configuration section
+================================================================================
+
+HOW TO USE:
+  1. Log in as admin@aipresentation.dev
+  2. Go to http://localhost:3000/admin
+  3. Scroll to "AI Model Configuration"
+  4. For each plan (Free / Pro / Team), set the Provider, Model, API Key
+  5. For providers marked [OpenAI-compatible], select "Custom (OpenAI-compatible)"
+     and fill in the Base URL + Model fields
+
+================================================================================
+  NATIVE PROVIDERS (select from dropdown)
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+1. OPENAI
+   Provider setting : openai
+   Base URL         : (leave blank — built in)
+   API Key from     : https://platform.openai.com/api-keys
+   Models:
+     gpt-4.1-mini              ← recommended for Free plan (cheap, fast)
+     gpt-4.1                   ← recommended for Pro/Team plan (high quality)
+     gpt-4o                    ← multimodal, strong reasoning
+     gpt-4o-mini               ← fast and cheap multimodal
+     o1                        ← advanced reasoning (slow, expensive)
+     o1-mini                   ← reasoning, more affordable
+     o3-mini                   ← latest reasoning model
+     gpt-3.5-turbo             ← legacy, cheapest option
+
+────────────────────────────────────────────────────────────────────────────────
+2. GOOGLE GEMINI
+   Provider setting : google
+   Base URL         : (leave blank — built in)
+   API Key from     : https://aistudio.google.com/app/apikey
+   Models:
+     models/gemini-2.5-flash   ← recommended for Free plan (fast, cheap)
+     models/gemini-2.5-pro     ← recommended for Pro/Team (best quality)
+     models/gemini-2.0-flash   ← fast, low latency
+     models/gemini-2.0-flash-lite ← cheapest Gemini option
+     models/gemini-1.5-pro     ← strong long-context model
+     models/gemini-1.5-flash   ← fast and affordable
+
+────────────────────────────────────────────────────────────────────────────────
+3. ANTHROPIC (Claude)
+   Provider setting : anthropic
+   Base URL         : (leave blank — built in)
+   API Key from     : https://console.anthropic.com/settings/keys
+   Models:
+     claude-3-5-haiku-20241022      ← recommended for Free plan (fastest, cheapest)
+     claude-3-5-sonnet-20241022     ← balanced quality and cost
+     claude-sonnet-4-20250514       ← recommended for Pro plan
+     claude-opus-4-20250514         ← best quality, most expensive
+
+────────────────────────────────────────────────────────────────────────────────
+4. OLLAMA (Self-hosted, local)
+   Provider setting : ollama
+   Base URL         : http://host.docker.internal:11434
+                      (use this inside Docker to reach host machine)
+   API Key          : (leave blank — not needed for local Ollama)
+   Models (install with: ollama pull MODEL_NAME):
+     llama3.2                  ← Meta's latest small model
+     llama3.1:70b              ← larger, better quality
+     mistral                   ← good general purpose
+     mistral-nemo              ← Mistral's efficient model
+     gemma3                    ← Google's open model
+     gemma3:27b                ← larger Gemma
+     qwen2.5                   ← Alibaba's model
+     qwen2.5:72b               ← larger Qwen
+     deepseek-r1               ← reasoning model
+     phi4                      ← Microsoft's small efficient model
+     codellama                 ← code-focused model
+
+================================================================================
+  OPENAI-COMPATIBLE PROVIDERS (select "Custom (OpenAI-compatible)")
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+5. KIMI (Moonshot AI)
+   Provider setting : Custom (OpenAI-compatible)
+   Base URL         : https://api.moonshot.cn/v1
+   API Key from     : https://platform.moonshot.cn/console/api-keys
+   Models:
+     moonshot-v1-8k            ← short context, cheapest
+     moonshot-v1-32k           ← medium context
+     moonshot-v1-128k          ← long context (recommended)
+
+────────────────────────────────────────────────────────────────────────────────
+6. DEEPSEEK
+   Provider setting : Custom (OpenAI-compatible)
+   Base URL         : https://api.deepseek.com/v1
+   API Key from     : https://platform.deepseek.com/api_keys
+   Models:
+     deepseek-chat             ← general purpose (DeepSeek V3)
+     deepseek-reasoner         ← reasoning model (DeepSeek R1)
+
+────────────────────────────────────────────────────────────────────────────────
+7. GROQ (Ultra-fast inference)
+   Provider setting : Custom (OpenAI-compatible)
+   Base URL         : https://api.groq.com/openai/v1
+   API Key from     : https://console.groq.com/keys
+   Models:
+     llama-3.3-70b-versatile   ← recommended (best quality on Groq)
+     llama-3.1-8b-instant      ← fastest, cheapest
+     mixtral-8x7b-32768        ← good quality, long context
+     gemma2-9b-it              ← Google Gemma via Groq
+
+────────────────────────────────────────────────────────────────────────────────
+8. MISTRAL AI
+   Provider setting : Custom (OpenAI-compatible)
+   Base URL         : https://api.mistral.ai/v1
+   API Key from     : https://console.mistral.ai/api-keys
+   Models:
+     mistral-small-latest      ← cheapest
+     mistral-medium-latest     ← balanced
+     mistral-large-latest      ← best quality
+     codestral-latest          ← code-focused
+     open-mistral-nemo         ← open source, affordable
+
+────────────────────────────────────────────────────────────────────────────────
+9. xAI (Grok by Elon Musk / X)
+   Provider setting : Custom (OpenAI-compatible)
+   Base URL         : https://api.x.ai/v1
+   API Key from     : https://console.x.ai
+   Models:
+     grok-3                    ← best quality
+     grok-3-mini               ← faster, cheaper
+     grok-2                    ← previous generation
+
+────────────────────────────────────────────────────────────────────────────────
+10. TOGETHER AI
+    Provider setting : Custom (OpenAI-compatible)
+    Base URL         : https://api.together.xyz/v1
+    API Key from     : https://api.together.ai/settings/api-keys
+    Models:
+      meta-llama/Llama-3.3-70B-Instruct-Turbo   ← recommended
+      meta-llama/Llama-3.1-8B-Instruct-Turbo    ← cheapest
+      mistralai/Mixtral-8x7B-Instruct-v0.1
+      Qwen/Qwen2.5-72B-Instruct-Turbo
+      deepseek-ai/DeepSeek-R1                   ← reasoning
+
+────────────────────────────────────────────────────────────────────────────────
+11. OPENROUTER (Access 100+ models via one API)
+    Provider setting : Custom (OpenAI-compatible)
+    Base URL         : https://openrouter.ai/api/v1
+    API Key from     : https://openrouter.ai/settings/keys
+    Models (prefix with provider/):
+      openai/gpt-4o
+      openai/gpt-4.1-mini
+      anthropic/claude-3.5-sonnet
+      google/gemini-2.5-flash
+      meta-llama/llama-3.3-70b-instruct
+      deepseek/deepseek-chat
+      x-ai/grok-3-mini
+      mistralai/mistral-large
+    Note: OpenRouter gives access to ALL providers via a single API key —
+          great for testing different models without multiple subscriptions.
+
+────────────────────────────────────────────────────────────────────────────────
+12. PERPLEXITY AI
+    Provider setting : Custom (OpenAI-compatible)
+    Base URL         : https://api.perplexity.ai
+    API Key from     : https://www.perplexity.ai/settings/api
+    Models:
+      sonar                     ← online search-enabled, cheapest
+      sonar-pro                 ← online search, better quality
+      sonar-reasoning           ← reasoning + search
+
+────────────────────────────────────────────────────────────────────────────────
+13. COHERE
+    Provider setting : Custom (OpenAI-compatible)
+    Base URL         : https://api.cohere.com/compatibility/v1
+    API Key from     : https://dashboard.cohere.com/api-keys
+    Models:
+      command-r                 ← fast and affordable
+      command-r-plus            ← best quality
+
+────────────────────────────────────────────────────────────────────────────────
+14. AZURE OPENAI
+    Provider setting : Custom (OpenAI-compatible)
+    Base URL         : https://YOUR-RESOURCE-NAME.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT-NAME
+    API Key from     : Azure Portal → Azure OpenAI → Keys and Endpoint
+    Models (use your deployment name, not the model name):
+      gpt-4o                    ← set this to match your Azure deployment name
+      gpt-4-turbo
+    Note: Replace YOUR-RESOURCE-NAME and YOUR-DEPLOYMENT-NAME in the Base URL.
+
+────────────────────────────────────────────────────────────────────────────────
+15. NVIDIA NIM
+    Provider setting : Custom (OpenAI-compatible)
+    Base URL         : https://integrate.api.nvidia.com/v1
+    API Key from     : https://build.nvidia.com
+    Models:
+      nvidia/llama-3.1-nemotron-70b-instruct
+      meta/llama-3.3-70b-instruct
+      mistralai/mistral-large-2-instruct
+
+────────────────────────────────────────────────────────────────────────────────
+16. COMFYUI (Self-hosted, IMAGE generation only)
+    Provider setting : ComfyUI (self-hosted)  [image provider]
+    Base URL         : http://host.docker.internal:8188
+    API Key          : (leave blank)
+    Use for          : Image generation only (not LLM)
+
+================================================================================
+  RECOMMENDED SETUP BY PLAN
+================================================================================
+
+  FREE PLAN:
+    LLM Provider : Google Gemini
+    LLM Model    : models/gemini-2.5-flash
+    Image        : Pexels (free stock photos — no cost)
+    Reason       : Gemini has a generous free tier; Pexels is completely free.
+
+  PRO PLAN:
+    LLM Provider : OpenAI
+    LLM Model    : gpt-4.1
+    Image        : Pexels or DALL·E 3
+    Reason       : Best quality for paying customers.
+
+  TEAM PLAN:
+    LLM Provider : OpenAI
+    LLM Model    : gpt-4o
+    Image        : DALL·E 3 or Gemini Flash
+    Reason       : Premium experience for team subscribers.
+
+================================================================================
+  COST COMPARISON (approximate, per 1M tokens as of 2026)
+================================================================================
+
+  Provider / Model                  Input       Output
+  ─────────────────────────────────────────────────────
+  OpenAI gpt-4.1-mini               $0.40       $1.60
+  OpenAI gpt-4.1                    $2.00       $8.00
+  OpenAI gpt-4o                     $2.50      $10.00
+  Google gemini-2.5-flash           $0.15       $0.60
+  Google gemini-2.5-pro             $1.25       $10.00
+  Anthropic claude-3.5-haiku        $0.80       $4.00
+  Anthropic claude-3.5-sonnet       $3.00      $15.00
+  DeepSeek deepseek-chat            $0.07       $1.10
+  Groq llama-3.3-70b (fast)         $0.59       $0.79
+  Kimi moonshot-v1-128k             $0.80       $2.40
+
+================================================================================
