@@ -41,7 +41,7 @@ export default function LoginPage() {
     <div className="bg-slate-800/50 backdrop-blur border border-slate-700/50 rounded-2xl p-8 shadow-2xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white mb-1">Welcome back</h1>
-        <p className="text-slate-400 text-sm">Sign in to your account</p>
+        <p className="text-slate-400 text-sm">Sign in to your account </p>
       </div>
 
       {error && (
