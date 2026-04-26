@@ -45,7 +45,7 @@ services:
     environment:
       - APP_DATA_DIRECTORY=/app_data
       - TEMP_DIRECTORY=/tmp/presenton
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-localdevpass}@postgres:5432/${POSTGRES_DB:-aipresentation}
+      - DATABASE_URL=${DATABASE_URL}
       - SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
@@ -99,7 +99,7 @@ services:
     environment:
       - APP_DATA_DIRECTORY=/app_data
       - TEMP_DIRECTORY=/tmp/presenton
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-localdevpass}@postgres:5432/${POSTGRES_DB:-aipresentation}
+      - DATABASE_URL=${DATABASE_URL}
       - SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
