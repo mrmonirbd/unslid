@@ -75,8 +75,12 @@ services:
       - STRIPE_PRICE_TEAM_MONTHLY=${STRIPE_PRICE_TEAM_MONTHLY}
       - STRIPE_PRICE_TEAM_ANNUAL=${STRIPE_PRICE_TEAM_ANNUAL}
       - SENTRY_DSN=${SENTRY_DSN_FASTAPI}
+      - LLM=openai
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LLM_PROVIDER=openai
     volumes:
       - app_data:/app_data
+      - /run/user/1000/ollama/ollama.sock:/tmp/ollama.sock
       - fastapi_chroma:/app/chroma   # cache Chroma ONNX model (~79 MB) across restarts
     networks:
       - app-network
@@ -179,3 +183,4 @@ volumes:
 networks:
   app-network:
     driver: bridge
+
