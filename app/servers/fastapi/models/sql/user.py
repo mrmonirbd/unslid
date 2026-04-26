@@ -35,8 +35,10 @@ class UserModel(SQLModel, table=True):
     utm_source: Optional[str] = Field(default=None)    # e.g. google, linkedin, newsletter
     utm_medium: Optional[str] = Field(default=None)    # e.g. cpc, email, organic
     utm_campaign: Optional[str] = Field(default=None)  # e.g. summer_promo, brand
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     @classmethod
     async def get_by_supabase_id(
