@@ -558,6 +558,7 @@ async def export_presentation_as_pptx(
     await pptx_creator.create_ppt()
 
     safe_name = sanitize_filename(pptx_model.name or str(uuid.uuid4()))
+    safe_name = safe_name[:200]
     pptx_path = os.path.join(temp_dir, f"{safe_name}.pptx")
     pptx_creator.save(pptx_path)
 
