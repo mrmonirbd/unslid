@@ -198,6 +198,7 @@ const UploadPage = () => {
     });
     // Free plan slot limit (HTTP 429) — show a dedicated dialog instead of a raw toast
     if ((error as any)?.status === 429) {
+      console.log('here');
       setShowFreeLimitDialog(true);
       return;
     }
