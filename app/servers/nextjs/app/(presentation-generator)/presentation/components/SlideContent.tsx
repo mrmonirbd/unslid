@@ -310,7 +310,7 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
           {showNewSlideSelection && (
             <NewSlide
               index={index}
-              templateID={`${slide.layout.split(":")[0]}`}
+              templateID={slide.layout.includes(":") ? slide.layout.split(":")[0] : slide.layout_group}
               setShowNewSlideSelection={setShowNewSlideSelection}
               presentationId={presentationId}
             />

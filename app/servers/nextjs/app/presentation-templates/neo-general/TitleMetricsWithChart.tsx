@@ -103,13 +103,24 @@ export const Schema = z.object({
 
 type SlideData = z.infer<typeof Schema>;
 
+const DEFAULT_CHART: SlideData["chart"] = {
+    title: 'Revenue vs Spend',
+    type: 'line',
+    categories: ['Jan', 'Feb', 'Mar'],
+    series: [
+        { name: 'Revenue', color: '#8910FA', values: [520, 660, 985] },
+        { name: 'Spend', color: '#457EE5', values: [140, 245, 400] },
+    ],
+    colorPalette: 'vibrant',
+};
+
 export const layoutId = 'title-metrics-with-chart';
 export const layoutName = 'Chart With Sidebar Metrics';
 export const layoutDescription = 'A two-column layout featuring a bold title, a large chart container on the left, and up to 6 vertical metrics on the right sidebar. Supports line, bar, grouped, stacked, clustered, diverging, area, pie, and donut charts.';
 
 const buildChartData = (
-    categories: string[],
-    series: any[]
+    categories: string[] = [],
+    series: any[] = []
 ) => categories.map((category, index) => {
     const entry: Record<string, string | number> = { name: category };
     series.forEach((serie) => {
@@ -118,7 +129,7 @@ const buildChartData = (
     return entry;
 });
 
-const buildSimpleData = (categories: string[], series: any[]) => {
+const buildSimpleData = (categories: string[] = [], series: any[] = []) => {
     if (series.length === 0) return [];
     return categories.map((name, index) => ({
         name,
@@ -132,6 +143,29 @@ const transformDivergingData = (data: any[]) => {
         positive: item.positive,
         negative: -Math.abs(item.negative),
     }));
+};
+
+const normalizeChart = (chart?: Partial<SlideData["chart"]>) => {
+    const categories = Array.isArray(chart?.categories) && chart.categories.length > 0
+        ? chart.categories
+        : DEFAULT_CHART.categories;
+    const series = Array.isArray(chart?.series) && chart.series.length > 0
+        ? chart.series.map((serie, index) => ({
+            name: serie?.name || `Series ${index + 1}`,
+            color: serie?.color,
+            values: Array.isArray(serie?.values) && serie.values.length > 0
+                ? serie.values
+                : categories.map(() => 0),
+        }))
+        : DEFAULT_CHART.series;
+
+    return {
+        ...DEFAULT_CHART,
+        ...chart,
+        categories,
+        series,
+        type: chart?.type || DEFAULT_CHART.type,
+    };
 };
 
 // Custom tooltip
@@ -156,10 +190,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return null;
 };
 
-const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], type: string, divergingData?: any[], divergingLabels?: [string, string] } }> = ({ chart }) => {
+const ChartRenderer: React.FC<{ chart?: Partial<SlideData["chart"]> }> = ({ chart }) => {
+    const chartConfig = normalizeChart(chart);
 
-    const data = buildChartData(chart.categories, chart.series);
-    const simpleData = buildSimpleData(chart.categories, chart.series);
+    const data = buildChartData(chartConfig.categories, chartConfig.series);
+    const simpleData = buildSimpleData(chartConfig.categories, chartConfig.series);
 
     const formatComma = (value: number) => {
         return value.toLocaleString('en-US');
@@ -181,7 +216,7 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
         return `var(--graph-${index}, ${fallback})`;
     };
 
-    switch (chart.type) {
+    switch (chartConfig.type) {
         case 'line':
             return (
                 <ResponsiveContainer width="100%" height={400}>
@@ -190,7 +225,7 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
                         <XAxis dataKey="name" {...axisProps} tickFormatter={formatComma} />
                         <YAxis {...axisProps} tickFormatter={formatComma} />
                         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                        {chart.series.map((serie, index) => (
+                        {chartConfig.series.map((serie, index) => (
                             <Line
                                 key={serie.name}
                                 type="monotone"
@@ -214,7 +249,7 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
                         <XAxis dataKey="name" {...axisProps} tickFormatter={formatComma} />
                         <YAxis {...axisProps} tickFormatter={formatComma} />
                         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                        {chart.series.map((serie, index) => (
+                        {chartConfig.series.map((serie, index) => (
                             <Bar
                                 key={serie.name}
                                 dataKey={serie.name}
@@ -237,7 +272,7 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
                         <XAxis type="number" {...axisProps} tickFormatter={formatComma} />
                         <YAxis type="category" dataKey="name" {...axisProps} tickFormatter={formatComma} />
                         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                        {chart.series.map((serie, index) => (
+                        {chartConfig.series.map((serie, index) => (
                             <Bar
                                 key={serie.name}
                                 dataKey={serie.name}
@@ -260,7 +295,7 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
                         <YAxis {...axisProps} tickFormatter={formatComma} />
                         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
                         <Legend />
-                        {chart.series.map((serie, index) => (
+                        {chartConfig.series.map((serie, index) => (
                             <Bar
                                 key={serie.name}
                                 dataKey={serie.name}
@@ -281,7 +316,7 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
                         <YAxis type="category" dataKey="name" {...axisProps} width={80} tickFormatter={formatComma} />
                         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
                         <Legend />
-                        {chart.series.map((serie, index) => (
+                        {chartConfig.series.map((serie, index) => (
                             <Bar
                                 key={serie.name}
                                 dataKey={serie.name}
@@ -302,13 +337,13 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
                         <YAxis {...axisProps} tickFormatter={formatComma} />
                         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
                         <Legend />
-                        {chart.series.map((serie, index) => (
+                        {chartConfig.series.map((serie, index) => (
                             <Bar
                                 key={serie.name}
                                 dataKey={serie.name}
                                 stackId="stack"
                                 fill={graphColors(index, serie.color)}
-                                radius={index === chart.series.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                                radius={index === chartConfig.series.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
                             />
                         ))}
                     </BarChart>
@@ -324,13 +359,13 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
                         <YAxis type="category" dataKey="name" {...axisProps} width={80} tickFormatter={formatComma} />
                         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
                         <Legend />
-                        {chart.series.map((serie, index) => (
+                        {chartConfig.series.map((serie, index) => (
                             <Bar
                                 key={serie.name}
                                 dataKey={serie.name}
                                 stackId="stack"
                                 fill={graphColors(index, serie.color)}
-                                radius={index === chart.series.length - 1 ? [0, 4, 4, 0] : [0, 0, 0, 0]}
+                                radius={index === chartConfig.series.length - 1 ? [0, 4, 4, 0] : [0, 0, 0, 0]}
                             />
                         ))}
                     </BarChart>
@@ -346,13 +381,13 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
                         <YAxis {...axisProps} tickFormatter={formatComma} />
                         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
                         <Legend />
-                        {chart.series.map((serie, index) => (
+                        {chartConfig.series.map((serie, index) => (
                             <Bar
                                 key={serie.name}
                                 dataKey={serie.name}
                                 fill={graphColors(index, serie.color)}
                                 radius={[4, 4, 0, 0]}
-                                barSize={Math.max(20, 60 / chart.series.length)}
+                                barSize={Math.max(20, 60 / chartConfig.series.length)}
                             />
                         ))}
                     </BarChart>
@@ -360,13 +395,13 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
             );
 
         case 'bar-diverging': {
-            const divergingData = chart.divergingData ? transformDivergingData(chart.divergingData) :
-                chart.series.length >= 2 ? chart.categories.map((name, index) => ({
+            const divergingData = chartConfig.divergingData ? transformDivergingData(chartConfig.divergingData) :
+                chartConfig.series.length >= 2 ? chartConfig.categories.map((name, index) => ({
                     name,
-                    positive: chart.series[0].values[index] ?? 0,
-                    negative: -(chart.series[1].values[index] ?? 0),
+                    positive: chartConfig.series[0].values[index] ?? 0,
+                    negative: -(chartConfig.series[1].values[index] ?? 0),
                 })) : [];
-            const labels = chart.divergingLabels || [chart.series[0]?.name || 'Positive', chart.series[1]?.name || 'Negative'];
+            const labels = chartConfig.divergingLabels || [chartConfig.series[0]?.name || 'Positive', chartConfig.series[1]?.name || 'Negative'];
 
             return (
                 <ResponsiveContainer width="100%" height={400}>
@@ -405,14 +440,14 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
                         <YAxis {...axisProps} tickFormatter={formatComma} />
                         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
                         <defs>
-                            {chart.series.map((serie, index) => (
+                            {chartConfig.series.map((serie, index) => (
                                 <linearGradient key={serie.name} id={`metrics-gradient-${serie.name}`} x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor={graphColors(index, serie.color)} stopOpacity={0.4} />
                                     <stop offset="95%" stopColor={graphColors(index, serie.color)} stopOpacity={0.05} />
                                 </linearGradient>
                             ))}
                         </defs>
-                        {chart.series.map((serie, index) => (
+                        {chartConfig.series.map((serie, index) => (
                             <Area
                                 key={serie.name}
                                 type="monotone"
@@ -435,7 +470,7 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
                         <YAxis {...axisProps} tickFormatter={formatComma} />
                         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
                         <Legend />
-                        {chart.series.map((serie, index) => (
+                        {chartConfig.series.map((serie, index) => (
                             <Area
                                 key={serie.name}
                                 type="monotone"
@@ -452,9 +487,9 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
 
         case 'pie': {
             const pieData = simpleData.length > 0 ? simpleData :
-                chart.categories.map((name, index) => ({
+                chartConfig.categories.map((name, index) => ({
                     name,
-                    value: chart.series.reduce((sum, s) => sum + (s.values[index] || 0), 0),
+                    value: chartConfig.series.reduce((sum, s) => sum + (s.values[index] || 0), 0),
                 }));
             return (
                 <ResponsiveContainer width="100%" height={400}>
@@ -480,9 +515,9 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
 
         case 'donut': {
             const donutData = simpleData.length > 0 ? simpleData :
-                chart.categories.map((name, index) => ({
+                chartConfig.categories.map((name, index) => ({
                     name,
-                    value: chart.series.reduce((sum, s) => sum + (s.values[index] || 0), 0),
+                    value: chartConfig.series.reduce((sum, s) => sum + (s.values[index] || 0), 0),
                 }));
             return (
                 <ResponsiveContainer width="100%" height={400}>
@@ -511,7 +546,7 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
         default:
             return (
                 <div className="flex items-center justify-center h-[400px] text-gray-500">
-                    Unsupported chart type: {chart.type}
+                    Unsupported chart type: {chartConfig.type}
                 </div>
             );
     }
@@ -519,6 +554,7 @@ const ChartRenderer: React.FC<{ chart: { categories: string[]; series: any[], ty
 
 const dynamicSlideLayout: React.FC<{ data: Partial<SlideData> }> = ({ data }) => {
     const { title, description, chart, metrics } = data;
+    const chartConfig = normalizeChart(chart);
 
 
     return (
@@ -567,8 +603,8 @@ const dynamicSlideLayout: React.FC<{ data: Partial<SlideData> }> = ({ data }) =>
                 {/* Graph Section */}
                 <div className=" flex justify-between items-center gap-6 w-full">
                     <div className=" flex-1 border  rounded-xl p-4 shadow-sm" style={{ backgroundColor: 'var(--card-color,#F0F0F2)', borderColor: 'var(--stroke,#F0F0F2)' }}>
-                        <ChartLegend series={chart?.series ?? []} colors={DEFAULT_CHART_COLORS} />
-                        <ChartRenderer chart={chart ?? { categories: [], series: [], type: 'bar' }} />
+                        <ChartLegend series={chartConfig.series} colors={DEFAULT_CHART_COLORS} />
+                        <ChartRenderer chart={chartConfig} />
                     </div>
                     <div className="  flex-1 flex flex-wrap items-center  justify-start gap-x-8 gap-y-12 pl-4">
                         {metrics?.map((metric, index) => (

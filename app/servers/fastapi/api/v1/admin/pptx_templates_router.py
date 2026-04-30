@@ -211,7 +211,11 @@ def _extract_font_size(shape: ET.Element) -> Optional[float]:
     return max(6, min(72, round((sum(sizes) / len(sizes)) / 100, 1)))
 
 
-def _extract_selectable_slides(abs_path: Path, thumbnail_urls: list[str]) -> list[dict]:
+def _extract_selectable_slides(
+    abs_path: Path,
+    thumbnail_urls: list[str],
+    background_thumbnail_urls: list[str] | None = None,
+) -> list[dict]:
     slides: list[dict] = []
     with zipfile.ZipFile(abs_path) as z:
         slide_width, slide_height = _pptx_slide_size(z)
@@ -238,11 +242,23 @@ def _extract_selectable_slides(abs_path: Path, thumbnail_urls: list[str]) -> lis
                     "text": text,
                     "font_size_pt": _extract_font_size(shape),
                 })
+            image_boxes = []
+            for image in root.findall(f".//{PML}pic"):
+                box = _extract_shape_box(image, slide_width, slide_height)
+                if not box:
+                    continue
+                image_boxes.append(box)
 
             slides.append({
                 "slide_number": index + 1,
                 "thumbnail_url": thumbnail_urls[index] if index < len(thumbnail_urls) else None,
+                "background_thumbnail_url": (
+                    background_thumbnail_urls[index]
+                    if background_thumbnail_urls and index < len(background_thumbnail_urls)
+                    else thumbnail_urls[index] if index < len(thumbnail_urls) else None
+                ),
                 "text_boxes": text_boxes,
+                "image_boxes": image_boxes,
             })
     return slides
 
@@ -563,9 +579,12 @@ async def get_selectable_pptx_template_preview(
 
     await _repair_incomplete_thumbnails(row, session)
     thumbnail_urls = _row_to_dict(row)["thumbnail_urls"]
+    textless_rel_paths = await svc.generate_textless_thumbnails(str(abs_path), str(template_id))
+    base_url = "/api/v1/pptx-template-thumbs"
+    background_thumbnail_urls = [f"{base_url}/{p}" for p in textless_rel_paths]
 
     try:
-        slides = _extract_selectable_slides(abs_path, thumbnail_urls)
+        slides = _extract_selectable_slides(abs_path, thumbnail_urls, background_thumbnail_urls)
     except Exception as exc:
         logger.exception("Failed to extract selectable preview for template id=%s", template_id)
         raise HTTPException(status_code=500, detail="Failed to extract selectable template preview") from exc

@@ -54,6 +54,7 @@ from api.v1.admin.pptx_templates_router import (
     PUBLIC_PPTX_TEMPLATES_ROUTER,
     THUMB_ROUTER,
 )
+from utils.get_env import get_app_data_directory_env
 from api.v1.dev.email_preview import EMAIL_PREVIEW_ROUTER
 from fastapi.staticfiles import StaticFiles
 import pathlib
@@ -138,6 +139,11 @@ app.include_router(ADMIN_ROUTER, prefix="/api/v1")
 app.include_router(PPTX_TEMPLATES_ROUTER)
 app.include_router(PUBLIC_PPTX_TEMPLATES_ROUTER)
 app.include_router(THUMB_ROUTER)
+
+# Serve generated images and other app_data assets used by the Next.js rewrite.
+_app_data_dir = pathlib.Path(get_app_data_directory_env())
+_app_data_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/app_data", StaticFiles(directory=str(_app_data_dir)), name="app-data")
 
 # Brand logo static files
 _logo_dir = pathlib.Path("/app_data/brand_logos")

@@ -8,8 +8,10 @@ import { validate as uuidValidate } from 'uuid';
 import { getLayoutByLayoutId } from "@/app/presentation-templates";
 import { useCustomTemplateDetails } from "@/app/hooks/useCustomTemplates";
 import { updateSlideContent } from "@/store/slices/presentationGeneration";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Loader2 } from "lucide-react";
+import { RootState } from "@/store/store";
+import DesignerTemplateSlideRender from "./DesignerTemplateSlideRender";
 
 /** Extract YouTube/Loom/Vimeo embed URL from a user-pasted URL */
 function getEmbedSrc(url: string): string | null {
@@ -47,8 +49,10 @@ const EmbedOverlay = ({ embed }: { embed: { url: string; type: string } }) => {
 
 export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEditMode: boolean, theme?: any, enableEditMode?: boolean }) => {
     const dispatch = useDispatch();
+    const pptxTemplateId = useSelector(
+        (state: RootState) => state.presentationGeneration.presentationData?.pptx_template_id
+    );
     const containerRef = useRef<HTMLDivElement | null>(null);
-
 
     const customTemplateId = slide.layout_group.startsWith("custom-") ? slide.layout_group.split("custom-")[1] : slide.layout_group;
     const isCustomTemplate = uuidValidate(customTemplateId) || slide.layout_group.startsWith("custom-");
@@ -67,7 +71,7 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
     const Layout = useMemo(() => {
         if (isCustomTemplate) {
             if (customTemplate) {
-                const layoutId = slide.layout.startsWith("custom-") ? slide.layout.split(":")[1] : slide.layout;
+                const layoutId = slide.layout.startsWith("custom-") ? slide.layout.split(":").pop() : slide.layout;
 
 
                 const compiledLayout = customTemplate.layouts.find(
@@ -83,6 +87,16 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
             return template?.component ?? null;
         }
     }, [isCustomTemplate, customTemplate, slide.layout]);
+
+    if (pptxTemplateId) {
+        return (
+            <DesignerTemplateSlideRender
+                templateId={pptxTemplateId}
+                slideIndex={slide.index ?? 0}
+                slideContent={slide.content}
+            />
+        );
+    }
 
     // Show loading state for custom templates
     if (isCustomTemplate && customLoading) {
@@ -175,4 +189,3 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
         </div>
     )
 };
-

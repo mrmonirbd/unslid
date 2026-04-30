@@ -2,6 +2,9 @@ from enums.image_provider import ImageProvider
 from utils.get_env import (
     get_disable_image_generation_env,
     get_image_provider_env,
+    get_openai_api_key_env,
+    get_google_api_key_env,
+    get_pexels_api_key_env,
 )
 from utils.parsers import parse_bool_or_none
 from utils.plan_context import get_plan_config_value
@@ -51,4 +54,10 @@ def get_selected_image_provider() -> ImageProvider | None:
             return ImageProvider(image_provider_env)
         except ValueError:
             return None
+    if get_openai_api_key_env():
+        return ImageProvider.GPT_IMAGE_1_5
+    if get_google_api_key_env():
+        return ImageProvider.GEMINI_FLASH
+    if get_pexels_api_key_env():
+        return ImageProvider.PEXELS
     return None

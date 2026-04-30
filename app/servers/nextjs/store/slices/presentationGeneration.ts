@@ -14,6 +14,7 @@ export interface PresentationData {
   title: string;
   slides: any;
   theme: Theme | null;
+  pptx_template_id?: number | null;
 }
 
 interface PresentationGenerationState {
