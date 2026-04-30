@@ -67,7 +67,7 @@ const BuiltinThumbGrid = React.memo(function BuiltinThumbGrid({
             className="relative bg-gray-100 border border-gray-200 overflow-hidden rounded"
             style={{ aspectRatio: "16/9" }}
           >
-            <div className="absolute inset-0 z-10" />
+            <div className="absolute inset-0 z-10 pointer-events-none" />
             <div
               className="transform origin-top-left"
               style={{ transform: "scale(0.12)", width: "833.33%", height: "833.33%" }}

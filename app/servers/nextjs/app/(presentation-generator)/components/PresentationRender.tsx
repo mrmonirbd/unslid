@@ -52,18 +52,12 @@ const SlideScale = ({ slide }: { slide: any }) => {
             >
 
                 <div
-                    className="relative w-full h-full  select-none"
+                    className="relative w-full h-full"
                     data-testid="slide-content"
-                    style={{
-                        userSelect: "none",
-                        WebkitUserSelect: "none",
-                        MozUserSelect: "none",
-                        msUserSelect: "none",
-                    } as React.CSSProperties}
                 >
 
                     <div
-                        className="absolute inset-0 bg-transparent z-30 w-full h-full  select-none"
+                        className="absolute inset-0 bg-transparent z-30 w-full h-full pointer-events-none"
                         aria-hidden="true"
 
                     />

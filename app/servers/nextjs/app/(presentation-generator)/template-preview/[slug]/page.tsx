@@ -26,6 +26,28 @@ interface PptxDesignerTemplate {
   locked?: boolean;
 }
 
+interface SelectableTextBox {
+  text: string;
+  left_pct: number;
+  top_pct: number;
+  width_pct: number;
+  height_pct: number;
+  font_size_pt?: number | null;
+}
+
+interface SelectableDesignerSlide {
+  slide_number: number;
+  thumbnail_url: string | null;
+  text_boxes: SelectableTextBox[];
+}
+
+interface SelectableDesignerPreview {
+  id: number;
+  name: string;
+  slide_count: number;
+  slides: SelectableDesignerSlide[];
+}
+
 const GroupLayoutPreview = () => {
   const params = useParams();
   const router = useRouter();
@@ -39,6 +61,7 @@ const GroupLayoutPreview = () => {
   const customTemplateId = isCustom ? templateParams.split("custom-")[1] : null;
   const designerTemplateId = isDesigner ? Number(templateParams.split("designer-")[1]) : null;
   const [designerTemplate, setDesignerTemplate] = useState<PptxDesignerTemplate | null>(null);
+  const [designerSelectablePreview, setDesignerSelectablePreview] = useState<SelectableDesignerPreview | null>(null);
   const [designerLoading, setDesignerLoading] = useState(false);
   const [designerError, setDesignerError] = useState<string | null>(null);
 
@@ -85,6 +108,10 @@ const GroupLayoutPreview = () => {
           return;
         }
         setDesignerTemplate(found);
+        return api
+          .get<SelectableDesignerPreview>(`/api/v1/account/pptx-templates/${designerTemplateId}/selectable-preview`)
+          .then(setDesignerSelectablePreview)
+          .catch(() => setDesignerSelectablePreview(null));
       })
       .catch((error: any) => setDesignerError(error?.message ?? "Failed to load designer template"))
       .finally(() => setDesignerLoading(false));
@@ -346,18 +373,22 @@ const GroupLayoutPreview = () => {
 
         {isDesigner && designerTemplate && (
           <div className="space-y-12 w-[1440px] h-[720px] aspect-video mx-auto">
-            {designerTemplate.thumbnail_urls.length > 0 ? (
-              designerTemplate.thumbnail_urls.map((url, index) => (
+            {(designerSelectablePreview?.slides.length || designerTemplate.thumbnail_urls.length) > 0 ? (
+              (designerSelectablePreview?.slides ?? designerTemplate.thumbnail_urls.map((url, index) => ({
+                slide_number: index + 1,
+                thumbnail_url: url,
+                text_boxes: [],
+              }))).map((slide, index) => (
                 <Card
                   key={`${templateParams}-designer-slide-${index}`}
-                  id={`designer-slide-${index + 1}`}
+                  id={`designer-slide-${slide.slide_number}`}
                   className="overflow-hidden shadow-md"
                 >
                   <div className="bg-white px-6 py-4 border-b">
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-xl font-semibold text-gray-900">
-                          Slide {index + 1}
+                          Slide {slide.slide_number}
                         </h3>
                         <p className="text-sm text-gray-500 mt-1 max-w-2xl">
                           {designerTemplate.name}
@@ -376,14 +407,40 @@ const GroupLayoutPreview = () => {
 
                   <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
                     <div
-                      className="flex-shrink-0 bg-white"
+                      className="relative flex-shrink-0 bg-white"
                       style={{ width: "1280px", height: "720px" }}
                     >
-                      <img
-                        src={url}
-                        alt={`${designerTemplate.name} slide ${index + 1}`}
-                        className="h-full w-full object-contain"
-                      />
+                      {slide.thumbnail_url && (
+                        <img
+                          src={slide.thumbnail_url}
+                          alt={`${designerTemplate.name} slide ${slide.slide_number}`}
+                          className="absolute inset-0 h-full w-full object-contain"
+                          draggable={false}
+                        />
+                      )}
+                      <div className="absolute inset-0 z-10">
+                        {slide.text_boxes.map((box, boxIndex) => (
+                          <div
+                            key={`${slide.slide_number}-${boxIndex}`}
+                            className="absolute whitespace-pre-wrap break-words text-transparent selection:bg-indigo-500/30 selection:text-transparent"
+                            style={{
+                              left: `${box.left_pct}%`,
+                              top: `${box.top_pct}%`,
+                              width: `${Math.min(100 - box.left_pct, box.width_pct * 1.18)}%`,
+                              maxWidth: `calc(100% - ${box.left_pct}%)`,
+                              minHeight: `${box.height_pct}%`,
+                              fontSize: `${box.font_size_pt ?? 16}pt`,
+                              lineHeight: 1.15,
+                              color: "transparent",
+                              userSelect: "text",
+                              WebkitUserSelect: "text",
+                              WebkitTextFillColor: "transparent",
+                            }}
+                          >
+                            {box.text}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </Card>

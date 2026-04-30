@@ -107,7 +107,7 @@ export const usePresentationGeneration = (
           name: fallbackTemplate.id,
           ordered: false,
           slides: fallbackTemplate.layouts.map((layoutItem: any) => ({
-            id: layoutItem.layoutId,
+            id: `${fallbackTemplate.id}:${layoutItem.layoutId}`,
             name: layoutItem.layoutName,
             description: layoutItem.layoutDescription,
             templateID: fallbackTemplate.id,
@@ -159,7 +159,7 @@ export const usePresentationGeneration = (
           name: selectedTemplate.id,
           ordered: false,
           slides: selectedTemplate.layouts.map((layoutItem: any) => ({
-            id: layoutItem.layoutId,
+            id: `${selectedTemplate.id}:${layoutItem.layoutId}`,
             name: layoutItem.layoutName,
             description: layoutItem.layoutDescription,
             templateID: selectedTemplate.id,

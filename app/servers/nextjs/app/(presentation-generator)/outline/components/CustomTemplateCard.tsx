@@ -14,7 +14,7 @@ export const LayoutPreview = memo(({ layout, templateId, index }: { layout: Comp
             className="relative bg-gray-100 border border-gray-200 overflow-hidden aspect-video rounded"
             style={{ contain: 'layout style paint', willChange: 'auto' }}
         >
-            <div className="absolute inset-0 bg-transparent z-10" />
+            <div className="absolute inset-0 bg-transparent z-10 pointer-events-none" />
             <div
                 className="transform scale-[0.2] flex justify-center items-center origin-top-left w-[500%] h-[500%]"
                 style={{ transform: 'scale(0.2) translateZ(0)', backfaceVisibility: 'hidden' }}
@@ -65,7 +65,7 @@ export const CustomTemplateCard = memo(({ template, onSelectTemplate, selectedTe
                                     key={`${template.id}-preview-${index}`}
                                     className="relative bg-gray-100 border border-gray-200 overflow-hidden aspect-video rounded"
                                 >
-                                    <div className="absolute inset-0 bg-transparent z-10" />
+                                    <div className="absolute inset-0 bg-transparent z-10 pointer-events-none" />
                                     <div
                                         className="transform scale-[0.12] origin-top-left"
                                         style={{ width: "833.33%", height: "833.33%" }}

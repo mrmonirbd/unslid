@@ -69,7 +69,7 @@ const CustomTemplateCard = ({ template }: { template: CustomTemplates }) => {
                   key={`${template.id}-preview-${index}`}
                   className="relative bg-gray-100 border border-gray-200 overflow-hidden aspect-video rounded"
                 >
-                  <div className="absolute inset-0 bg-transparent z-10" />
+                  <div className="absolute inset-0 bg-transparent z-10 pointer-events-none" />
                   <div
                     className="transform scale-[0.12] origin-top-left"
                     style={{ width: "833.33%", height: "833.33%" }}
@@ -164,7 +164,7 @@ const LayoutPreview = () => {
                             key={`${template.id}-preview-${index}`}
                             className="relative bg-gray-100 border border-gray-200 overflow-hidden aspect-video rounded"
                           >
-                            <div className="absolute inset-0 bg-transparent z-10" />
+                            <div className="absolute inset-0 bg-transparent z-10 pointer-events-none" />
                             <div
                               className="transform scale-[0.12] origin-top-left"
                               style={{ width: "833.33%", height: "833.33%" }}

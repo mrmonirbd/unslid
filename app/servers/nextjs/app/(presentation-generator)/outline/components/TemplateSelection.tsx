@@ -39,7 +39,7 @@ const BuiltInLayoutPreview = memo(({ layout, templateId, index }: {
       className="relative bg-gray-100 font-syne border border-gray-200 overflow-hidden aspect-video rounded"
       style={{ contain: 'layout style paint' }}
     >
-      <div className="absolute inset-0 bg-transparent z-10" />
+      <div className="absolute inset-0 bg-transparent z-10 pointer-events-none" />
       <div
         className="transform scale-[0.12] origin-top-left"
         style={{ width: "833.33%", height: "833.33%" }}

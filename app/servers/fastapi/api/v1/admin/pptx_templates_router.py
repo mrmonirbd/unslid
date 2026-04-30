@@ -12,6 +12,7 @@ import logging
 import zipfile
 from pathlib import Path
 from typing import Optional
+from xml.etree import ElementTree as ET
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -34,6 +35,12 @@ PUBLIC_PPTX_TEMPLATES_ROUTER = APIRouter(prefix="/api/v1/account/pptx-templates"
 MAX_PPTX_SIZE_BYTES = 50 * 1024 * 1024
 MAX_ZIP_SIZE_BYTES = 250 * 1024 * 1024
 MAX_PPTX_FILES_PER_ZIP = 100
+
+PML_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
+DML_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+PML = f"{{{PML_NS}}}"
+DML = f"{{{DML_NS}}}"
+EMU_PER_INCH = 914400
 
 
 def _require_admin(current_user: UserModel = Depends(get_current_user)) -> UserModel:
@@ -137,6 +144,107 @@ async def _create_pptx_template_row(
 def _template_name_from_zip_path(zip_path: str) -> str:
     stem = Path(zip_path).stem.replace("_", " ").replace("-", " ").strip()
     return " ".join(part.capitalize() for part in stem.split()) or "Untitled Template"
+
+
+def _pptx_slide_size(zip_file: zipfile.ZipFile) -> tuple[int, int]:
+    try:
+        root = ET.fromstring(zip_file.read("ppt/presentation.xml"))
+        size = root.find(f"{PML}sldSz")
+        if size is not None:
+            return int(size.get("cx", "12192000")), int(size.get("cy", "6858000"))
+    except Exception:
+        pass
+    return 12192000, 6858000
+
+
+def _extract_shape_text(shape: ET.Element) -> str:
+    paragraphs: list[str] = []
+    tx_body = shape.find(f"{PML}txBody")
+    if tx_body is None:
+        return ""
+
+    for para in tx_body.findall(f"{DML}p"):
+        parts = []
+        for text_node in para.findall(f".//{DML}t"):
+            if text_node.text:
+                parts.append(text_node.text)
+        paragraph_text = "".join(parts).strip()
+        if paragraph_text:
+            paragraphs.append(paragraph_text)
+    return "\n".join(paragraphs).strip()
+
+
+def _extract_shape_box(shape: ET.Element, slide_width: int, slide_height: int) -> Optional[dict]:
+    xfrm = shape.find(f".//{DML}xfrm")
+    if xfrm is None:
+        return None
+    off = xfrm.find(f"{DML}off")
+    ext = xfrm.find(f"{DML}ext")
+    if off is None or ext is None:
+        return None
+
+    try:
+        x = int(off.get("x", "0"))
+        y = int(off.get("y", "0"))
+        cx = int(ext.get("cx", "0"))
+        cy = int(ext.get("cy", "0"))
+    except ValueError:
+        return None
+
+    return {
+        "left_pct": (x / slide_width) * 100,
+        "top_pct": (y / slide_height) * 100,
+        "width_pct": (cx / slide_width) * 100,
+        "height_pct": (cy / slide_height) * 100,
+    }
+
+
+def _extract_font_size(shape: ET.Element) -> Optional[float]:
+    sizes: list[int] = []
+    for rpr in shape.findall(f".//{DML}rPr"):
+        size = rpr.get("sz")
+        if size and size.isdigit():
+            sizes.append(int(size))
+    if not sizes:
+        return None
+    # PowerPoint stores font size in hundredths of a point.
+    return max(6, min(72, round((sum(sizes) / len(sizes)) / 100, 1)))
+
+
+def _extract_selectable_slides(abs_path: Path, thumbnail_urls: list[str]) -> list[dict]:
+    slides: list[dict] = []
+    with zipfile.ZipFile(abs_path) as z:
+        slide_width, slide_height = _pptx_slide_size(z)
+        slide_names = sorted(
+            [
+                name for name in z.namelist()
+                if name.startswith("ppt/slides/slide") and name.endswith(".xml")
+            ],
+            key=lambda name: int(Path(name).stem.replace("slide", "") or "0"),
+        )
+
+        for index, slide_name in enumerate(slide_names):
+            root = ET.fromstring(z.read(slide_name))
+            text_boxes = []
+            for shape in root.findall(f".//{PML}sp"):
+                text = _extract_shape_text(shape)
+                if not text:
+                    continue
+                box = _extract_shape_box(shape, slide_width, slide_height)
+                if not box:
+                    continue
+                text_boxes.append({
+                    **box,
+                    "text": text,
+                    "font_size_pt": _extract_font_size(shape),
+                })
+
+            slides.append({
+                "slide_number": index + 1,
+                "thumbnail_url": thumbnail_urls[index] if index < len(thumbnail_urls) else None,
+                "text_boxes": text_boxes,
+            })
+    return slides
 
 @PPTX_TEMPLATES_ROUTER.post("")
 async def upload_pptx_template(
@@ -421,6 +529,53 @@ async def download_pptx_template_for_user(
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         filename=filename,
     )
+
+
+@PUBLIC_PPTX_TEMPLATES_ROUTER.get("/{template_id}/selectable-preview")
+async def get_selectable_pptx_template_preview(
+    template_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Return thumbnail URLs plus selectable text boxes extracted from the PPTX XML."""
+    result = await session.execute(
+        select(PptxDesignerTemplate).where(
+            PptxDesignerTemplate.id == template_id,
+            PptxDesignerTemplate.is_active == True,  # noqa: E712
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    plan = current_user.plan or "free"
+    if row.tier == "premium" and plan not in ("pro", "team"):
+        raise HTTPException(status_code=403, detail="Upgrade required")
+
+    abs_path = Path(svc.resolve_template_abs_path(row.file_path))
+    app_data = Path(get_app_data_directory_env()).resolve()
+    try:
+        abs_path.resolve().relative_to(app_data)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if not abs_path.exists() or not abs_path.is_file():
+        raise HTTPException(status_code=404, detail="Template file not found")
+
+    await _repair_incomplete_thumbnails(row, session)
+    thumbnail_urls = _row_to_dict(row)["thumbnail_urls"]
+
+    try:
+        slides = _extract_selectable_slides(abs_path, thumbnail_urls)
+    except Exception as exc:
+        logger.exception("Failed to extract selectable preview for template id=%s", template_id)
+        raise HTTPException(status_code=500, detail="Failed to extract selectable template preview") from exc
+
+    return {
+        "id": row.id,
+        "name": row.name,
+        "slide_count": row.slide_count,
+        "slides": slides,
+    }
 
 
 # ─── Public thumbnail serving ─────────────────────────────────────────────────
