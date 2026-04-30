@@ -154,6 +154,7 @@ services:
       - FASTAPI_INTERNAL_URL=http://fastapi:8000
       - SENTRY_DSN=${SENTRY_DSN_NEXTJS}
       - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - NEXT_DIST_DIR=/tmp/next-build
       - CAN_CHANGE_KEYS=false
       - NEXT_PUBLIC_LEGAL_DOMAIN=${NEXT_PUBLIC_LEGAL_DOMAIN:-https://yourcompany.com}
       - NEXT_PUBLIC_GA_MEASUREMENT_ID=${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
@@ -183,4 +184,3 @@ volumes:
 networks:
   app-network:
     driver: bridge
-

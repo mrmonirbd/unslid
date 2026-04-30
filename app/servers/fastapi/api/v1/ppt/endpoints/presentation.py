@@ -274,6 +274,7 @@ async def prepare_presentation(
     outlines: Annotated[List[SlideOutlineModel], Body()],
     layout: Annotated[PresentationLayoutModel, Body()],
     title: Annotated[Optional[str], Body()] = None,
+    pptx_template_id: Annotated[Optional[int], Body()] = None,
     sql_session: AsyncSession = Depends(get_async_session),
 ):
     if not outlines:
@@ -347,6 +348,7 @@ async def prepare_presentation(
     sql_session.add(presentation)
     presentation.outlines = presentation_outline_model.model_dump(mode="json")
     presentation.title = title or presentation.title
+    presentation.pptx_template_id = pptx_template_id
     presentation.set_layout(layout)
     presentation.set_structure(presentation_structure)
     await sql_session.commit()

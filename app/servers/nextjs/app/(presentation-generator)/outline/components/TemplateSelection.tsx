@@ -1,14 +1,31 @@
 "use client";
-import React, { useEffect, useMemo, useCallback, memo } from "react";
+import React, { useEffect, useMemo, useCallback, memo, useState } from "react";
 
 import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
 import { templates } from "@/app/presentation-templates";
 import { Card } from "@/components/ui/card";
 import { TemplateWithData } from "@/app/presentation-templates/utils";
 import { CustomTemplates, useCustomTemplateSummaries } from "@/app/hooks/useCustomTemplates";
-import { Loader2 } from "lucide-react";
+import { FileDown, Loader2, Lock } from "lucide-react";
 import { CustomTemplateCard } from "./CustomTemplateCard";
 import CreateCustomTemplate from "../../(dashboard)/templates/components/CreateCustomTemplate";
+import { api } from "@/lib/api";
+
+export interface DesignerTemplateSelection {
+  type: "designer";
+  id: number;
+  name: string;
+}
+
+interface PptxDesignerTemplate extends DesignerTemplateSelection {
+  description: string;
+  tier: "free" | "premium";
+  slide_count: number;
+  thumbnail_urls: string[];
+  color_scheme: Record<string, string> | null;
+  font_scheme: Record<string, string> | null;
+  locked: boolean;
+}
 
 // Memoized layout preview for built-in templates
 const BuiltInLayoutPreview = memo(({ layout, templateId, index }: {
@@ -80,8 +97,8 @@ const BuiltInTemplateCard = memo(({ template, isSelected, onSelect }: {
 BuiltInTemplateCard.displayName = 'BuiltInTemplateCard';
 
 interface TemplateSelectionProps {
-  selectedTemplate: (TemplateLayoutsWithSettings | string) | null;
-  onSelectTemplate: (template: TemplateLayoutsWithSettings | string) => void;
+  selectedTemplate: (TemplateLayoutsWithSettings | string | DesignerTemplateSelection) | null;
+  onSelectTemplate: (template: TemplateLayoutsWithSettings | string | DesignerTemplateSelection) => void;
 }
 
 const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
@@ -101,6 +118,18 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
   }, []);
 
   const { templates: customTemplates, loading: customLoading } = useCustomTemplateSummaries();
+  const [designerTemplates, setDesignerTemplates] = useState<PptxDesignerTemplate[]>([]);
+  const [designerLoading, setDesignerLoading] = useState(false);
+
+  useEffect(() => {
+    setDesignerLoading(true);
+    api.get<PptxDesignerTemplate[]>("/api/v1/account/pptx-templates")
+      .then((templates) => {
+        setDesignerTemplates(templates.map((template) => ({ ...template, type: "designer" })));
+      })
+      .catch(() => setDesignerTemplates([]))
+      .finally(() => setDesignerLoading(false));
+  }, []);
 
   // Stable callback for custom template selection
   const handleCustomSelect = useCallback(
@@ -122,7 +151,12 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
 
   // Derive the selected built-in template id only when selectedTemplate changes
   const selectedBuiltInId = useMemo(
-    () => (typeof selectedTemplate !== 'string' ? selectedTemplate?.id ?? null : null),
+    () => (selectedTemplate && typeof selectedTemplate !== 'string' && !("type" in selectedTemplate) ? selectedTemplate.id : null),
+    [selectedTemplate]
+  );
+
+  const selectedDesignerId = useMemo(
+    () => (selectedTemplate && typeof selectedTemplate !== "string" && "type" in selectedTemplate ? selectedTemplate.id : null),
     [selectedTemplate]
   );
 
@@ -172,6 +206,69 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
     [selectedBuiltInId, handleBuiltInSelect]
   );
 
+  const designerTemplateCards = useMemo(() => {
+    if (designerLoading) {
+      return (
+        <div className="flex items-center justify-center py-12 font-syne">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+          <span className="ml-3 text-gray-600">Loading designer templates...</span>
+        </div>
+      );
+    }
+    if (designerTemplates.length === 0) return null;
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {designerTemplates.map((template) => {
+          const isSelected = selectedDesignerId === template.id;
+          return (
+            <Card
+              key={`designer-${template.id}`}
+              className={`${isSelected ? "border-2 border-purple-500" : ""} cursor-pointer relative hover:shadow-lg transition-all duration-200 group overflow-hidden ${template.locked ? "opacity-80" : ""}`}
+              onClick={() => {
+                if (template.locked) return;
+                onSelectTemplate({ type: "designer", id: template.id, name: template.name });
+              }}
+            >
+              {template.locked && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40">
+                  <Lock className="h-5 w-5 text-white" />
+                </div>
+              )}
+              <span className="text-xs font-syne absolute top-2 flex gap-1 capitalize items-center left-2 rounded-[100px] px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold z-40">
+                Slides- {template.slide_count}
+              </span>
+              <img src="/card_bg.svg" alt="" className="absolute top-0 left-0 w-full h-full object-cover" />
+              <div className="p-5">
+                {template.thumbnail_urls.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {template.thumbnail_urls.slice(0, 4).map((url, index) => (
+                      <div key={index} className="relative bg-gray-100 border border-gray-200 overflow-hidden aspect-video rounded">
+                        <img src={url} alt={`${template.name} slide ${index + 1}`} className="h-full w-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="aspect-video bg-purple-50 rounded flex flex-col items-center justify-center gap-2">
+                    <FileDown className="w-8 h-8 text-purple-300" />
+                    <span className="text-xs text-slate-400">Thumbnails generating...</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-between p-5 bg-white border-t border-[#EDEEEF] relative z-40">
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 capitalize font-syne">{template.name}</h3>
+                  {template.description && (
+                    <p className="text-xs text-gray-600 line-clamp-2 font-syne">{template.description}</p>
+                  )}
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    );
+  }, [designerLoading, designerTemplates, onSelectTemplate, selectedDesignerId]);
+
   return (
     <div className="space-y-[30px] mb-4">
       {/* Custom AI Templates */}
@@ -188,6 +285,12 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
           {builtInTemplateCards}
         </div>
       </div>
+      {designerTemplateCards && (
+        <div>
+          <h3 className="text-base font-semibold text-gray-900 mb-3 font-syne">Designer</h3>
+          {designerTemplateCards}
+        </div>
+      )}
     </div>
   );
 });
