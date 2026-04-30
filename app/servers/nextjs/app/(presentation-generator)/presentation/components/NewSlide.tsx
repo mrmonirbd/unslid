@@ -47,13 +47,14 @@ const NewSlideV1 = ({
 
   const isCustomTemplate = templateID.startsWith("custom-");
   const handleNewSlide = useCallback((sampleData: any, id: string) => {
+    const rawLayoutId = id.split(":").pop() || id;
     try {
       const newSlide = {
         id: uuidv4(),
         index: index,
         content: sampleData,
         layout_group: templateID,
-        layout: isCustomTemplate ? `${templateID}:${id}` : id,
+        layout: `${templateID}:${rawLayoutId}`,
         presentation: presentationId,
       };
       dispatch(addNewSlide({ slideData: newSlide, index }));
@@ -129,7 +130,5 @@ const NewSlideV1 = ({
 };
 
 export default NewSlideV1;
-
-
 
 

@@ -28,7 +28,7 @@ from models.presentation_outline_model import (
 from enums.tone import Tone
 from enums.verbosity import Verbosity
 from models.pptx_models import PptxPresentationModel
-from models.presentation_layout import PresentationLayoutModel
+from models.presentation_layout import PresentationLayoutModel, SlideLayoutModel
 from models.presentation_structure_model import PresentationStructureModel
 from models.presentation_with_slides import (
     PresentationWithSlides,
@@ -77,6 +77,84 @@ import uuid
 
 
 PRESENTATION_ROUTER = APIRouter(prefix="/presentation", tags=["Presentation"])
+
+
+def _build_designer_text_schema(text_boxes: list[dict]) -> dict:
+    count = max(len(text_boxes), 1)
+    descriptions = []
+    for index, box in enumerate(text_boxes):
+        original = str(box.get("text") or "")[:90]
+        role = "main title/headline" if index == 0 else "body/description text"
+        if index > 0 and len(original) <= 30:
+            role = "short label or badge"
+        descriptions.append(
+            f"Slot {index + 1}: {role}. Replace template text \"{original}\" with generated content."
+        )
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["__designer_text_boxes__"],
+        "properties": {
+            "__designer_text_boxes__": {
+                "type": "array",
+                "minItems": count,
+                "maxItems": count,
+                "description": " ".join([
+                    "Generated text for the selected designer PPTX template text boxes, in visual order.",
+                    *descriptions,
+                ]),
+                "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 180,
+                },
+            }
+        },
+    }
+
+
+async def _resolve_designer_generation_layout(
+    presentation: PresentationModel,
+    layout: PresentationLayoutModel,
+    session: AsyncSession,
+) -> PresentationLayoutModel:
+    if not presentation.pptx_template_id or layout.name == f"designer-{presentation.pptx_template_id}":
+        return layout
+
+    from api.v1.admin.pptx_templates_router import _extract_selectable_slides
+
+    result = await session.execute(
+        select(PptxDesignerTemplateModel).where(
+            PptxDesignerTemplateModel.id == presentation.pptx_template_id,
+            PptxDesignerTemplateModel.is_active == True,  # noqa: E712
+        )
+    )
+    template = result.scalar_one_or_none()
+    if not template:
+        return layout
+
+    abs_template_path = designer_svc.resolve_template_abs_path(template.file_path)
+    designer_slides = [
+        slide for slide in _extract_selectable_slides(abs_template_path, [])
+        if slide.get("text_boxes")
+    ]
+    if not designer_slides:
+        return layout
+
+    template_id = f"designer-{presentation.pptx_template_id}"
+    return PresentationLayoutModel(
+        name=template_id,
+        ordered=True,
+        slides=[
+            SlideLayoutModel(
+                id=f"{template_id}:slide-{slide['slide_number']}",
+                name=f"Designer Slide {slide['slide_number']}",
+                description=f"Generate text specifically for slide {slide['slide_number']} of the selected designer PPTX template.",
+                json_schema=_build_designer_text_schema(slide["text_boxes"]),
+            )
+            for slide in designer_slides
+        ],
+    )
 
 
 @PRESENTATION_ROUTER.get("/all", response_model=List[PresentationWithSlides])
@@ -379,16 +457,29 @@ async def stream_presentation(
     async def inner():
         try:
             structure = presentation.get_structure()
-            layout = presentation.get_layout()
+            layout = await _resolve_designer_generation_layout(
+                presentation,
+                presentation.get_layout(),
+                sql_session,
+            )
+            presentation.set_layout(layout)
             outline = presentation.get_presentation_outline()
 
             # These tasks will be gathered and awaited after all slides are generated
             async_assets_generation_tasks = []
 
             slides: List[SlideModel] = []
+            opening_chunk = json.dumps({
+                "id": str(presentation.id),
+                "title": presentation.title,
+                "pptx_template_id": presentation.pptx_template_id,
+                "layout": layout.model_dump(),
+                "slides": [],
+            })
+            opening_chunk = opening_chunk.rsplit("[]", 1)[0] + "[ "
             yield SSEResponse(
                 event="response",
-                data=json.dumps({"type": "chunk", "chunk": '{ "slides": [ '}),
+                data=json.dumps({"type": "chunk", "chunk": opening_chunk}),
             ).to_string()
             for i, slide_layout_index in enumerate(structure.slides):
                 slide_layout = layout.slides[slide_layout_index]

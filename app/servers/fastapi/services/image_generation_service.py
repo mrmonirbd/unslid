@@ -31,6 +31,24 @@ from utils.image_provider import (
 import uuid
 
 
+def _placeholder_image_path(output_directory: str) -> str:
+    os.makedirs(output_directory, exist_ok=True)
+    placeholder_path = os.path.join(output_directory, "placeholder.svg")
+    if not os.path.exists(placeholder_path):
+        with open(placeholder_path, "w", encoding="utf-8") as f:
+            f.write(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">'
+                '<rect width="1024" height="1024" fill="#eef2f7"/>'
+                '<rect x="192" y="276" width="640" height="472" rx="32" fill="#d8dee9"/>'
+                '<circle cx="376" cy="416" r="56" fill="#aab6c8"/>'
+                '<path d="M256 696l168-176 112 112 96-120 136 184H256z" fill="#94a3b8"/>'
+                '<text x="512" y="820" text-anchor="middle" font-family="Arial, sans-serif" font-size="36" fill="#64748b">'
+                "Image unavailable"
+                "</text></svg>"
+            )
+    return "/app_data/images/placeholder.svg"
+
+
 class ImageGenerationService:
     def __init__(self, output_directory: str):
         self.output_directory = output_directory
@@ -70,11 +88,11 @@ class ImageGenerationService:
         """
         if self.is_image_generation_disabled:
             print("Image generation is disabled. Using placeholder image.")
-            return "/static/images/placeholder.jpg"
+            return _placeholder_image_path(self.output_directory)
 
         if not self.image_gen_func:
             print("No image generation function found. Using placeholder image.")
-            return "/static/images/placeholder.jpg"
+            return _placeholder_image_path(self.output_directory)
 
         image_prompt = prompt.get_image_prompt(
             with_theme=not self.is_stock_provider_selected()
@@ -115,7 +133,7 @@ class ImageGenerationService:
 
         except Exception as e:
             print(f"Error generating image: {e}")
-            return "/static/images/placeholder.jpg"
+            return _placeholder_image_path(self.output_directory)
 
     async def generate_image_openai(
         self, prompt: str, output_directory: str, model: str, quality: str

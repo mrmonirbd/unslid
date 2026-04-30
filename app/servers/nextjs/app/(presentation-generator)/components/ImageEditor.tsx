@@ -72,6 +72,7 @@ const ImageEditor = ({
 
   // Refs
   const imageRef = useRef<HTMLImageElement>(null);
+  const effectivePrompt = prompt.trim() || promptContent?.trim() || "";
 
   useEffect(() => {
     setPreviewImages(initialImage);
@@ -186,7 +187,7 @@ const ImageEditor = ({
    * Generates new images using AI
    */
   const handleGenerateImage = async () => {
-    if (!prompt) {
+    if (!effectivePrompt) {
       setError("Please enter a prompt");
       return;
     }
@@ -195,7 +196,7 @@ const ImageEditor = ({
       setError(null);
       trackEvent(MixpanelEvent.ImageEditor_GenerateImage_API_Call);
       const response = await PresentationGenerationApi.generateImage({
-        prompt: prompt,
+        prompt: effectivePrompt,
       });
 
       setPreviewImages(response);
@@ -318,7 +319,7 @@ const ImageEditor = ({
                   <Button
                     onClick={handleGenerateImage}
                     className="w-full"
-                    disabled={!prompt || isGenerating}
+                    disabled={!effectivePrompt || isGenerating}
                   >
                     <Wand2 className="w-4 h-4 mr-2" />
                     {isGenerating ? "Generating..." : "Generate Image"}

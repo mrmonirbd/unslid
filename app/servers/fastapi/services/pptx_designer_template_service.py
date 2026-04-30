@@ -99,6 +99,60 @@ async def generate_thumbnails(abs_pptx_path: str, template_uuid: str) -> list[st
     return rel_paths
 
 
+async def generate_textless_thumbnails(abs_pptx_path: str, template_uuid: str) -> list[str]:
+    """
+    Convert each slide to PNG after clearing text from editable shapes.
+    This is used as a visual background so generated text can be overlaid in the browser.
+    """
+    thumb_dir = _thumbs_dir(f"{template_uuid}_textless")
+    thumb_dir.mkdir(parents=True, exist_ok=True)
+
+    existing = sorted(
+        thumb_dir.glob("slide_*.png"),
+        key=lambda p: _slide_index_from_name(p.stem),
+    )
+    if existing:
+        app_data = get_app_data_directory_env()
+        return [str(p.relative_to(app_data)) for p in existing]
+
+    for old_png in thumb_dir.glob("*.png"):
+        old_png.unlink(missing_ok=True)
+
+    with tempfile.TemporaryDirectory(dir=thumb_dir) as tmp:
+        tmp_dir = Path(tmp)
+        tmp_copy = tmp_dir / "textless_source.pptx"
+        shutil.copy(abs_pptx_path, tmp_copy)
+
+        def clear_text() -> None:
+            prs = Presentation(str(tmp_copy))
+            for slide in prs.slides:
+                for shape in slide.shapes:
+                    _clear_shape_text(shape)
+            prs.save(str(tmp_copy))
+
+        await asyncio.to_thread(clear_text)
+
+        pdf_path = await _convert_pptx_to_pdf(tmp_copy, tmp_dir)
+        if pdf_path:
+            await _render_pdf_pages_to_pngs(pdf_path, thumb_dir)
+
+    png_files = sorted(
+        thumb_dir.glob("slide_*.png"),
+        key=lambda p: _slide_index_from_name(p.stem),
+    )
+
+    app_data = get_app_data_directory_env()
+    return [str(p.relative_to(app_data)) for p in png_files]
+
+
+def _clear_shape_text(shape) -> None:
+    if getattr(shape, "has_text_frame", False):
+        shape.text_frame.clear()
+    if getattr(shape, "shapes", None):
+        for child in shape.shapes:
+            _clear_shape_text(child)
+
+
 async def _convert_pptx_to_pdf(pptx_path: Path, out_dir: Path) -> Optional[Path]:
     cmd = [
         "libreoffice",

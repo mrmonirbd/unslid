@@ -10,12 +10,67 @@ import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils"
 import { templates } from "@/app/presentation-templates";
 import { getCustomTemplateDetails } from "@/app/hooks/useCustomTemplates";
 import type { DesignerTemplateSelection } from "../components/TemplateSelection";
+import { api } from "@/lib/api";
 
 const DEFAULT_LOADING_STATE: LoadingState = {
   message: "",
   isLoading: false,
   showProgress: false,
   duration: 0,
+};
+
+const getTemplateScopedLayoutId = (templateId: string, layoutId: string) => {
+  const rawLayoutId = layoutId.split(":").pop() || layoutId;
+  return `${templateId}:${rawLayoutId}`;
+};
+
+interface DesignerTextBox {
+  text: string;
+  font_size_pt?: number | null;
+}
+
+interface DesignerPreviewSlide {
+  slide_number: number;
+  text_boxes: DesignerTextBox[];
+}
+
+interface DesignerPreview {
+  slides: DesignerPreviewSlide[];
+}
+
+const buildDesignerSlideSchema = (slide: DesignerPreviewSlide) => {
+  const textBoxCount = Math.max(slide.text_boxes.length, 1);
+  const slotDescriptions = slide.text_boxes.map((box, index) => {
+    const role =
+      index === 0
+        ? "main title/headline"
+        : box.text.length <= 30
+          ? "short label or badge"
+          : "body/description text";
+    return `Slot ${index + 1}: ${role}. Replace template text "${box.text.slice(0, 90)}" with generated content.`;
+  });
+
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["__designer_text_boxes__"],
+    properties: {
+      __designer_text_boxes__: {
+        type: "array",
+        minItems: textBoxCount,
+        maxItems: textBoxCount,
+        description: [
+          "Generated text for the selected designer PPTX template text boxes, in visual top-to-bottom/left-to-right order.",
+          ...slotDescriptions,
+        ].join(" "),
+        items: {
+          type: "string",
+          minLength: 1,
+          maxLength: 180,
+        },
+      },
+    },
+  };
 };
 
 export const usePresentationGeneration = (
@@ -91,28 +146,44 @@ export const usePresentationGeneration = (
 
       if (typeof selectedTemplate !== "string" && "type" in selectedTemplate) {
         pptxTemplateId = selectedTemplate.id;
-        const fallbackTemplate =
-          templates.find((template) => template.id === "neo-general") ??
-          templates.find((template) => template.id === "general") ??
-          templates[0];
+        setLoadingState({
+          message: "Loading designer template...",
+          isLoading: true,
+          showProgress: true,
+          duration: 30,
+        });
 
-        if (!fallbackTemplate) {
+        const designerPreview = await api.get<DesignerPreview>(
+          `/api/v1/account/pptx-templates/${selectedTemplate.id}/selectable-preview`
+        );
+
+        const designerSlides = designerPreview.slides.filter((slide) => slide.text_boxes.length > 0);
+
+        if (designerSlides.length === 0) {
           toast.error("Template Error", {
-            description: "No layout group found for designer template generation",
+            description: "No editable text boxes found in selected designer template",
           });
           return;
         }
 
+        setLoadingState({
+          message: "Generating presentation data...",
+          isLoading: true,
+          showProgress: true,
+          duration: 30,
+        });
+
+        const templateId = `designer-${selectedTemplate.id}`;
         layout = {
-          name: fallbackTemplate.id,
-          ordered: false,
-          slides: fallbackTemplate.layouts.map((layoutItem: any) => ({
-            id: `${fallbackTemplate.id}:${layoutItem.layoutId}`,
-            name: layoutItem.layoutName,
-            description: layoutItem.layoutDescription,
-            templateID: fallbackTemplate.id,
-            templateName: fallbackTemplate.name,
-            json_schema: layoutItem.schemaJSON,
+          name: templateId,
+          ordered: true,
+          slides: designerSlides.map((designerSlide) => ({
+            id: `${templateId}:slide-${designerSlide.slide_number}`,
+            name: `Designer Slide ${designerSlide.slide_number}`,
+            description: `Generate text specifically for slide ${designerSlide.slide_number} of the selected designer PPTX template.`,
+            templateID: templateId,
+            templateName: selectedTemplate.name,
+            json_schema: buildDesignerSlideSchema(designerSlide),
           }))
         };
       } else if (typeof selectedTemplate === 'string') {
@@ -159,7 +230,7 @@ export const usePresentationGeneration = (
           name: selectedTemplate.id,
           ordered: false,
           slides: selectedTemplate.layouts.map((layoutItem: any) => ({
-            id: `${selectedTemplate.id}:${layoutItem.layoutId}`,
+            id: getTemplateScopedLayoutId(selectedTemplate.id, layoutItem.layoutId),
             name: layoutItem.layoutName,
             description: layoutItem.layoutDescription,
             templateID: selectedTemplate.id,

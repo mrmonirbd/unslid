@@ -18,6 +18,7 @@ class PresentationWithSlides(BaseModel):
     tone: Optional[str] = None
     verbosity: Optional[str] = None
     theme: Optional[dict] = None
+    pptx_template_id: Optional[int] = None
     slides: List[SlideModel]
     visibility: str = "private"
     user_id: Optional[int] = None

@@ -446,9 +446,9 @@ export function getTemplateByLayoutId(layoutId: string): TemplateWithData | unde
     return allLayouts.find((t) => t.layoutId === layoutId);
 }
 export function getLayoutByLayoutId(layout: string): TemplateWithData | undefined {
-    const [templateName, rawLayoutId] = layout.includes(":")
-        ? layout.split(":")
-        : ["", layout];
+    const layoutParts = layout.split(":");
+    const templateName = layoutParts.length > 1 ? layoutParts[0] : "";
+    const rawLayoutId = layoutParts[layoutParts.length - 1];
 
     if (templateName) {
         const template = templates.find((t) => t.id === templateName)
