@@ -238,8 +238,9 @@ const DesignerTemplateCard = React.memo(function DesignerTemplateCard({
     const handleClick = () => {
         if (template.locked) {
             router.push("/settings/billing");
+            return;
         }
-        // future: open designer template preview / select for generation
+        router.push(`/template-preview/designer-${template.id}`);
     };
 
     return (

@@ -7,7 +7,9 @@ import { PresentationGenerationApi } from "../../services/api/presentation-gener
 import { Template, LoadingState, TABS } from "../types/index";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
+import { templates } from "@/app/presentation-templates";
 import { getCustomTemplateDetails } from "@/app/hooks/useCustomTemplates";
+import type { DesignerTemplateSelection } from "../components/TemplateSelection";
 
 const DEFAULT_LOADING_STATE: LoadingState = {
   message: "",
@@ -19,7 +21,7 @@ const DEFAULT_LOADING_STATE: LoadingState = {
 export const usePresentationGeneration = (
   presentationId: string | null,
   outlines: { content: string }[] | null,
-  selectedTemplate: TemplateLayoutsWithSettings | string | null,
+  selectedTemplate: TemplateLayoutsWithSettings | string | DesignerTemplateSelection | null,
   setActiveTab: (tab: string) => void
 ) => {
   const dispatch = useDispatch();
@@ -85,9 +87,36 @@ export const usePresentationGeneration = (
 
     try {
       let layout;
+      let pptxTemplateId: number | null = null;
 
-      // Check if it's a custom template (string = presentationId)
-      if (typeof selectedTemplate === 'string') {
+      if (typeof selectedTemplate !== "string" && "type" in selectedTemplate) {
+        pptxTemplateId = selectedTemplate.id;
+        const fallbackTemplate =
+          templates.find((template) => template.id === "neo-general") ??
+          templates.find((template) => template.id === "general") ??
+          templates[0];
+
+        if (!fallbackTemplate) {
+          toast.error("Template Error", {
+            description: "No layout group found for designer template generation",
+          });
+          return;
+        }
+
+        layout = {
+          name: fallbackTemplate.id,
+          ordered: false,
+          slides: fallbackTemplate.layouts.map((layoutItem: any) => ({
+            id: layoutItem.layoutId,
+            name: layoutItem.layoutName,
+            description: layoutItem.layoutDescription,
+            templateID: fallbackTemplate.id,
+            templateName: fallbackTemplate.name,
+            json_schema: layoutItem.schemaJSON,
+          }))
+        };
+      } else if (typeof selectedTemplate === 'string') {
+        // Check if it's a custom template (string = presentationId)
         setLoadingState({
           message: "Loading custom template...",
           isLoading: true,
@@ -144,6 +173,7 @@ export const usePresentationGeneration = (
         presentation_id: presentationId,
         outlines: outlines,
         layout: layout,
+        pptx_template_id: pptxTemplateId,
       });
 
       if (response) {

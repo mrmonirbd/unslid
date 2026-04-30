@@ -256,6 +256,7 @@ const PresentationHeader = ({
       }
 
       if (!pptx_model) throw new Error("Failed to build presentation PPTX model");
+      pptx_model.pptx_template_id = (presentationData as any)?.pptx_template_id ?? null;
 
       trackEvent(MixpanelEvent.Header_ExportAsPPTX_API_Call);
       const pptxBlob = await PresentationGenerationApi.exportAsPPTX(pptx_model);
@@ -297,6 +298,7 @@ const PresentationHeader = ({
       let pdfBlob: Blob | null = null;
       try {
         const pptx_model = await extractPresentationPptxModel(presentationData?.title);
+        pptx_model.pptx_template_id = (presentationData as any)?.pptx_template_id ?? null;
         pdfBlob = await PresentationGenerationApi.exportAsPDFFromModel(pptx_model);
       } catch (fastErr) {
         console.warn("Fast PDF export failed, falling back to Puppeteer:", fastErr);

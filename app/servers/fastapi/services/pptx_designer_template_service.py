@@ -12,6 +12,7 @@ import logging
 import os
 import re
 import shutil
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -67,16 +68,111 @@ def delete_pptx_files(file_path: str, template_uuid: str) -> None:
 
 async def generate_thumbnails(abs_pptx_path: str, template_uuid: str) -> list[str]:
     """
-    Convert each slide to a PNG thumbnail using LibreOffice.
+    Convert each slide to a PNG thumbnail.
     Returns list of relative paths (relative to app_data root) for storing in DB.
     """
     thumb_dir = _thumbs_dir(template_uuid)
     thumb_dir.mkdir(parents=True, exist_ok=True)
 
+    for old_png in thumb_dir.glob("*.png"):
+        old_png.unlink(missing_ok=True)
+
+    with tempfile.TemporaryDirectory(dir=thumb_dir) as tmp:
+        tmp_dir = Path(tmp)
+        tmp_copy = tmp_dir / "source.pptx"
+        shutil.copy(abs_pptx_path, tmp_copy)
+
+        pdf_path = await _convert_pptx_to_pdf(tmp_copy, tmp_dir)
+        if pdf_path:
+            await _render_pdf_pages_to_pngs(pdf_path, thumb_dir)
+
+    png_files = sorted(
+        thumb_dir.glob("slide_*.png"),
+        key=lambda p: _slide_index_from_name(p.stem),
+    )
+
+    if not png_files:
+        png_files = await _generate_direct_png_fallback(abs_pptx_path, thumb_dir)
+
+    app_data = get_app_data_directory_env()
+    rel_paths = [str(p.relative_to(app_data)) for p in png_files]
+    return rel_paths
+
+
+async def _convert_pptx_to_pdf(pptx_path: Path, out_dir: Path) -> Optional[Path]:
+    cmd = [
+        "libreoffice",
+        "--headless",
+        "--convert-to", "pdf",
+        "--outdir", str(out_dir),
+        str(pptx_path),
+    ]
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+        if proc.returncode != 0:
+            logger.error("LibreOffice PDF thumbnail conversion failed: %s", stderr.decode())
+            return None
+    except asyncio.TimeoutError:
+        logger.error("LibreOffice PDF thumbnail conversion timed out for %s", pptx_path)
+        return None
+    except Exception as e:
+        logger.error("LibreOffice PDF thumbnail conversion error: %s", e)
+        return None
+
+    pdf_files = sorted(out_dir.glob("*.pdf"))
+    return pdf_files[0] if pdf_files else None
+
+
+async def _render_pdf_pages_to_pngs(pdf_path: Path, thumb_dir: Path) -> None:
+    if shutil.which("pdftoppm"):
+        prefix = thumb_dir / "slide"
+        cmd = [
+            "pdftoppm",
+            "-png",
+            "-r", "150",
+            str(pdf_path),
+            str(prefix),
+        ]
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+            if proc.returncode == 0:
+                for png in sorted(thumb_dir.glob("slide-*.png"), key=lambda p: _slide_index_from_name(p.stem)):
+                    png.rename(thumb_dir / f"slide_{_slide_index_from_name(png.stem)}.png")
+                return
+            logger.error("pdftoppm thumbnail rendering failed: %s", stderr.decode())
+        except asyncio.TimeoutError:
+            logger.error("pdftoppm thumbnail rendering timed out for %s", pdf_path)
+        except Exception as e:
+            logger.error("pdftoppm thumbnail rendering error: %s", e)
+
+    def render() -> None:
+        import pdfplumber
+
+        with pdfplumber.open(str(pdf_path)) as pdf:
+            for page in pdf.pages:
+                image = page.to_image(resolution=150)
+                image.save(str(thumb_dir / f"slide_{page.page_number}.png"))
+
+    try:
+        await asyncio.to_thread(render)
+    except Exception as e:
+        logger.error("PDF thumbnail rendering failed: %s", e)
+
+
+async def _generate_direct_png_fallback(abs_pptx_path: str, thumb_dir: Path) -> list[Path]:
     tmp_copy = thumb_dir / "source.pptx"
     shutil.copy(abs_pptx_path, tmp_copy)
 
-    # LibreOffice exports all slides as PNGs named source0.png, source1.png, ...
     cmd = [
         "libreoffice",
         "--headless",
@@ -92,23 +188,18 @@ async def generate_thumbnails(abs_pptx_path: str, template_uuid: str) -> list[st
         )
         _, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
         if proc.returncode != 0:
-            logger.error("LibreOffice thumbnail generation failed: %s", stderr.decode())
+            logger.error("LibreOffice PNG thumbnail fallback failed: %s", stderr.decode())
     except asyncio.TimeoutError:
-        logger.error("LibreOffice thumbnail generation timed out for %s", abs_pptx_path)
+        logger.error("LibreOffice PNG thumbnail fallback timed out for %s", abs_pptx_path)
     except Exception as e:
-        logger.error("Thumbnail generation error: %s", e)
+        logger.error("PNG thumbnail fallback error: %s", e)
+    finally:
+        tmp_copy.unlink(missing_ok=True)
 
-    tmp_copy.unlink(missing_ok=True)
-
-    # Collect generated PNGs in slide order
-    png_files = sorted(
+    return sorted(
         thumb_dir.glob("source*.png"),
         key=lambda p: _slide_index_from_name(p.stem),
     )
-
-    app_data = get_app_data_directory_env()
-    rel_paths = [str(p.relative_to(app_data)) for p in png_files]
-    return rel_paths
 
 
 def _slide_index_from_name(stem: str) -> int:
@@ -262,4 +353,4 @@ def apply_designer_theme(prs: Presentation, abs_template_path: str) -> None:
 
 def resolve_template_abs_path(file_path: str) -> str:
     """Convert relative file_path (stored in DB) to absolute filesystem path."""
-    return str(Path(get_app_data_directory_env()) / file_path)
+    return str(Path(get_app_data_directory_env()) / file_path.lstrip("/"))

@@ -334,6 +334,7 @@ export interface PptxPresentationModel {
   name?: string;
   shapes?: PptxShapeModel[];
   slides: PptxSlideModel[];
+  pptx_template_id?: number | null;
 }
 
 export const createPptxSpacingAll = (num: number): PptxSpacingModel => ({

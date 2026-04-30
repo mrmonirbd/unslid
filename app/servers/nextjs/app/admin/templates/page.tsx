@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { api, UserProfile } from "@/lib/api";
 import {
   ArrowLeft, LayoutTemplate, Lock, Unlock, Loader2, Save, FileDown,
-  Eye, EyeOff, Pencil, Check, X, Trash2, Upload,
+  Eye, EyeOff, Pencil, Check, X, Trash2, Upload, FileArchive, CheckCircle2,
 } from "lucide-react";
 import { templates as builtinTemplates } from "@/app/presentation-templates";
 import { TemplateWithData, TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
@@ -35,6 +35,18 @@ interface PptxDesignerTemplate {
   font_scheme: Record<string, string> | null;
   created_at: string;
   updated_at: string;
+}
+
+interface BulkImportResponse {
+  imported: PptxDesignerTemplate[];
+  skipped: { filename: string; reason: string }[];
+  failed: { filename: string; reason: string }[];
+  summary: {
+    imported: number;
+    skipped: number;
+    failed: number;
+    total_pptx: number;
+  };
 }
 
 // ─── Mini live preview for built-in templates ─────────────────────────────────
@@ -207,6 +219,13 @@ export default function AdminTemplatesPage() {
   const [uploadDesc, setUploadDesc] = useState("");
   const [uploadTier, setUploadTier] = useState<"free" | "premium">("free");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkZipFile, setBulkZipFile] = useState<File | null>(null);
+  const [bulkDesc, setBulkDesc] = useState("");
+  const [bulkTier, setBulkTier] = useState<"free" | "premium">("free");
+  const [bulkResult, setBulkResult] = useState<BulkImportResponse | null>(null);
+  const [uploadStatus, setUploadStatus] = useState("");
+  const [bulkStatus, setBulkStatus] = useState("");
 
   // Active tab
   const [tab, setTab] = useState<"builtin" | "designer">("builtin");
@@ -220,6 +239,18 @@ export default function AdminTemplatesPage() {
       document.head.appendChild(s);
     }
   }, []);
+
+  const refreshPptxTemplates = useCallback(async () => {
+    const rows = await api.get<PptxDesignerTemplate[]>("/api/v1/admin/pptx-templates");
+    setPptx(rows);
+    return rows;
+  }, []);
+
+  const refreshPptxTemplatesSoon = useCallback(() => {
+    window.setTimeout(() => {
+      refreshPptxTemplates().catch(() => {});
+    }, 3500);
+  }, [refreshPptxTemplates]);
 
   useEffect(() => {
     api.get<UserProfile>("/api/v1/account/me").then((u) => {
@@ -265,6 +296,7 @@ export default function AdminTemplatesPage() {
   const handleUpload = async () => {
     if (!uploadName.trim() || !uploadFile) { alert("Name and file are required."); return; }
     setUploading(true);
+    setUploadStatus("Uploading PPTX file...");
     try {
       const fd = new FormData();
       fd.append("name", uploadName.trim());
@@ -274,8 +306,32 @@ export default function AdminTemplatesPage() {
       const result = await api.postFormData<PptxDesignerTemplate>("/api/v1/admin/pptx-templates", fd);
       setPptx((prev) => [...prev, result]);
       setUploadName(""); setUploadDesc(""); setUploadFile(null); setUploadTier("free");
+      setUploadStatus("Upload complete. Thumbnails are generating in the background.");
+      refreshPptxTemplatesSoon();
     } catch (e: any) { alert("Upload failed: " + (e?.message ?? "Unknown error")); }
     finally { setUploading(false); }
+  };
+
+  const handleBulkImport = async () => {
+    if (!bulkZipFile) { alert("ZIP file is required."); return; }
+    setBulkUploading(true);
+    setBulkResult(null);
+    setBulkStatus("Uploading ZIP and importing PPTX files...");
+    try {
+      const fd = new FormData();
+      fd.append("description", bulkDesc.trim());
+      fd.append("tier", bulkTier);
+      fd.append("file", bulkZipFile);
+      const result = await api.postFormData<BulkImportResponse>("/api/v1/admin/pptx-templates/bulk-import", fd);
+      setPptx((prev) => [...prev, ...result.imported]);
+      setBulkResult(result);
+      setBulkZipFile(null);
+      setBulkDesc("");
+      setBulkTier("free");
+      setBulkStatus(`Import complete. ${result.summary.imported} template${result.summary.imported === 1 ? "" : "s"} added.`);
+      refreshPptxTemplatesSoon();
+    } catch (e: any) { alert("Bulk import failed: " + (e?.message ?? "Unknown error")); }
+    finally { setBulkUploading(false); }
   };
 
   // ── Merge built-in list with tier data ────────────────────────────────────
@@ -472,6 +528,94 @@ export default function AdminTemplatesPage() {
                   >
                     {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading…</> : <><Save className="w-4 h-4" /> Upload Template</>}
                   </button>
+                  {uploadStatus && (
+                    <div className="rounded-lg border border-purple-100 bg-purple-50 px-3 py-2 text-xs text-purple-700">
+                      <div className="flex items-center gap-2">
+                        {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                        <span>{uploadStatus}</span>
+                      </div>
+                      {uploading && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-purple-100"><div className="h-full w-1/2 animate-pulse rounded-full bg-purple-500" /></div>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ZIP bulk import card */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+                <FileArchive className="w-4 h-4 text-slate-600" />
+                <h2 className="font-semibold text-slate-700 text-sm">Bulk import from ZIP</h2>
+              </div>
+              <div className="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Default description (optional)</label>
+                    <input
+                      value={bulkDesc}
+                      onChange={(e) => setBulkDesc(e.target.value)}
+                      placeholder="Applied to every imported template"
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Default tier</label>
+                    <div className="flex gap-2">
+                      {(["free", "premium"] as const).map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => setBulkTier(t)}
+                          className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${
+                            bulkTier === t
+                              ? t === "free" ? "bg-indigo-100 text-indigo-700 border-indigo-300" : "bg-amber-100 text-amber-700 border-amber-300"
+                              : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
+                          {t === "free" ? "Free" : "Premium"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">.zip file *</label>
+                    <input
+                      type="file"
+                      accept=".zip,application/zip,application/x-zip-compressed"
+                      onChange={(e) => setBulkZipFile(e.target.files?.[0] ?? null)}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">Max 250 MB ZIP · up to 100 PPTX files · names come from filenames</p>
+                  </div>
+                  <button
+                    onClick={handleBulkImport}
+                    disabled={bulkUploading || !bulkZipFile}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-50"
+                  >
+                    {bulkUploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Importing…</> : <><FileArchive className="w-4 h-4" /> Import ZIP</>}
+                  </button>
+                  {bulkStatus && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                      <div className="flex items-center gap-2">
+                        {bulkUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />}
+                        <span>{bulkStatus}</span>
+                      </div>
+                      {bulkUploading && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full w-1/2 animate-pulse rounded-full bg-slate-700" /></div>}
+                    </div>
+                  )}
+                  {bulkResult && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                      <p className="font-semibold text-slate-700">
+                        Imported {bulkResult.summary.imported} of {bulkResult.summary.total_pptx} PPTX files
+                      </p>
+                      {(bulkResult.summary.skipped > 0 || bulkResult.summary.failed > 0) && (
+                        <p className="mt-1">
+                          {bulkResult.summary.skipped} skipped · {bulkResult.summary.failed} failed
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

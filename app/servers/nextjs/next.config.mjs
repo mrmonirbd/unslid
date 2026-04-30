@@ -40,7 +40,7 @@ const securityHeaders = [
 
 const nextConfig = {
   reactStrictMode: false,
-  distDir: ".next-build",
+  distDir: process.env.NEXT_DIST_DIR ?? ".next-build",
   output: "standalone",
 
   async headers() {

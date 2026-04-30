@@ -50,6 +50,10 @@ class PresentationModel(SQLModel, table=True):
     include_table_of_contents: bool = Field(sa_column=Column(Boolean), default=False)
     include_title_slide: bool = Field(sa_column=Column(Boolean), default=True)
     web_search: bool = Field(sa_column=Column(Boolean), default=False)
+    pptx_template_id: Optional[int] = Field(
+        sa_column=Column(Integer, ForeignKey("pptx_designer_templates.id", ondelete="SET NULL"), nullable=True),
+        default=None,
+    )
     # "private" → only owner can see | "team" → all members of org_id can see
     visibility: str = Field(
         sa_column=Column(String, nullable=False, server_default="private"),
@@ -73,6 +77,7 @@ class PresentationModel(SQLModel, table=True):
             verbosity=self.verbosity,
             include_table_of_contents=self.include_table_of_contents,
             include_title_slide=self.include_title_slide,
+            pptx_template_id=self.pptx_template_id,
         )
 
     def get_presentation_outline(self):

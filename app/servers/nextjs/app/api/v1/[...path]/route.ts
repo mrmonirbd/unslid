@@ -13,6 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,19 @@ async function proxy(request: NextRequest, ctx: Ctx): Promise<NextResponse> {
   for (const [key, value] of request.headers.entries()) {
     if (!HOP_BY_HOP.has(key.toLowerCase()) && key.toLowerCase() !== "host") {
       forwardHeaders.set(key, value);
+    }
+  }
+
+  // Browser <img> requests cannot attach our API client's Bearer token.
+  // Add the logged-in Supabase token from cookies so authenticated media
+  // endpoints like PPTX template thumbnails can still render normally.
+  if (!forwardHeaders.has("authorization")) {
+    const supabase = await createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      forwardHeaders.set("authorization", `Bearer ${session.access_token}`);
     }
   }
 

@@ -134,6 +134,8 @@ async def _run_safe_migrations(conn, db_url: str):
             await conn.execute(text("ALTER TABLE presentations ADD COLUMN org_id INTEGER REFERENCES organizations(id) ON DELETE SET NULL"))
         if "visibility" not in cols:
             await conn.execute(text("ALTER TABLE presentations ADD COLUMN visibility VARCHAR DEFAULT 'private'"))
+        if "pptx_template_id" not in cols:
+            await conn.execute(text("ALTER TABLE presentations ADD COLUMN pptx_template_id INTEGER REFERENCES pptx_designer_templates(id) ON DELETE SET NULL"))
     else:
         # ── presentations ────────────────────────────────────────────────────
         cols = await pg_cols("presentations")
@@ -154,6 +156,11 @@ async def _run_safe_migrations(conn, db_url: str):
         if "visibility" not in cols:
             await conn.execute(text(
                 "ALTER TABLE presentations ADD COLUMN IF NOT EXISTS visibility VARCHAR NOT NULL DEFAULT 'private'"
+            ))
+        if "pptx_template_id" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE presentations ADD COLUMN IF NOT EXISTS pptx_template_id INTEGER "
+                "REFERENCES pptx_designer_templates(id) ON DELETE SET NULL"
             ))
 
         # ── users ────────────────────────────────────────────────────────────

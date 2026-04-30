@@ -7,7 +7,10 @@ PUT  /admin/pptx-templates/{id}     → update name/desc/tier/active/order
 DELETE /admin/pptx-templates/{id}   → soft-delete (is_active=False) or hard delete
 """
 import asyncio
+import io
 import logging
+import zipfile
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -21,11 +24,16 @@ from models.sql.user import UserModel
 from models.sql.pptx_designer_template import PptxDesignerTemplate
 from services.database import get_async_session
 from services import pptx_designer_template_service as svc
+from utils.get_env import get_app_data_directory_env
 
 logger = logging.getLogger(__name__)
 
 PPTX_TEMPLATES_ROUTER = APIRouter(prefix="/api/v1/admin/pptx-templates", tags=["admin-pptx-templates"])
 PUBLIC_PPTX_TEMPLATES_ROUTER = APIRouter(prefix="/api/v1/account/pptx-templates", tags=["pptx-templates"])
+
+MAX_PPTX_SIZE_BYTES = 50 * 1024 * 1024
+MAX_ZIP_SIZE_BYTES = 250 * 1024 * 1024
+MAX_PPTX_FILES_PER_ZIP = 100
 
 
 def _require_admin(current_user: UserModel = Depends(get_current_user)) -> UserModel:
@@ -47,6 +55,7 @@ def _row_to_dict(r: PptxDesignerTemplate, base_url: str = "/api/v1/pptx-template
         "sort_order": r.sort_order,
         "slide_count": r.slide_count,
         "thumbnail_urls": thumbs,
+        "file_url": f"/api/v1/account/pptx-templates/{r.id}/download",
         "color_scheme": r.color_scheme,
         "font_scheme": r.font_scheme,
         "created_at": r.created_at.isoformat(),
@@ -55,6 +64,79 @@ def _row_to_dict(r: PptxDesignerTemplate, base_url: str = "/api/v1/pptx-template
 
 
 # ─── Admin CRUD ───────────────────────────────────────────────────────────────
+
+async def _next_sort_order(session: AsyncSession) -> int:
+    result = await session.execute(select(PptxDesignerTemplate))
+    existing = result.scalars().all()
+    return max((r.sort_order for r in existing), default=-1) + 1
+
+
+async def _repair_incomplete_thumbnails(
+    row: PptxDesignerTemplate,
+    session: AsyncSession,
+) -> None:
+    thumb_count = len(row.thumbnail_paths or [])
+    if not row.thumbnail_paths or row.slide_count <= 0 or thumb_count >= row.slide_count:
+        return
+
+    logger.info(
+        "Regenerating incomplete thumbnails for pptx_designer_template id=%s (%s/%s)",
+        row.id,
+        thumb_count,
+        row.slide_count,
+    )
+    abs_path = svc.resolve_template_abs_path(row.file_path)
+    if not Path(abs_path).exists():
+        logger.warning(
+            "Skipping thumbnail repair for pptx_designer_template id=%s; source file missing: %s",
+            row.id,
+            abs_path,
+        )
+        return
+    row.thumbnail_paths = await svc.generate_thumbnails(
+        abs_path,
+        str(row.id),
+    )
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+
+
+async def _create_pptx_template_row(
+    *,
+    file_bytes: bytes,
+    name: str,
+    description: str,
+    tier: str,
+    sort_order: int,
+    session: AsyncSession,
+) -> tuple[PptxDesignerTemplate, str]:
+    abs_path, rel_path = svc.save_pptx_file(file_bytes)
+
+    slide_count = svc.count_slides(abs_path)
+    color_scheme, font_scheme = svc.extract_theme_info(abs_path)
+
+    template = PptxDesignerTemplate(
+        name=name,
+        description=description,
+        tier=tier,
+        is_active=True,
+        sort_order=sort_order,
+        file_path=rel_path,
+        slide_count=slide_count,
+        color_scheme=color_scheme or None,
+        font_scheme=font_scheme or None,
+    )
+    session.add(template)
+    await session.commit()
+    await session.refresh(template)
+
+    return template, abs_path
+
+
+def _template_name_from_zip_path(zip_path: str) -> str:
+    stem = Path(zip_path).stem.replace("_", " ").replace("-", " ").strip()
+    return " ".join(part.capitalize() for part in stem.split()) or "Untitled Template"
 
 @PPTX_TEMPLATES_ROUTER.post("")
 async def upload_pptx_template(
@@ -74,34 +156,17 @@ async def upload_pptx_template(
     file_bytes = await file.read()
     if len(file_bytes) == 0:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
-    if len(file_bytes) > 50 * 1024 * 1024:  # 50 MB limit
+    if len(file_bytes) > MAX_PPTX_SIZE_BYTES:
         raise HTTPException(status_code=400, detail="File too large (max 50 MB)")
 
-    abs_path, rel_path = svc.save_pptx_file(file_bytes)
-
-    # Extract metadata synchronously (fast)
-    slide_count = svc.count_slides(abs_path)
-    color_scheme, font_scheme = svc.extract_theme_info(abs_path)
-
-    # Determine sort order (append to end)
-    result = await session.execute(select(PptxDesignerTemplate))
-    existing = result.scalars().all()
-    sort_order = max((r.sort_order for r in existing), default=-1) + 1
-
-    template = PptxDesignerTemplate(
+    template, abs_path = await _create_pptx_template_row(
+        file_bytes=file_bytes,
         name=name,
         description=description,
         tier=tier,
-        is_active=True,
-        sort_order=sort_order,
-        file_path=rel_path,
-        slide_count=slide_count,
-        color_scheme=color_scheme or None,
-        font_scheme=font_scheme or None,
+        sort_order=await _next_sort_order(session),
+        session=session,
     )
-    session.add(template)
-    await session.commit()
-    await session.refresh(template)
 
     # Generate thumbnails in the background (non-blocking)
     template_id = template.id
@@ -110,6 +175,91 @@ async def upload_pptx_template(
     )
 
     return _row_to_dict(template)
+
+
+@PPTX_TEMPLATES_ROUTER.post("/bulk-import")
+async def bulk_import_pptx_templates(
+    description: str = Form(""),
+    tier: str = Form("free"),
+    file: UploadFile = File(...),
+    admin: UserModel = Depends(_require_admin),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Import every .pptx file inside a .zip as designer templates."""
+    if not file.filename or not file.filename.lower().endswith(".zip"):
+        raise HTTPException(status_code=400, detail="Only .zip files are accepted")
+    if tier not in ("free", "premium"):
+        raise HTTPException(status_code=400, detail="tier must be 'free' or 'premium'")
+
+    zip_bytes = await file.read()
+    if len(zip_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded ZIP is empty")
+    if len(zip_bytes) > MAX_ZIP_SIZE_BYTES:
+        raise HTTPException(status_code=400, detail="ZIP file too large (max 250 MB)")
+
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(zip_bytes))
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Invalid ZIP file")
+
+    imported: list[dict] = []
+    skipped: list[dict] = []
+    failed: list[dict] = []
+    next_sort_order = await _next_sort_order(session)
+
+    with archive:
+        pptx_entries = [
+            info for info in archive.infolist()
+            if not info.is_dir() and info.filename.lower().endswith(".pptx")
+        ]
+        if not pptx_entries:
+            raise HTTPException(status_code=400, detail="ZIP does not contain any .pptx files")
+        if len(pptx_entries) > MAX_PPTX_FILES_PER_ZIP:
+            raise HTTPException(
+                status_code=400,
+                detail=f"ZIP contains too many PPTX files (max {MAX_PPTX_FILES_PER_ZIP})",
+            )
+
+        for info in pptx_entries:
+            if info.file_size == 0:
+                skipped.append({"filename": info.filename, "reason": "empty file"})
+                continue
+            if info.file_size > MAX_PPTX_SIZE_BYTES:
+                skipped.append({"filename": info.filename, "reason": "file too large (max 50 MB)"})
+                continue
+
+            try:
+                pptx_bytes = archive.read(info)
+                template, abs_path = await _create_pptx_template_row(
+                    file_bytes=pptx_bytes,
+                    name=_template_name_from_zip_path(info.filename),
+                    description=description,
+                    tier=tier,
+                    sort_order=next_sort_order,
+                    session=session,
+                )
+                next_sort_order += 1
+                imported.append(_row_to_dict(template))
+
+                template_id = template.id
+                asyncio.create_task(
+                    _generate_and_save_thumbnails(abs_path, str(template_id), template_id, session)
+                )
+            except Exception as exc:
+                logger.exception("Bulk PPTX import failed for %s", info.filename)
+                failed.append({"filename": info.filename, "reason": str(exc)})
+
+    return {
+        "imported": imported,
+        "skipped": skipped,
+        "failed": failed,
+        "summary": {
+            "imported": len(imported),
+            "skipped": len(skipped),
+            "failed": len(failed),
+            "total_pptx": len(imported) + len(skipped) + len(failed),
+        },
+    }
 
 
 async def _generate_and_save_thumbnails(
@@ -142,6 +292,8 @@ async def list_pptx_templates(
         select(PptxDesignerTemplate).order_by(PptxDesignerTemplate.sort_order)
     )
     rows = result.scalars().all()
+    for row in rows:
+        await _repair_incomplete_thumbnails(row, session)
     return [_row_to_dict(r) for r in rows]
 
 
@@ -224,11 +376,51 @@ async def get_pptx_templates_for_user(
     plan = current_user.plan or "free"
     out = []
     for r in rows:
+        await _repair_incomplete_thumbnails(r, session)
         d = _row_to_dict(r)
         # Free-plan users can still SEE premium templates but are locked (same UX as tier templates)
         d["locked"] = (r.tier == "premium" and plan not in ("pro", "team"))
         out.append(d)
     return out
+
+
+@PUBLIC_PPTX_TEMPLATES_ROUTER.get("/{template_id}/download")
+async def download_pptx_template_for_user(
+    template_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Download the original designer-uploaded PPTX template."""
+    result = await session.execute(
+        select(PptxDesignerTemplate).where(
+            PptxDesignerTemplate.id == template_id,
+            PptxDesignerTemplate.is_active == True,  # noqa: E712
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    plan = current_user.plan or "free"
+    if row.tier == "premium" and plan not in ("pro", "team"):
+        raise HTTPException(status_code=403, detail="Upgrade required")
+
+    abs_path = Path(svc.resolve_template_abs_path(row.file_path))
+    app_data = Path(get_app_data_directory_env()).resolve()
+    try:
+        abs_path.resolve().relative_to(app_data)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if not abs_path.exists() or not abs_path.is_file():
+        raise HTTPException(status_code=404, detail="Template file not found")
+
+    safe_name = "".join(c if c.isalnum() or c in (" ", "-", "_", ".") else "_" for c in row.name).strip()
+    filename = f"{safe_name or 'designer-template'}.pptx"
+    return FileResponse(
+        str(abs_path),
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        filename=filename,
+    )
 
 
 # ─── Public thumbnail serving ─────────────────────────────────────────────────

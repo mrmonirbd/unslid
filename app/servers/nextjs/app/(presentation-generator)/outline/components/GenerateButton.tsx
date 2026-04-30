@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { LoadingState, Template } from "../types/index";
 import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
 import { ChevronRight } from "lucide-react";
+import type { DesignerTemplateSelection } from "./TemplateSelection";
 
 interface GenerateButtonProps {
   loadingState: LoadingState;
   streamState: { isStreaming: boolean; isLoading: boolean };
-  selectedTemplate: TemplateLayoutsWithSettings | string | null;
+  selectedTemplate: TemplateLayoutsWithSettings | string | DesignerTemplateSelection | null;
   onSubmit: () => void;
   outlineCount: number;
 }
