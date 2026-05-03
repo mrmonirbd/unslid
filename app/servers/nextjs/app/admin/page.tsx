@@ -1596,8 +1596,8 @@ export default function AdminPage() {
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-slate-800">Template Management</p>
             <p className="text-xs text-slate-500 mt-0.5">
-              Manage built-in template tiers, visibility, and upload designer PPTX templates —
-              {" "}{templateTiers.length} built-in · {pptxTemplates.length} designer
+              Upload PPTX templates, control visibility, and convert imported files into HTML layouts —
+              {" "}{pptxTemplates.length} imported
             </p>
           </div>
           <span className="text-xs font-medium text-indigo-500 group-hover:text-indigo-700 transition shrink-0">

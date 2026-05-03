@@ -22,60 +22,38 @@ export const useLayoutSaving = (
     setIsModalOpen(false);
   }, []);
 
-  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  const toJsStringLiteral = (value: string) =>
+    JSON.stringify(
+      value
+        .replace(/contenteditable="true"/g, "")
+        .replace(/contentEditable="true"/g, "")
+    );
 
   const convertSlideToReact = async (slide: ProcessedSlide, presentationId: string, FontUrls: string[]) => {
-    const maxRetries = 3;
-    let retryCount = 0;
+    const importedHtml = toJsStringLiteral(slide.html || "");
+    const slideNumber = Number(slide.slide_number) || 1;
+    const layoutCode = `
+const layoutId = "${slideNumber}";
+const layoutName = "Slide${slideNumber}";
+const layoutDescription = "Editable imported slide ${slideNumber}";
+const Schema = z.object({});
+const importedHtml = ${importedHtml};
 
-    console.log("Slide to convert to react", {
-      html: slide.html,
-      image: slide.screenshot_url,
-    })
+const dynamicSlideLayout = () => (
+  <div
+    className="relative h-full w-full overflow-hidden bg-white [&_.imported-slide-canvas]:h-full [&_.imported-slide-canvas]:w-full [&_.imported-slide-canvas]:max-w-none"
+    dangerouslySetInnerHTML={{ __html: importedHtml }}
+  />
+);
+`;
 
-    while (retryCount < maxRetries) {
-      try {
-        const response = await fetch("/api/v1/ppt/html-to-react/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            html: slide.html,
-            image: slide.screenshot_url,
-          }),
-        });
-
-        const data = await ApiResponseHandler.handleResponse(
-          response,
-          `Failed to convert slide ${slide.slide_number} to React`
-        );
-
-        return {
-          presentation: presentationId,
-          layout_id: `${slide.slide_number}`,
-          layout_name: `Slide${slide.slide_number}`,
-          layout_code: data.react_component || data.component_code,
-          fonts: FontUrls,
-        };
-      } catch (error) {
-        retryCount++;
-        console.error(`Error converting slide ${slide.slide_number} (attempt ${retryCount}):`, error);
-
-        if (retryCount < maxRetries) {
-          toast.error(`Failed to convert slide ${slide.slide_number}. Retrying in 2 minutes...`, {
-            description: `Attempt ${retryCount}/${maxRetries}. Error: ${error instanceof Error ? error.message : "An unexpected error occurred"}`,
-          });
-
-          // Wait for 2 minutes before retrying
-          await delay(2 * 60 * 1000);
-
-          toast.info(`Retrying conversion for slide ${slide.slide_number}...`);
-        } else {
-          throw new Error(`Failed to convert slide ${slide.slide_number} after ${maxRetries} attempts: ${error instanceof Error ? error.message : "An unexpected error occurred"}`);
-        }
-      }
-    }
+    return {
+      presentation: presentationId,
+      layout_id: `${slide.slide_number}`,
+      layout_name: `Slide${slide.slide_number}`,
+      layout_code: layoutCode,
+      fonts: FontUrls,
+    };
   };
 
   const saveLayout = useCallback(async (layoutName: string, description: string): Promise<string | null> => {
@@ -87,7 +65,8 @@ export const useLayoutSaving = (
     setIsSavingLayout(true);
 
     try {
-      // Convert each slide HTML to React component
+      // Save each imported slide as editable HTML/React. This import path does
+      // not call AI; PPTX text boxes are extracted from slide XML.
       const reactComponents: any[] = [];
       const presentationId = uuidv4();
 
@@ -112,12 +91,10 @@ export const useLayoutSaving = (
           reactComponents.push(reactComponent);
 
           // Update progress
-          toast.success(
-            `Converted slide ${slide.slide_number} to React component`
-          );
+          toast.success(`Prepared slide ${slide.slide_number}`);
         } catch (error) {
           console.error(`Error converting slide ${slide.slide_number}:`, error);
-          toast.error(`Failed to convert slide ${slide.slide_number} after all retries`, {
+          toast.error(`Failed to prepare slide ${slide.slide_number}`, {
             description:
               error instanceof Error
                 ? error.message

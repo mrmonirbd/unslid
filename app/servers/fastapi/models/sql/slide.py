@@ -1,6 +1,6 @@
 from typing import Optional
 import uuid
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, Text
 from sqlmodel import Field, Column, JSON, SQLModel
 
 
@@ -15,8 +15,8 @@ class SlideModel(SQLModel, table=True):
     layout: str
     index: int
     content: dict = Field(sa_column=Column(JSON))
-    html_content: Optional[str]
-    speaker_note: Optional[str] = None
+    html_content: Optional[str] = Field(sa_column=Column(Text), default=None)
+    speaker_note: Optional[str] = Field(sa_column=Column(Text), default=None)
     properties: Optional[dict] = Field(sa_column=Column(JSON))
 
     def get_new_slide(self, presentation: uuid.UUID, content: Optional[dict] = None):

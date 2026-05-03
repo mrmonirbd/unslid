@@ -22,8 +22,8 @@ from utils.user_config import update_env_with_user_config
 logger = logging.getLogger(__name__)
 
 
-async def _extract_supabase_id(request: Request) -> str | None:
-    """Extract Supabase user ID from JWT — supports both ES256 and HS256.
+async def _extract_user_subject(request: Request) -> str | None:
+    """Extract local/Supabase-compatible user subject from JWT.
 
     Reads the token from (in priority order):
       1. Authorization: Bearer <token>  header  (normal fetch / XHR)
@@ -70,12 +70,12 @@ class PlanAIConfigMiddleware(BaseHTTPMiddleware):
         clear_active_plan_config()
         clear_active_user_id()
 
-        supabase_id = await _extract_supabase_id(request)
-        if supabase_id:
+        user_subject = await _extract_user_subject(request)
+        if user_subject:
             try:
                 async with async_session_maker() as session:
                     result = await session.execute(
-                        select(UserModel).where(UserModel.supabase_id == supabase_id)
+                        select(UserModel).where(UserModel.supabase_id == user_subject)
                     )
                     user = result.scalar_one_or_none()
                     plan = user.plan if user else "free"

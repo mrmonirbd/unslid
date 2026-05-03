@@ -17,7 +17,7 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 # Core dependencies (fast to install)
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir \
-    alembic aiohttp aiomysql aiosqlite asyncpg \
+    alembic aiohttp aiomysql aiosqlite \
     fastapi[standard] pathvalidate pdfplumber \
     sqlmodel anthropic google-genai openai \
     dirtyjson arq redis \
@@ -31,10 +31,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     chromadb fastmcp \
     docling \
     --extra-index-url https://download.pytorch.org/whl/cpu
-
-# Lightweight DB sync driver for Alembic migrations (separate layer for fast rebuilds)
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir psycopg2-binary
 
 COPY . .
 

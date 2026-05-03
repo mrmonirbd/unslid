@@ -1,26 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { api, UserProfile } from "@/lib/api";
 import {
   ArrowLeft, LayoutTemplate, Lock, Unlock, Loader2, Save, FileDown,
   Eye, EyeOff, Pencil, Check, X, Trash2, Upload, FileArchive, CheckCircle2,
 } from "lucide-react";
-import { templates as builtinTemplates } from "@/app/presentation-templates";
-import { TemplateWithData, TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface TemplateTierEntry {
-  id: number;
-  template_id: string;
-  name: string;
-  tier: "free" | "premium";
-  is_active: boolean;
-  sort_order: number;
-  updated_at: string;
-}
 
 interface PptxDesignerTemplate {
   id: number;
@@ -33,6 +21,10 @@ interface PptxDesignerTemplate {
   thumbnail_urls: string[];
   color_scheme: Record<string, string> | null;
   font_scheme: Record<string, string> | null;
+  html_template_id?: string | null;
+  html_template_slug?: string | null;
+  html_conversion_status?: "pending" | "processing" | "completed" | "failed";
+  html_conversion_error?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -48,38 +40,6 @@ interface BulkImportResponse {
     total_pptx: number;
   };
 }
-
-// ─── Mini live preview for built-in templates ─────────────────────────────────
-
-const BuiltinThumbGrid = React.memo(function BuiltinThumbGrid({
-  template,
-}: {
-  template: TemplateLayoutsWithSettings;
-}) {
-  const previews = useMemo(() => template.layouts.slice(0, 4), [template.layouts]);
-  return (
-    <div className="grid grid-cols-2 gap-1">
-      {previews.map((layout: TemplateWithData, i: number) => {
-        const LC = layout.component;
-        return (
-          <div
-            key={i}
-            className="relative bg-gray-100 border border-gray-200 overflow-hidden rounded"
-            style={{ aspectRatio: "16/9" }}
-          >
-            <div className="absolute inset-0 z-10 pointer-events-none" />
-            <div
-              className="transform origin-top-left"
-              style={{ transform: "scale(0.12)", width: "833.33%", height: "833.33%" }}
-            >
-              <LC data={layout.sampleData} />
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-});
 
 // ─── Inline editable name ─────────────────────────────────────────────────────
 
@@ -205,10 +165,6 @@ export default function AdminTemplatesPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
-  // Built-in tiers
-  const [tiers, setTiers] = useState<TemplateTierEntry[]>([]);
-  const [tierSaving, setTierSaving] = useState<string | null>(null);
-
   // Designer PPTX templates
   const [pptx, setPptx] = useState<PptxDesignerTemplate[]>([]);
   const [pptxSaving, setPptxSaving] = useState<number | null>(null);
@@ -227,19 +183,6 @@ export default function AdminTemplatesPage() {
   const [uploadStatus, setUploadStatus] = useState("");
   const [bulkStatus, setBulkStatus] = useState("");
 
-  // Active tab
-  const [tab, setTab] = useState<"builtin" | "designer">("builtin");
-
-  // Tailwind CDN for built-in template renders
-  useEffect(() => {
-    if (!document.querySelector('script[src*="tailwindcss.com"]')) {
-      const s = document.createElement("script");
-      s.src = "https://cdn.tailwindcss.com";
-      s.async = true;
-      document.head.appendChild(s);
-    }
-  }, []);
-
   const refreshPptxTemplates = useCallback(async () => {
     const rows = await api.get<PptxDesignerTemplate[]>("/api/v1/admin/pptx-templates");
     setPptx(rows);
@@ -256,25 +199,12 @@ export default function AdminTemplatesPage() {
     api.get<UserProfile>("/api/v1/account/me").then((u) => {
       if (!u.is_admin) { router.replace("/dashboard"); return; }
       Promise.allSettled([
-        api.get<TemplateTierEntry[]>("/api/v1/admin/template-tiers"),
         api.get<PptxDesignerTemplate[]>("/api/v1/admin/pptx-templates"),
-      ]).then(([tiersRes, pptxRes]) => {
-        if (tiersRes.status === "fulfilled") setTiers(tiersRes.value);
+      ]).then(([pptxRes]) => {
         if (pptxRes.status === "fulfilled") setPptx(pptxRes.value);
       }).finally(() => setLoading(false));
     }).catch(() => router.replace("/dashboard"));
   }, [router]);
-
-  // ── Built-in tier handlers ──────────────────────────────────────────────────
-
-  const saveTier = useCallback(async (templateId: string, updates: Partial<TemplateTierEntry>) => {
-    setTierSaving(templateId);
-    try {
-      const updated = await api.put<TemplateTierEntry>(`/api/v1/admin/template-tiers/${templateId}`, updates);
-      setTiers((prev) => prev.map((t) => t.template_id === templateId ? { ...t, ...updated } : t));
-    } catch { alert("Save failed. Please try again."); }
-    finally { setTierSaving(null); }
-  }, []);
 
   // ── Designer PPTX handlers ──────────────────────────────────────────────────
 
@@ -306,7 +236,7 @@ export default function AdminTemplatesPage() {
       const result = await api.postFormData<PptxDesignerTemplate>("/api/v1/admin/pptx-templates", fd);
       setPptx((prev) => [...prev, result]);
       setUploadName(""); setUploadDesc(""); setUploadFile(null); setUploadTier("free");
-      setUploadStatus("Upload complete. Thumbnails are generating in the background.");
+      setUploadStatus("Upload complete. Thumbnails and HTML layouts are generating in the background.");
       refreshPptxTemplatesSoon();
     } catch (e: any) { alert("Upload failed: " + (e?.message ?? "Unknown error")); }
     finally { setUploading(false); }
@@ -334,17 +264,6 @@ export default function AdminTemplatesPage() {
     finally { setBulkUploading(false); }
   };
 
-  // ── Merge built-in list with tier data ────────────────────────────────────
-
-  const builtinWithTiers = useMemo(() => {
-    const map: Record<string, TemplateTierEntry> = {};
-    for (const t of tiers) map[t.template_id] = t;
-    return builtinTemplates.map((bt) => ({
-      builtin: bt,
-      tier: map[bt.id] ?? null,
-    }));
-  }, [tiers]);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -366,105 +285,15 @@ export default function AdminTemplatesPage() {
         </button>
         <LayoutTemplate className="w-5 h-5 text-indigo-500" />
         <div>
-          <h1 className="font-bold text-slate-800 text-lg leading-none">Template Management</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Manage visibility, tiers, and upload designer templates</p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="px-6 pt-6">
-        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit shadow-sm">
-          {(["builtin", "designer"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-5 py-2 rounded-lg text-sm font-medium transition ${
-                tab === t
-                  ? "bg-indigo-600 text-white shadow"
-                  : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              {t === "builtin" ? `Built-in (${builtinWithTiers.length})` : `Designer (${pptx.length})`}
-            </button>
-          ))}
+          <h1 className="font-bold text-slate-800 text-lg leading-none">Imported Templates</h1>
+          <p className="text-xs text-slate-400 mt-0.5">Upload PPTX files, generate thumbnails, and convert them into HTML layouts</p>
         </div>
       </div>
 
       <div className="px-6 py-6 space-y-4">
 
-        {/* ── BUILT-IN TEMPLATES ──────────────────────────────────────────────── */}
-        {tab === "builtin" && (
-          <>
-            <p className="text-xs text-slate-500">
-              <span className="font-semibold text-indigo-600">Free</span> — visible to all users &nbsp;·&nbsp;
-              <span className="font-semibold text-amber-600">Premium</span> — Pro &amp; Team only (free users see a lock).
-              Click a name to rename it.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {builtinWithTiers.map(({ builtin, tier }) => (
-                <div
-                  key={builtin.id}
-                  className={`bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition ${!tier?.is_active ? "opacity-60" : ""}`}
-                >
-                  {/* Thumbnail grid */}
-                  <div className="p-3 bg-slate-50 border-b border-slate-100">
-                    <BuiltinThumbGrid template={builtin} />
-                    <p className="text-[10px] text-slate-400 font-mono mt-1.5 text-center">{builtin.id}</p>
-                  </div>
-
-                  {/* Controls */}
-                  <div className="p-3 space-y-2.5">
-                    <InlineName
-                      value={tier?.name ?? builtin.name}
-                      onSave={(v) => tier && saveTier(tier.template_id, { name: v })}
-                      disabled={!tier || tierSaving === builtin.id}
-                    />
-
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-xs text-slate-400">{builtin.layouts.length} layouts</span>
-                    </div>
-
-                    {tier ? (
-                      <div className="flex flex-col gap-2">
-                        <TierPills
-                          tier={tier.tier}
-                          onChange={(t) => saveTier(tier.template_id, { tier: t })}
-                          disabled={tierSaving === tier.template_id}
-                        />
-                        <div className="flex items-center gap-2">
-                          <VisibilityPill
-                            active={tier.is_active}
-                            onChange={(v) => saveTier(tier.template_id, { is_active: v })}
-                            disabled={tierSaving === tier.template_id}
-                          />
-                          <div className="flex items-center gap-1 ml-auto">
-                            <label className="text-[10px] text-slate-400">Order</label>
-                            <input
-                              type="number"
-                              min={0}
-                              defaultValue={tier.sort_order}
-                              onBlur={(e) => {
-                                const v = parseInt(e.target.value, 10);
-                                if (!isNaN(v) && v !== tier.sort_order) saveTier(tier.template_id, { sort_order: v });
-                              }}
-                              className="w-12 border border-slate-200 rounded px-1.5 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-[10px] text-slate-400 italic">Tier data loading…</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
         {/* ── DESIGNER TEMPLATES ─────────────────────────────────────────────── */}
-        {tab === "designer" && (
-          <>
+        <>
             {/* Upload card */}
             <div className="bg-white rounded-xl border border-purple-200 shadow-sm">
               <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
@@ -660,8 +489,23 @@ export default function AdminTemplatesPage() {
                           ))}
                         </div>
                       )}
-                      <p className="text-[10px] text-slate-400 mt-1.5 text-center">{t.slide_count} slides</p>
+                    <div className="mt-1.5 flex items-center justify-center gap-2 text-[10px] text-slate-400">
+                      <span>{t.slide_count} slides</span>
+                      <span>·</span>
+                      <span
+                        className={
+                          t.html_conversion_status === "completed"
+                            ? "text-green-600"
+                            : t.html_conversion_status === "failed"
+                              ? "text-red-600"
+                              : "text-amber-600"
+                        }
+                        title={t.html_conversion_error || undefined}
+                      >
+                        HTML {t.html_conversion_status ?? "pending"}
+                      </span>
                     </div>
+                  </div>
 
                     {/* Controls */}
                     <div className="p-3 space-y-2.5">
@@ -710,8 +554,7 @@ export default function AdminTemplatesPage() {
                 ))}
               </div>
             )}
-          </>
-        )}
+        </>
       </div>
     </div>
   );

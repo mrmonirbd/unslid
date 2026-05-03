@@ -11,6 +11,7 @@ class UserModel(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     supabase_id: str = Field(unique=True, index=True)
     email: str = Field(index=True)
+    password_hash: Optional[str] = Field(default=None)
     full_name: str = Field(default="")
     storage_region: str = Field(default="eu")  # eu | us | ap-se | ap-ne
     storage_region_confirmed_at: Optional[datetime] = Field(default=None)

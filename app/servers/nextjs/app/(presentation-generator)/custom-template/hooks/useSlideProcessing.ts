@@ -3,6 +3,118 @@ import { toast } from "sonner";
 import { ApiResponseHandler } from "@/app/(presentation-generator)/services/api/api-error-handler";
 import { ProcessedSlide, SlideData, FontData } from "../types";
 
+const SLIDE_WIDTH = 1280;
+const SLIDE_HEIGHT = 720;
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+const localName = (node: Element) => node.localName || node.nodeName.split(":").pop() || "";
+
+const descendants = (root: Element, name: string) =>
+  Array.from(root.getElementsByTagName("*")).filter((node) => localName(node) === name);
+
+const firstDescendant = (root: Element, name: string) =>
+  descendants(root, name)[0] as Element | undefined;
+
+const emuToPx = (value: string | null, axis: "x" | "y") => {
+  const numeric = Number(value || 0);
+  const base = axis === "x" ? 12192000 : 6858000;
+  return (numeric / base) * (axis === "x" ? SLIDE_WIDTH : SLIDE_HEIGHT);
+};
+
+const extractEditableTextBoxes = (xmlContent?: string) => {
+  if (!xmlContent || typeof window === "undefined") {
+    return "";
+  }
+
+  try {
+    const doc = new DOMParser().parseFromString(xmlContent, "application/xml");
+    const parserError = doc.getElementsByTagName("parsererror")[0];
+    if (parserError) {
+      return "";
+    }
+
+    const shapes = Array.from(doc.getElementsByTagName("*")).filter(
+      (node) => localName(node) === "sp"
+    );
+
+    return shapes
+      .map((shape, index) => {
+        const textBody = firstDescendant(shape, "txBody");
+        if (!textBody) {
+          return "";
+        }
+
+        const paragraphs = descendants(textBody, "p")
+          .map((paragraph) =>
+            descendants(paragraph, "t")
+              .map((textNode) => textNode.textContent || "")
+              .join("")
+              .trim()
+          )
+          .filter(Boolean);
+
+        if (!paragraphs.length) {
+          return "";
+        }
+
+        const xfrm = firstDescendant(shape, "xfrm");
+        const off = xfrm ? firstDescendant(xfrm, "off") : undefined;
+        const ext = xfrm ? firstDescendant(xfrm, "ext") : undefined;
+        const left = emuToPx(off?.getAttribute("x") || "0", "x");
+        const top = emuToPx(off?.getAttribute("y") || "0", "y");
+        const width = Math.max(20, emuToPx(ext?.getAttribute("cx") || "0", "x"));
+        const height = Math.max(18, emuToPx(ext?.getAttribute("cy") || "0", "y"));
+
+        const runProps = firstDescendant(textBody, "rPr") || firstDescendant(textBody, "defRPr");
+        const fontSize = runProps?.getAttribute("sz")
+          ? Math.max(8, (Number(runProps.getAttribute("sz")) / 100) * 1.333)
+          : Math.max(12, Math.min(42, height / Math.max(1, paragraphs.length) * 0.72));
+        const isBold = runProps?.getAttribute("b") === "1";
+        const isItalic = runProps?.getAttribute("i") === "1";
+        const fontNode = firstDescendant(runProps || textBody, "latin");
+        const fontFamily = fontNode?.getAttribute("typeface") || "Arial";
+        const colorNode = firstDescendant(runProps || textBody, "srgbClr");
+        const color = colorNode?.getAttribute("val") || "111827";
+        const paragraphProps = firstDescendant(textBody, "pPr");
+        const align = paragraphProps?.getAttribute("algn") === "ctr"
+          ? "center"
+          : paragraphProps?.getAttribute("algn") === "r"
+            ? "right"
+            : "left";
+
+        const safeText = paragraphs.map(escapeHtml).join("<br />");
+        const lineHeight = Math.max(1.05, Math.min(1.35, height / Math.max(fontSize, 1) / Math.max(paragraphs.length, 1)));
+
+        return `
+  <div
+    class="imported-editable-text"
+    contenteditable="true"
+    data-slide-text="${index + 1}"
+    style="position:absolute;left:${((left / SLIDE_WIDTH) * 100).toFixed(3)}%;top:${((top / SLIDE_HEIGHT) * 100).toFixed(3)}%;width:${((width / SLIDE_WIDTH) * 100).toFixed(3)}%;height:${((height / SLIDE_HEIGHT) * 100).toFixed(3)}%;color:#${color};font-family:'${fontFamily.replace(/'/g, "\\'")}', Arial, sans-serif;font-size:${((fontSize / SLIDE_HEIGHT) * 100).toFixed(3)}cqh;font-weight:${isBold ? 700 : 400};font-style:${isItalic ? "italic" : "normal"};line-height:${lineHeight.toFixed(2)};text-align:${align};white-space:pre-wrap;overflow:hidden;outline:1px dashed transparent;"
+  >${safeText}</div>`;
+      })
+      .join("");
+  } catch (error) {
+    console.warn("Could not extract editable text boxes from PPTX XML", error);
+    return "";
+  }
+};
+
+const buildImportedSlideHtml = (slide: SlideData) => `
+<div class="imported-slide-canvas relative mx-auto aspect-video w-full max-w-[1280px] overflow-hidden bg-white" style="position:relative;width:100%;max-width:1280px;aspect-ratio:16/9;background:#fff;container-type:size;">
+  <img src="${slide.textless_screenshot_url || slide.screenshot_url}" alt="Imported slide ${slide.slide_number} background" class="absolute inset-0 h-full w-full object-contain" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;" draggable="false" />
+  <div class="imported-editable-layer" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:auto;">
+${extractEditableTextBoxes(slide.xml_content)}
+  </div>
+</div>
+`;
+
 export const useSlideProcessing = (
   selectedFile: File | null,
   slides: ProcessedSlide[],
@@ -15,9 +127,7 @@ export const useSlideProcessing = (
   // Process individual slide to HTML
   const processSlideToHtml = useCallback(
     async (slide: SlideData, index: number) => {
-      console.log(
-        `Starting to process slide ${slide.slide_number} at index ${index}`
-      );
+      console.log(`Marking imported slide ${slide.slide_number} as ready`);
 
       // Update slide to processing state
       setSlides((prev) =>
@@ -27,25 +137,7 @@ export const useSlideProcessing = (
       );
 
       try {
-        const htmlResponse = await fetch("/api/v1/ppt/slide-to-html/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            image: slide.screenshot_url,
-            xml: slide.xml_content,
-            fonts: slide.normalized_fonts ?? [],
-          }),
-        });
-
-        const htmlData = await ApiResponseHandler.handleResponse(
-          htmlResponse,
-          `Failed to convert slide ${slide.slide_number} to HTML`
-        );
-
-        console.log(`Successfully processed slide ${slide.slide_number}`);
-        // Update slide with success
+        const html = buildImportedSlideHtml(slide);
         setSlides((prev) => {
           const newSlides = prev.map((s, i) =>
             i === index
@@ -53,12 +145,11 @@ export const useSlideProcessing = (
                   ...s,
                   processing: false,
                   processed: true,
-                  html: htmlData.html,
+                  html,
                 }
               : s
           );
 
-          // Process next slide if available
           const nextIndex = index + 1;
           if (
             nextIndex < newSlides.length &&
@@ -71,7 +162,7 @@ export const useSlideProcessing = (
             setTimeout(() => {
               const nextSlide = newSlides[nextIndex];
               processSlideToHtml(nextSlide, nextIndex);
-            }, 1000); // 1 second delay between slides
+            }, 50);
           }
 
           return newSlides;
@@ -169,10 +260,18 @@ export const useSlideProcessing = (
         (slide: any) => ({
           slide_number: slide.slide_number,
           screenshot_url: slide.screenshot_url,
+          textless_screenshot_url: slide.textless_screenshot_url ?? null,
           xml_content: slide.xml_content ?? "",
           normalized_fonts: slide.normalized_fonts ?? [],
           processing: false,
-          processed: false,
+          processed: true,
+          html: buildImportedSlideHtml({
+            slide_number: slide.slide_number,
+            screenshot_url: slide.screenshot_url,
+            textless_screenshot_url: slide.textless_screenshot_url ?? null,
+            xml_content: slide.xml_content ?? "",
+            normalized_fonts: slide.normalized_fonts ?? [],
+          }),
         })
       );
 
@@ -181,19 +280,13 @@ export const useSlideProcessing = (
       const hasUnsupported = Array.isArray(slidesResponseData.fonts?.not_supported_fonts) && slidesResponseData.fonts.not_supported_fonts.length > 0;
 
       toast.success(
-        `Template Processing Finished`,
+        `Import finished`,
         {
           description: hasUnsupported
             ? `Please Upload the not supported fonts, and click Extract Template`
-            : `All fonts are supported. Starting template extraction...`
+            : `Editable text layers were imported without AI. You can save the template now.`
         }
       );
-
-      // If all fonts are supported, auto-start extraction from the first slide
-      if (!hasUnsupported && initialSlides.length > 0) {
-        const firstSlide = initialSlides[0];
-        setTimeout(() => processSlideToHtml(firstSlide, 0), 300);
-      }
 
       
     } catch (error) {

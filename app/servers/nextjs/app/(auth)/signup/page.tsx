@@ -92,7 +92,8 @@ export default function SignupPage() {
     }
 
     trackEvent("sign_up", { method: "email", utm_source: utmSource, utm_medium: utmMedium, utm_campaign: utmCampaign });
-    setSuccess(true);
+    router.push("/dashboard");
+    router.refresh();
     setLoading(false);
   };
 

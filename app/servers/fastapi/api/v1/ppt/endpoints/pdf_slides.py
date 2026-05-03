@@ -2,9 +2,11 @@ import os
 import shutil
 import tempfile
 import subprocess
+from xml.sax.saxutils import escape
 from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
+import pdfplumber
 
 from services.documents_loader import DocumentsLoader
 from utils.asset_directory_utils import get_images_directory
@@ -15,9 +17,15 @@ from constants.documents import PDF_MIME_TYPES
 PDF_SLIDES_ROUTER = APIRouter(prefix="/pdf-slides", tags=["PDF Slides"])
 
 
+def _is_pdf_upload(file: UploadFile) -> bool:
+    filename = (file.filename or "").lower()
+    return file.content_type in PDF_MIME_TYPES or filename.endswith(".pdf")
+
+
 class PdfSlideData(BaseModel):
     slide_number: int
     screenshot_url: str
+    xml_content: str = ""
 
 
 class PdfSlidesResponse(BaseModel):
@@ -42,7 +50,7 @@ async def process_pdf_slides(
     """
 
     # Validate PDF file
-    if pdf_file.content_type not in PDF_MIME_TYPES:
+    if not _is_pdf_upload(pdf_file):
         raise HTTPException(
             status_code=400,
             detail=f"Invalid file type. Expected PDF file, got {pdf_file.content_type}",
@@ -71,6 +79,7 @@ async def process_pdf_slides(
             screenshot_paths = await DocumentsLoader.get_page_images_from_pdf_async(
                 pdf_path, temp_dir
             )
+            text_xmls = _extract_pdf_text_as_synthetic_xml(pdf_path)
             print(f"Generated {len(screenshot_paths)} PDF screenshots")
 
             # Move screenshots to images directory and generate URLs
@@ -102,7 +111,11 @@ async def process_pdf_slides(
                     screenshot_url = "/static/images/placeholder.jpg"
 
                 slides_data.append(
-                    PdfSlideData(slide_number=i, screenshot_url=screenshot_url)
+                    PdfSlideData(
+                        slide_number=i,
+                        screenshot_url=screenshot_url,
+                        xml_content=text_xmls[i - 1] if i - 1 < len(text_xmls) else "",
+                    )
                 )
 
             return PdfSlidesResponse(
@@ -114,3 +127,59 @@ async def process_pdf_slides(
             raise HTTPException(
                 status_code=500, detail=f"Failed to process PDF: {str(e)}"
             )
+
+
+def _extract_pdf_text_as_synthetic_xml(pdf_path: str) -> list[str]:
+    """Return PPTX-like XML fragments so the frontend can create editable text boxes."""
+    slides: list[str] = []
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            for page in pdf.pages:
+                words = page.extract_words(
+                    x_tolerance=2,
+                    y_tolerance=3,
+                    keep_blank_chars=False,
+                    use_text_flow=True,
+                )
+                lines: list[list[dict]] = []
+                for word in words:
+                    placed = False
+                    word_top = float(word.get("top", 0))
+                    for line in lines:
+                        line_top = sum(float(w.get("top", 0)) for w in line) / max(len(line), 1)
+                        if abs(line_top - word_top) <= 4:
+                            line.append(word)
+                            placed = True
+                            break
+                    if not placed:
+                        lines.append([word])
+
+                page_width = float(page.width or 1)
+                page_height = float(page.height or 1)
+                shape_xml = []
+                for line in lines:
+                    line.sort(key=lambda w: float(w.get("x0", 0)))
+                    text = " ".join(w.get("text", "") for w in line).strip()
+                    if not text:
+                        continue
+                    x0 = min(float(w.get("x0", 0)) for w in line)
+                    x1 = max(float(w.get("x1", x0)) for w in line)
+                    top = min(float(w.get("top", 0)) for w in line)
+                    bottom = max(float(w.get("bottom", top + 12)) for w in line)
+                    height = max(8, bottom - top)
+                    emu_x = int((x0 / page_width) * 12192000)
+                    emu_y = int((top / page_height) * 6858000)
+                    emu_w = int(((x1 - x0) / page_width) * 12192000)
+                    emu_h = int((height / page_height) * 6858000)
+                    sz = int(max(8, min(72, height)) / 1.333 * 100)
+                    shape_xml.append(
+                        f"""
+<sp>
+  <xfrm><off x="{emu_x}" y="{emu_y}" /><ext cx="{emu_w}" cy="{emu_h}" /></xfrm>
+  <txBody><p><r><rPr sz="{sz}" /><t>{escape(text)}</t></r></p></txBody>
+</sp>"""
+                    )
+                slides.append(f"<slide>{''.join(shape_xml)}</slide>")
+    except Exception as e:
+        print(f"Warning: failed to extract PDF text boxes: {e}")
+    return slides

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     AsyncSession,
 )
-from sqlalchemy import text
+from sqlalchemy import String as SQLString, text
 from sqlmodel import SQLModel
 
 from models.sql.async_presentation_generation_status import (
@@ -41,6 +41,22 @@ database_url, connect_args = get_database_url_and_connect_args()
 
 sql_engine: AsyncEngine = create_async_engine(database_url, connect_args=connect_args)
 async_session_maker = async_sessionmaker(sql_engine, expire_on_commit=False)
+
+
+def _normalize_mysql_string_columns():
+    """
+    MySQL requires a concrete VARCHAR length. SQLModel's default String()
+    works in SQLite/Postgres but fails at create_all time on MySQL.
+    """
+    if not database_url.startswith("mysql"):
+        return
+    for table in SQLModel.metadata.tables.values():
+        for column in table.columns:
+            if isinstance(column.type, SQLString) and column.type.length is None:
+                column.type.length = 255
+
+
+_normalize_mysql_string_columns()
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
@@ -113,11 +129,18 @@ async def create_db_and_tables():
 async def _run_safe_migrations(conn, db_url: str):
     """
     Add missing columns to existing tables without dropping data.
-    Works for both SQLite (local dev) and PostgreSQL (Supabase).
+    Works for SQLite, PostgreSQL, and MySQL.
     """
     is_sqlite = db_url.startswith("sqlite")
+    is_mysql = db_url.startswith("mysql")
 
-    async def pg_cols(table: str) -> set:
+    async def db_cols(table: str) -> set:
+        if is_mysql:
+            result = await conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_schema = DATABASE() AND table_name = :t"
+            ), {"t": table})
+            return {row[0] for row in result.fetchall()}
         result = await conn.execute(text(
             "SELECT column_name FROM information_schema.columns WHERE table_name = :t"
         ), {"t": table})
@@ -136,9 +159,80 @@ async def _run_safe_migrations(conn, db_url: str):
             await conn.execute(text("ALTER TABLE presentations ADD COLUMN visibility VARCHAR DEFAULT 'private'"))
         if "pptx_template_id" not in cols:
             await conn.execute(text("ALTER TABLE presentations ADD COLUMN pptx_template_id INTEGER REFERENCES pptx_designer_templates(id) ON DELETE SET NULL"))
+        cols = await conn.execute(text("PRAGMA table_info(users)"))
+        user_cols = {row[1] for row in cols.fetchall()}
+        if "password_hash" not in user_cols:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR"))
+        cols = await conn.execute(text("PRAGMA table_info(pptx_designer_templates)"))
+        pptx_cols = {row[1] for row in cols.fetchall()}
+        if "html_template_id" not in pptx_cols:
+            await conn.execute(text("ALTER TABLE pptx_designer_templates ADD COLUMN html_template_id VARCHAR"))
+        if "html_conversion_status" not in pptx_cols:
+            await conn.execute(text("ALTER TABLE pptx_designer_templates ADD COLUMN html_conversion_status VARCHAR DEFAULT 'pending'"))
+        if "html_conversion_error" not in pptx_cols:
+            await conn.execute(text("ALTER TABLE pptx_designer_templates ADD COLUMN html_conversion_error TEXT"))
+    elif is_mysql:
+        # ── presentations ────────────────────────────────────────────────────
+        cols = await db_cols("presentations")
+        if "theme" not in cols:
+            await conn.execute(text("ALTER TABLE presentations ADD COLUMN theme JSON"))
+        if "user_id" not in cols:
+            await conn.execute(text("ALTER TABLE presentations ADD COLUMN user_id INTEGER NULL"))
+            await conn.execute(text("CREATE INDEX ix_presentations_user_id ON presentations(user_id)"))
+        if "org_id" not in cols:
+            await conn.execute(text("ALTER TABLE presentations ADD COLUMN org_id INTEGER NULL"))
+            await conn.execute(text("CREATE INDEX ix_presentations_org_id ON presentations(org_id)"))
+        if "visibility" not in cols:
+            await conn.execute(text("ALTER TABLE presentations ADD COLUMN visibility VARCHAR(32) NOT NULL DEFAULT 'private'"))
+        if "pptx_template_id" not in cols:
+            await conn.execute(text("ALTER TABLE presentations ADD COLUMN pptx_template_id INTEGER NULL"))
+
+        # ── users ────────────────────────────────────────────────────────────
+        cols = await db_cols("users")
+        if "password_hash" not in cols:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)"))
+        if "subscription_status" not in cols:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN subscription_status VARCHAR(32) NOT NULL DEFAULT 'active'"))
+        if "cancel_at_period_end" not in cols:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE"))
+        if "subscription_ends_at" not in cols:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN subscription_ends_at DATETIME NULL"))
+        if "terms_accepted_at" not in cols:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN terms_accepted_at DATETIME NULL"))
+
+        # ── organizations ────────────────────────────────────────────────────
+        cols = await db_cols("organizations")
+        if "seats_purchased" not in cols:
+            await conn.execute(text("ALTER TABLE organizations ADD COLUMN seats_purchased INTEGER NOT NULL DEFAULT 2"))
+        if "stripe_subscription_id" not in cols:
+            await conn.execute(text("ALTER TABLE organizations ADD COLUMN stripe_subscription_id VARCHAR(255)"))
+
+        # ── org_invitations ──────────────────────────────────────────────────
+        cols = await db_cols("org_invitations")
+        if "cancelled_at" not in cols:
+            await conn.execute(text("ALTER TABLE org_invitations ADD COLUMN cancelled_at DATETIME NULL"))
+        if "resent_at" not in cols:
+            await conn.execute(text("ALTER TABLE org_invitations ADD COLUMN resent_at DATETIME NULL"))
+
+        # ── plan_ai_configs ──────────────────────────────────────────────────
+        cols = await db_cols("plan_ai_configs")
+        if "user_can_override_llm" not in cols:
+            await conn.execute(text("ALTER TABLE plan_ai_configs ADD COLUMN user_can_override_llm BOOLEAN NOT NULL DEFAULT FALSE"))
+        if "user_can_override_image" not in cols:
+            await conn.execute(text("ALTER TABLE plan_ai_configs ADD COLUMN user_can_override_image BOOLEAN NOT NULL DEFAULT FALSE"))
+
+        # ── pptx_designer_templates ─────────────────────────────────────────
+        cols = await db_cols("pptx_designer_templates")
+        if "html_template_id" not in cols:
+            await conn.execute(text("ALTER TABLE pptx_designer_templates ADD COLUMN html_template_id VARCHAR(64) NULL"))
+            await conn.execute(text("CREATE INDEX ix_pptx_designer_templates_html_template_id ON pptx_designer_templates(html_template_id)"))
+        if "html_conversion_status" not in cols:
+            await conn.execute(text("ALTER TABLE pptx_designer_templates ADD COLUMN html_conversion_status VARCHAR(32) NOT NULL DEFAULT 'pending'"))
+        if "html_conversion_error" not in cols:
+            await conn.execute(text("ALTER TABLE pptx_designer_templates ADD COLUMN html_conversion_error TEXT NULL"))
     else:
         # ── presentations ────────────────────────────────────────────────────
-        cols = await pg_cols("presentations")
+        cols = await db_cols("presentations")
         if "theme" not in cols:
             await conn.execute(text("ALTER TABLE presentations ADD COLUMN IF NOT EXISTS theme JSONB"))
         if "user_id" not in cols:
@@ -163,8 +257,29 @@ async def _run_safe_migrations(conn, db_url: str):
                 "REFERENCES pptx_designer_templates(id) ON DELETE SET NULL"
             ))
 
+        cols = await db_cols("pptx_designer_templates")
+        if "html_template_id" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE pptx_designer_templates ADD COLUMN IF NOT EXISTS html_template_id VARCHAR"
+            ))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_pptx_designer_templates_html_template_id ON pptx_designer_templates(html_template_id)"
+            ))
+        if "html_conversion_status" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE pptx_designer_templates ADD COLUMN IF NOT EXISTS html_conversion_status VARCHAR NOT NULL DEFAULT 'pending'"
+            ))
+        if "html_conversion_error" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE pptx_designer_templates ADD COLUMN IF NOT EXISTS html_conversion_error TEXT"
+            ))
+
         # ── users ────────────────────────────────────────────────────────────
-        cols = await pg_cols("users")
+        cols = await db_cols("users")
+        if "password_hash" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR"
+            ))
         if "subscription_status" not in cols:
             await conn.execute(text(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status VARCHAR NOT NULL DEFAULT 'active'"
@@ -183,7 +298,7 @@ async def _run_safe_migrations(conn, db_url: str):
             ))
 
         # ── organizations ────────────────────────────────────────────────────
-        cols = await pg_cols("organizations")
+        cols = await db_cols("organizations")
         if "seats_purchased" not in cols:
             await conn.execute(text(
                 "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS seats_purchased INTEGER NOT NULL DEFAULT 2"
@@ -194,7 +309,7 @@ async def _run_safe_migrations(conn, db_url: str):
             ))
 
         # ── org_invitations ──────────────────────────────────────────────────
-        cols = await pg_cols("org_invitations")
+        cols = await db_cols("org_invitations")
         if "cancelled_at" not in cols:
             await conn.execute(text(
                 "ALTER TABLE org_invitations ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP"
@@ -205,7 +320,7 @@ async def _run_safe_migrations(conn, db_url: str):
             ))
 
         # ── plan_ai_configs ──────────────────────────────────────────────────
-        cols = await pg_cols("plan_ai_configs")
+        cols = await db_cols("plan_ai_configs")
         if "user_can_override_llm" not in cols:
             await conn.execute(text(
                 "ALTER TABLE plan_ai_configs ADD COLUMN IF NOT EXISTS user_can_override_llm BOOLEAN NOT NULL DEFAULT FALSE"

@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import { ArrowUpRight, ChevronRight, Lock, Loader2, FileDown } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BriefcaseBusiness, ChevronRight, FileDown, Lock, Loader2, Search, Share2, Video } from "lucide-react";
 import { templates } from "@/app/presentation-templates";
 import { TemplateWithData, TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
 import {
@@ -71,7 +71,7 @@ export const CustomTemplateCard = React.memo(function CustomTemplateCard({ templ
 
     return (
         <Card
-            className="cursor-pointer flex flex-col justify-between shadow-none sm:shadow-none relative hover:shadow-lg transition-all duration-200 group overflow-hidden"
+            className="relative h-[210px] min-w-[340px] cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             onClick={handleOpen}
         >
 
@@ -79,7 +79,7 @@ export const CustomTemplateCard = React.memo(function CustomTemplateCard({ templ
             <span className="text-xs font-syne absolute top-2 flex gap-1 capitalize  items-center left-2 rounded-[100px]  px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold  z-40">
                 Layouts- {totalLayouts}
             </span>
-            <div className="p-5">
+            <div className="p-4">
 
                 {/* Layout previews */}
                 <div className="grid grid-cols-2 gap-2">
@@ -117,8 +117,8 @@ export const CustomTemplateCard = React.memo(function CustomTemplateCard({ templ
 
 
             </div>
-            <div className="flex items-center justify-between p-5 bg-white border-t border-[#EDEEEF] relative z-40  ">
-                <h3 className="text-sm font-bold w-[191px] text-gray-900">
+            <div className="absolute inset-x-0 bottom-0 z-40 flex items-center justify-between border-t border-[#EDEEEF] bg-white px-4 py-3">
+                <h3 className="line-clamp-1 text-sm font-bold text-gray-900">
                     {template.name}
                 </h3>
 
@@ -161,7 +161,7 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
     return (
         <Card
             key={template.id}
-            className={`cursor-pointer relative sm:shadow-none shadow-none hover:shadow-lg transition-all duration-200 group overflow-hidden ${locked ? "opacity-80" : ""}`}
+            className={`relative h-[210px] min-w-[340px] cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${locked ? "opacity-80" : ""}`}
             onClick={handleOpen}
         >
             <span className="text-xs font-syne absolute top-2 flex gap-1 capitalize items-center left-2 rounded-[100px] px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold z-40">
@@ -178,7 +178,7 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
                 </div>
             )}
             <img src="/card_bg.svg" alt="" className="absolute top-0 left-0 w-full h-full object-cover" />
-            <div className="p-5">
+            <div className="p-4">
                 <div className="grid grid-cols-2 gap-2">
                     {previewLayouts.map((layout: TemplateWithData, index: number) => {
                         const LayoutComponent = layout.component;
@@ -199,13 +199,13 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
                     })}
                 </div>
             </div>
-            <div className="flex items-center justify-between p-5 bg-white border-t border-[#EDEEEF] relative z-40">
-                <div className="w-[191px]">
+            <div className="absolute inset-x-0 bottom-0 z-40 flex items-center justify-between border-t border-[#EDEEEF] bg-white px-4 py-3">
+                <div className="min-w-0">
                     <h3 className="text-sm font-bold text-gray-900 capitalize flex items-center gap-1.5">
                         {template.name}
                         {locked && <Lock className="w-3 h-3 text-amber-500 shrink-0" />}
                     </h3>
-                    <p className="text-xs text-gray-600 mb-4 line-clamp-2">
+                    <p className="mt-1 line-clamp-1 text-xs text-gray-600">
                         {template.description}
                     </p>
                 </div>
@@ -245,7 +245,7 @@ const DesignerTemplateCard = React.memo(function DesignerTemplateCard({
 
     return (
         <Card
-            className={`cursor-pointer relative sm:shadow-none shadow-none hover:shadow-lg transition-all duration-200 group overflow-hidden ${template.locked ? "opacity-80" : ""}`}
+            className={`relative h-[210px] min-w-[340px] cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${template.locked ? "opacity-80" : ""}`}
             onClick={handleClick}
         >
             {template.locked && (
@@ -262,7 +262,7 @@ const DesignerTemplateCard = React.memo(function DesignerTemplateCard({
                 Layouts- {template.slide_count}
             </span>
             <img src="/card_bg.svg" alt="" className="absolute top-0 left-0 w-full h-full object-cover" />
-            <div className="p-5">
+            <div className="p-4">
                 {template.thumbnail_urls.length > 0 ? (
                     <div className="grid grid-cols-2 gap-2">
                         {template.thumbnail_urls.slice(0, 4).map((url, i) => (
@@ -278,14 +278,14 @@ const DesignerTemplateCard = React.memo(function DesignerTemplateCard({
                     </div>
                 )}
             </div>
-            <div className="flex items-center justify-between p-5 bg-white border-t border-[#EDEEEF] relative z-40">
-                <div className="w-[191px]">
+            <div className="absolute inset-x-0 bottom-0 z-40 flex items-center justify-between border-t border-[#EDEEEF] bg-white px-4 py-3">
+                <div className="min-w-0">
                     <h3 className="text-sm font-bold text-gray-900 capitalize flex items-center gap-1.5">
                         {template.name}
                         {template.locked && <Lock className="w-3 h-3 text-amber-500 shrink-0" />}
                     </h3>
                     {template.description && (
-                        <p className="text-xs text-gray-600 mb-2 line-clamp-2">{template.description}</p>
+                        <p className="mt-1 line-clamp-1 text-xs text-gray-600">{template.description}</p>
                     )}
                     {template.color_scheme && (
                         <div className="flex gap-1 mt-1">
@@ -301,11 +301,14 @@ const DesignerTemplateCard = React.memo(function DesignerTemplateCard({
     );
 });
 
-const LayoutPreview = () => {
-    const [tab, setTab] = useState<'custom' | 'default' | 'designer'>('default');
+type TemplatePanelLayout = "shelf" | "grid";
+
+const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) => {
+    const [query, setQuery] = useState("");
+    const [activeTag, setActiveTag] = useState<string | null>(null);
     const router = useRouter();
-    const { templates: customTemplates, loading: customLoading } = useCustomTemplateSummaries();
     const { isLocked } = useTemplateTiers();
+    const { templates: customTemplates, loading: customLoading } = useCustomTemplateSummaries();
     const [designerTemplates, setDesignerTemplates] = useState<PptxDesignerTemplate[]>([]);
     const [designerLoading, setDesignerLoading] = useState(false);
 
@@ -327,11 +330,110 @@ const LayoutPreview = () => {
         }
     }, []);
 
+    const normalizedQuery = query.trim().toLowerCase();
+
+    const getTagsFromText = useCallback((text: string) => {
+        const stopWords = new Set([
+            "template",
+            "templates",
+            "presentation",
+            "slide",
+            "slides",
+            "layout",
+            "layouts",
+            "with",
+            "from",
+            "your",
+            "custom",
+            "designer",
+            "built",
+            "builtin",
+            "built-in",
+        ]);
+
+        return text
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, " ")
+            .split(/\s+/)
+            .filter((word) => word.length > 3 && !stopWords.has(word))
+            .slice(0, 4);
+    }, []);
+
+    const getCustomTags = useCallback(
+        (template: CustomTemplates) => getTagsFromText(`${template.name} ${template.id}`),
+        [getTagsFromText],
+    );
+
+    const getDesignerTags = useCallback(
+        (template: PptxDesignerTemplate) => [
+            template.tier,
+            ...getTagsFromText(`${template.name} ${template.description ?? ""}`),
+        ],
+        [getTagsFromText],
+    );
+
+    const getInbuiltTags = useCallback(
+        (template: TemplateLayoutsWithSettings) => getTagsFromText(`${template.name} ${template.description ?? ""}`),
+        [getTagsFromText],
+    );
+
+    const tagOptions = useMemo(() => {
+        const tags = new Map<string, number>();
+        const addTag = (tag: string) => tags.set(tag, (tags.get(tag) ?? 0) + 1);
+
+        templates.forEach((template) => getInbuiltTags(template).forEach(addTag));
+        customTemplates.forEach((template) => getCustomTags(template).forEach(addTag));
+        designerTemplates.forEach((template) => getDesignerTags(template).forEach(addTag));
+
+        return Array.from(tags.entries())
+            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+            .slice(0, 12)
+            .map(([tag, count]) => ({ tag, count }));
+    }, [customTemplates, designerTemplates, getCustomTags, getDesignerTags, getInbuiltTags]);
+
+    const filteredInbuiltTemplates = useMemo(
+        () =>
+            templates.filter((template: TemplateLayoutsWithSettings) => {
+                const searchable = `${template.name} ${template.description ?? ""}`.toLowerCase();
+                const matchesSearch = !normalizedQuery || searchable.includes(normalizedQuery);
+                const matchesTag = !activeTag || getInbuiltTags(template).includes(activeTag);
+                return matchesSearch && matchesTag;
+            }),
+        [activeTag, getInbuiltTags, normalizedQuery],
+    );
+
+    const filteredCustomTemplates = useMemo(
+        () =>
+            customTemplates.filter((template: CustomTemplates) => {
+                const searchable = `${template.name} ${template.id}`.toLowerCase();
+                const matchesSearch = !normalizedQuery || searchable.includes(normalizedQuery);
+                const matchesTag = !activeTag || getCustomTags(template).includes(activeTag);
+                return matchesSearch && matchesTag;
+            }),
+        [activeTag, customTemplates, getCustomTags, normalizedQuery],
+    );
+
+    const filteredDesignerTemplates = useMemo(
+        () =>
+            designerTemplates.filter((template: PptxDesignerTemplate) => {
+                const searchable = `${template.name} ${template.description ?? ""}`.toLowerCase();
+                const matchesSearch = !normalizedQuery || searchable.includes(normalizedQuery);
+                const matchesTag = !activeTag || getDesignerTags(template).includes(activeTag);
+                return matchesSearch && matchesTag;
+            }),
+        [activeTag, designerTemplates, getDesignerTags, normalizedQuery],
+    );
+
+    const totalVisible =
+        filteredInbuiltTemplates.length +
+        filteredCustomTemplates.length +
+        filteredDesignerTemplates.length;
+
     const handleOpenPreview = useCallback((id: string) => router.push(`/template-preview/${id}`), [router]);
 
     const inbuiltTemplateCards = useMemo(
         () =>
-            templates.map((template: TemplateLayoutsWithSettings) => (
+            filteredInbuiltTemplates.map((template: TemplateLayoutsWithSettings) => (
                 <InbuiltTemplateCard
                     key={template.id}
                     template={template}
@@ -339,122 +441,169 @@ const LayoutPreview = () => {
                     locked={isLocked(template.id)}
                 />
             )),
-        [handleOpenPreview, isLocked],
+        [filteredInbuiltTemplates, handleOpenPreview, isLocked],
     );
 
     const customTemplateCards = useMemo(
-        () => customTemplates.map((template: CustomTemplates) => <CustomTemplateCard key={template.id} template={template} />),
-        [customTemplates],
+        () => filteredCustomTemplates.map((template: CustomTemplates) => <CustomTemplateCard key={template.id} template={template} />),
+        [filteredCustomTemplates],
     );
 
+    const quickCategories = [
+        { label: "Business", icon: BriefcaseBusiness, tag: "business" },
+        { label: "Social media", icon: Share2, tag: "social" },
+        { label: "Video", icon: Video, tag: "video" },
+    ];
+
+    const exploreTiles = [
+        { label: "Education Presentation", color: "bg-[#FFE2D0]", accent: "from-orange-400 to-red-400" },
+        { label: "Worksheet", color: "bg-[#E8D0FF]", accent: "from-pink-300 to-violet-300" },
+        { label: "Doc", color: "bg-[#CFF7FC]", accent: "from-cyan-300 to-teal-300" },
+        { label: "Education Whiteboard", color: "bg-[#CBF6DD]", accent: "from-emerald-300 to-green-400" },
+        { label: "Sheet", color: "bg-[#CBE5FF]", accent: "from-sky-300 to-blue-400" },
+        { label: "Flashcard", color: "bg-[#E6CCFA]", accent: "from-pink-300 to-purple-400" },
+        { label: "CV", color: "bg-[#E5C8F8]", accent: "from-violet-300 to-indigo-300" },
+        { label: "Brochure", color: "bg-[#FFF0C6]", accent: "from-orange-300 to-amber-400" },
+    ];
+
+    const EmptyTemplates = ({ label }: { label: string }) => (
+        <div className="col-span-full rounded-lg border border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
+            <p className="text-sm font-semibold text-slate-700">No {label} templates found</p>
+            <p className="mt-1 text-xs text-slate-500">Try a different search term.</p>
+        </div>
+    );
+    const isGridLayout = layout === "grid";
+
     return (
-        <div className="min-h-screen  relative font-syne">
-            <div
-                className='fixed z-0 bottom-[-16.5rem] left-0 w-full h-full'
-                style={{
-                    height: "341px",
-                    borderRadius: '1440px',
-                    background: 'radial-gradient(5.92% 104.69% at 50% 100%, rgba(122, 90, 248, 0.00) 0%, rgba(255, 255, 255, 0.00) 100%), radial-gradient(50% 50% at 50% 50%, rgba(122, 90, 248, 0.80) 0%, rgba(122, 90, 248, 0.00) 100%)',
-                }}
-            />
-            <div className="sticky top-0 right-0 z-50 py-[28px] px-6   backdrop-blur ">
-                <div className="flex xl:flex-row flex-col gap-6 xl:gap-0 items-center justify-between">
-                    <h3 className=" text-[28px] tracking-[-0.84px] font-unbounded font-normal text-[#101828] flex items-center gap-2">
+        <div className="min-h-screen bg-white font-syne text-slate-950">
+            <div className="rounded-b-[28px] bg-[linear-gradient(115deg,#b7f3ee_0%,#f9fbff_44%,#d7b6ff_100%)] px-6 pb-12 pt-14 md:px-10">
+                <div className="mx-auto flex max-w-5xl flex-col items-center">
+                    <h1 className="font-unbounded text-[34px] font-semibold tracking-[-0.02em] md:text-[42px]">
                         Templates
-                    </h3>
-                    <div className="flex  gap-2.5 max-sm:w-full max-md:justify-center max-sm:flex-wrap">
-
-
-
-
+                    </h1>
+                    <div className="relative mt-7 w-full max-w-3xl">
+                        <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-700" />
+                        <input
+                            value={query}
+                            onChange={(event) => setQuery(event.target.value)}
+                            placeholder="Search millions of templates"
+                            className="h-16 w-full rounded-2xl border border-violet-200 bg-white/95 pl-14 pr-5 text-sm text-slate-900 shadow-[0_18px_50px_rgba(124,58,237,0.12)] outline-none transition placeholder:text-slate-500 focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
+                        />
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                        {quickCategories.map(({ label, icon: Icon, tag }) => (
+                            <button
+                                key={label}
+                                className="inline-flex h-10 items-center gap-2 rounded-full border border-violet-200 bg-white/80 px-4 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-white"
+                                onClick={() => {
+                                    setActiveTag(null);
+                                    setQuery(tag);
+                                }}
+                            >
+                                <Icon className="h-4 w-4 text-violet-600" />
+                                {label}
+                            </button>
+                        ))}
                         <Link
                             href="/custom-template"
-                            className="inline-flex items-center font-syne font-semibold gap-2 rounded-xl px-4 py-2.5 text-black text-sm  shadow-sm hover:shadow-md"
-                            aria-label="Create new template"
-                            style={{
-                                borderRadius: "48px",
-                                background: "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
-                            }}
+                            className="inline-flex h-10 items-center gap-2 rounded-full bg-violet-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700"
                         >
-                            <span className="hidden md:inline">New Template</span>
-                            <span className="md:hidden">New</span>
-                            <ChevronRight className="w-4 h-4" />
+                            New Template
+                            <ChevronRight className="h-4 w-4" />
                         </Link>
-
                     </div>
                 </div>
             </div>
 
-            <div className="l mx-auto px-6 py-8">
-                <div className='p-1 rounded-[40px] bg-[#ffffff] w-fit border border-[#EDEEEF] flex items-center justify-center '>
-                    <button className='px-5 py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]'
-                        onClick={() => setTab('custom')}
-                        style={{ background: tab === 'custom' ? '#F4F3FF' : 'transparent', color: tab === 'custom' ? '#5146E5' : '#3A3A3A' }}
-                    >Custom</button>
-                    <svg xmlns="http://www.w3.org/2000/svg" className='mx-1' width="2" height="17" viewBox="0 0 2 17" fill="none">
-                        <path d="M1 0V16.5" stroke="#EDECEC" strokeWidth="2" />
-                    </svg>
-                    <button className='px-5 py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]'
-                        onClick={() => setTab('default')}
-                        style={{ background: tab === 'default' ? '#F4F3FF' : 'transparent', color: tab === 'default' ? '#5146E5' : '#3A3A3A' }}
-                    >Built-in</button>
-                    {designerTemplates.length > 0 && (
-                        <>
-                            <svg xmlns="http://www.w3.org/2000/svg" className='mx-1' width="2" height="17" viewBox="0 0 2 17" fill="none">
-                                <path d="M1 0V16.5" stroke="#EDECEC" strokeWidth="2" />
-                            </svg>
-                            <button className='px-5 py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]'
-                                onClick={() => setTab('designer')}
-                                style={{ background: tab === 'designer' ? '#F4F3FF' : 'transparent', color: tab === 'designer' ? '#5146E5' : '#3A3A3A' }}
-                            >Designer</button>
-                        </>
-                    )}
+            <main className="px-6 py-8 md:px-10">
+                <section>
+                    <div className="mb-4 flex items-center justify-between gap-4">
+                        <h2 className="text-2xl font-bold tracking-[-0.01em]">Explore templates</h2>
+                        <span className="text-xs font-semibold text-slate-500">
+                            {totalVisible} available
+                        </span>
+                    </div>
+                    <div className="flex gap-5 overflow-x-auto pb-2">
+                        {exploreTiles.map((tile) => (
+                            <button
+                                key={tile.label}
+                                className={`relative h-20 min-w-[226px] overflow-hidden rounded-lg ${tile.color} px-4 text-left text-sm font-bold text-slate-950 transition hover:-translate-y-0.5 hover:shadow-md`}
+                                onClick={() => setQuery(tile.label)}
+                            >
+                                <span className="relative z-10 block max-w-[130px] leading-5">{tile.label}</span>
+                                <span className={`absolute -right-4 bottom-2 h-16 w-24 rotate-[-6deg] rounded-md bg-gradient-to-br ${tile.accent} opacity-85 shadow-lg`} />
+                                <span className="absolute right-6 top-5 h-2 w-14 rounded-full bg-white/55" />
+                            </button>
+                        ))}
+                    </div>
+                </section>
+
+                <div className="mt-8 flex flex-wrap items-center gap-2">
+                    <button
+                        className={`inline-flex h-9 items-center rounded-full px-4 text-xs font-semibold transition ${
+                            activeTag === null
+                                ? "bg-slate-950 text-white shadow-sm"
+                                : "border border-violet-200 bg-white text-slate-700 hover:bg-violet-50"
+                        }`}
+                        onClick={() => setActiveTag(null)}
+                    >
+                        All
+                    </button>
+                    {tagOptions.map(({ tag, count }) => (
+                        <button
+                            key={tag}
+                            className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-xs font-semibold capitalize transition ${
+                                activeTag === tag
+                                    ? "bg-slate-950 text-white shadow-sm"
+                                    : "border border-violet-200 bg-white text-slate-700 hover:bg-violet-50"
+                            }`}
+                            onClick={() => setActiveTag(tag)}
+                        >
+                            {tag}
+                            <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${activeTag === tag ? "bg-white/15 text-white" : "bg-violet-50 text-violet-700"}`}>
+                                {count}
+                            </span>
+                        </button>
+                    ))}
                 </div>
 
-                {/* Built-in Templates Section */}
-                {tab === 'default' && <section className="my-12">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {inbuiltTemplateCards}
+                <section className="mt-8">
+                    <div className="mb-4 flex items-center justify-between">
+                        <h2 className="text-2xl font-bold tracking-[-0.01em]">Inspired by your designs</h2>
+                        <button className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50" aria-label="More templates">
+                            <ArrowRight className="h-4 w-4" />
+                        </button>
                     </div>
-                </section>}
 
-                {/* Custom Templates Section */}
-                {tab === 'custom' && <section className="my-12">
-                    {customLoading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                            <span className="ml-3 text-gray-600">Loading custom templates...</span>
+                    {customLoading || designerLoading ? (
+                        <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white py-12 shadow-sm">
+                            <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+                            <span className="ml-3 text-gray-600">Loading templates...</span>
                         </div>
+                    ) : totalVisible === 0 && (normalizedQuery || activeTag) ? (
+                        <EmptyTemplates label="matching" />
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <CreateCustomTemplate />
+                        <div
+                            className={
+                                isGridLayout
+                                    ? "grid grid-cols-1 gap-6 pb-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+                                    : "flex gap-6 overflow-x-auto pb-3"
+                            }
+                        >
+                            {!normalizedQuery && !activeTag && (
+                                <div className={isGridLayout ? "w-full" : "min-w-[340px]"}>
+                                    <CreateCustomTemplate />
+                                </div>
+                            )}
+                            {inbuiltTemplateCards}
                             {customTemplateCards}
-                        </div>
-                    )}
-                </section>}
-
-                {/* Designer Templates Section */}
-                {tab === 'designer' && <section className="my-12">
-                    {designerLoading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-                            <span className="ml-3 text-gray-600">Loading designer templates...</span>
-                        </div>
-                    ) : designerTemplates.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                            <FileDown className="w-12 h-12 mb-3 text-slate-300" />
-                            <p className="text-sm font-medium">No designer templates available yet.</p>
-                            <p className="text-xs mt-1">Check back soon.</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            {designerTemplates.map((t) => (
+                            {filteredDesignerTemplates.map((t) => (
                                 <DesignerTemplateCard key={t.id} template={t} />
                             ))}
                         </div>
                     )}
-                </section>}
-            </div>
+                </section>
+            </main>
         </div>
     );
 };

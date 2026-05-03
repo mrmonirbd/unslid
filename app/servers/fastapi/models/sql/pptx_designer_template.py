@@ -8,7 +8,7 @@ a new presentation — at PPTX export time, the designer template's theme
 """
 from datetime import datetime
 from typing import Optional, List
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, Text
 from sqlmodel import Field, SQLModel
 
 
@@ -48,6 +48,11 @@ class PptxDesignerTemplate(SQLModel, table=True):
     font_scheme: Optional[dict] = Field(
         sa_column=Column(JSON), default=None
     )
+
+    # Custom HTML/React template generated from this PPTX.
+    html_template_id: Optional[str] = Field(default=None, index=True)
+    html_conversion_status: str = Field(default="pending")
+    html_conversion_error: Optional[str] = Field(sa_column=Column(Text), default=None)
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
