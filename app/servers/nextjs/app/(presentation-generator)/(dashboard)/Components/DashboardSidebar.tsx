@@ -73,7 +73,7 @@ const DashboardSidebar = () => {
   const mainNav = [
     { href: "/dashboard", label: "Home", icon: Home },
     { href: "/templates", label: "Templates", icon: LayoutPanelLeft },
-    { href: "/theme", label: "Brand", icon: Palette },
+    { href: "/theme", label: "Themes", icon: Palette },
     { href: "/settings/account", label: "Account", icon: User },
   ];
 
@@ -101,7 +101,6 @@ const DashboardSidebar = () => {
             active={pathname === href || pathname.startsWith(href + "/")}
           />
         ))}
-        <RailLink href="/settings/ai-preferences" label="Canva AI" icon={WandSparkles} active={pathname === "/settings/ai-preferences"} />
         {user?.is_admin && (
           <RailLink href="/admin" label="Admin" icon={Shield} active={pathname === "/admin" || pathname.startsWith("/admin/")} />
         )}
