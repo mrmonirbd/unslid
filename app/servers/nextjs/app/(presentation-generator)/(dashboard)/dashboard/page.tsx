@@ -1,9 +1,9 @@
 import React from 'react'
-import DashboardPage from './components/DashboardPage'
+import TemplatePanel from '../templates/components/TemplatePanel'
 
 const page = () => {
   return (
-    <DashboardPage />
+    <TemplatePanel layout="grid" />
   )
 }
 

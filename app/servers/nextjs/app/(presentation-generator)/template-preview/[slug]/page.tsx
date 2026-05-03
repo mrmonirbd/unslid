@@ -3,13 +3,18 @@ import React, { useEffect, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, Home, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, FileSpreadsheet, Home, Loader2, Trash2 } from "lucide-react";
 
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import TemplateService from "../../services/api/template";
 import Header from "../../(dashboard)/dashboard/components/Header";
 import { toast } from "sonner";
-import { CustomTemplateLayout, useCustomTemplateDetails } from "@/app/hooks/useCustomTemplates";
+import {
+  CustomTemplateDetail,
+  CustomTemplateLayout,
+  getCustomTemplateDetails,
+  useCustomTemplateDetails,
+} from "@/app/hooks/useCustomTemplates";
 import { templates as templateGroups, getTemplatesByTemplateName } from "@/app/presentation-templates";
 import { api } from "@/lib/api";
 
@@ -23,6 +28,10 @@ interface PptxDesignerTemplate {
   file_url?: string;
   color_scheme: Record<string, string> | null;
   font_scheme: Record<string, string> | null;
+  html_template_id?: string | null;
+  html_template_slug?: string | null;
+  html_conversion_status?: "pending" | "processing" | "completed" | "failed";
+  html_conversion_error?: string | null;
   locked?: boolean;
 }
 
@@ -48,6 +57,137 @@ interface SelectableDesignerPreview {
   slides: SelectableDesignerSlide[];
 }
 
+const DESIGNER_18_EXCEL_SHEETS = [
+  {
+    name: "Financial Summary",
+    columns: ["Metric", "Q1", "Q2", "Q3", "Q4", "Total"],
+    rows: [
+      ["Revenue", "$128,400", "$143,900", "$156,200", "$171,500", "$600,000"],
+      ["Cost of Sales", "$42,100", "$47,800", "$51,300", "$55,600", "$196,800"],
+      ["Gross Profit", "$86,300", "$96,100", "$104,900", "$115,900", "$403,200"],
+      ["Operating Expense", "$31,200", "$34,500", "$36,100", "$39,400", "$141,200"],
+      ["Net Profit", "$55,100", "$61,600", "$68,800", "$76,500", "$262,000"],
+    ],
+  },
+  {
+    name: "Pipeline",
+    columns: ["Account", "Stage", "Owner", "Value", "Close Date", "Status"],
+    rows: [
+      ["Northstar Retail", "Proposal", "A. Rahman", "$42,000", "2026-05-18", "On track"],
+      ["Helio Finance", "Negotiation", "S. Karim", "$58,500", "2026-05-24", "Review"],
+      ["Atlas Health", "Discovery", "N. Ahmed", "$31,750", "2026-06-03", "New"],
+      ["Metro Foods", "Contract", "T. Islam", "$74,200", "2026-06-11", "Priority"],
+      ["Vertex Labs", "Proposal", "M. Hasan", "$49,600", "2026-06-19", "On track"],
+    ],
+  },
+  {
+    name: "Monthly Budget",
+    columns: ["Category", "Budget", "Actual", "Variance", "Owner", "Notes"],
+    rows: [
+      ["Marketing", "$32,000", "$29,850", "$2,150", "Growth", "Under budget"],
+      ["Product", "$48,500", "$51,200", "-$2,700", "Product", "Hiring overlap"],
+      ["Operations", "$26,400", "$24,900", "$1,500", "Ops", "Stable"],
+      ["Sales", "$39,700", "$41,100", "-$1,400", "Sales", "Travel increase"],
+      ["Support", "$18,900", "$17,750", "$1,150", "CX", "Under budget"],
+    ],
+  },
+  {
+    name: "KPI Tracker",
+    columns: ["KPI", "Target", "Current", "Delta", "Trend", "Comment"],
+    rows: [
+      ["MRR", "$210,000", "$226,400", "+7.8%", "Up", "Ahead of plan"],
+      ["Churn", "3.2%", "2.7%", "-0.5%", "Down", "Improving"],
+      ["Activation", "64%", "68%", "+4%", "Up", "Better onboarding"],
+      ["NPS", "48", "52", "+4", "Up", "Healthy"],
+      ["CAC Payback", "11 mo", "10 mo", "-1 mo", "Down", "Efficient"],
+    ],
+  },
+];
+
+function ReadOnlyExcelPreview({ title }: { title: string }) {
+  return (
+    <div className="mx-auto w-full max-w-[1440px] space-y-12">
+      {DESIGNER_18_EXCEL_SHEETS.map((sheet, sheetIndex) => (
+        <Card
+          key={sheet.name}
+          id={`excel-sheet-${sheetIndex + 1}`}
+          className="overflow-hidden border-slate-200 shadow-md"
+        >
+          <div className="flex items-center justify-between border-b bg-white px-6 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+                <FileSpreadsheet className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">
+                  {sheet.name}
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  {title} • Sheet {sheetIndex + 1} of {DESIGNER_18_EXCEL_SHEETS.length}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="rounded bg-slate-100 px-3 py-1 text-sm font-mono text-slate-600">
+                excel:sheet-{sheetIndex + 1}
+              </span>
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-800">
+                Non editable
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-gray-100 p-6">
+          <div className="overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm">
+            <div className="flex items-center gap-2 border-b border-slate-200 bg-emerald-700 px-4 py-2 text-sm font-semibold text-white">
+              <FileSpreadsheet className="h-4 w-4" />
+              Read-only Excel Sheet
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] border-collapse text-sm">
+                <thead>
+                  <tr>
+                    <th className="w-12 border border-slate-200 bg-slate-100 px-3 py-2 text-center text-xs font-semibold text-slate-500">
+                      #
+                    </th>
+                    {sheet.columns.map((column) => (
+                      <th
+                        key={column}
+                        className="border border-slate-200 bg-slate-100 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600"
+                      >
+                        {column}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sheet.rows.map((row, rowIndex) => (
+                    <tr key={`${sheet.name}-${rowIndex}`} className="odd:bg-white even:bg-slate-50/70">
+                      <td className="border border-slate-200 bg-slate-100 px-3 py-2 text-center text-xs font-medium text-slate-500">
+                        {rowIndex + 1}
+                      </td>
+                      {row.map((cell, cellIndex) => (
+                        <td
+                          key={`${sheet.name}-${rowIndex}-${cellIndex}`}
+                          className="border border-slate-200 px-3 py-2 text-slate-700"
+                        >
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 const GroupLayoutPreview = () => {
   const params = useParams();
   const router = useRouter();
@@ -60,8 +200,10 @@ const GroupLayoutPreview = () => {
   const isDesigner = templateParams.startsWith("designer-");
   const customTemplateId = isCustom ? templateParams.split("custom-")[1] : null;
   const designerTemplateId = isDesigner ? Number(templateParams.split("designer-")[1]) : null;
+  const shouldShowExcelPreview = designerTemplateId === 18;
   const [designerTemplate, setDesignerTemplate] = useState<PptxDesignerTemplate | null>(null);
   const [designerSelectablePreview, setDesignerSelectablePreview] = useState<SelectableDesignerPreview | null>(null);
+  const [designerHtmlTemplate, setDesignerHtmlTemplate] = useState<CustomTemplateDetail | null>(null);
   const [designerLoading, setDesignerLoading] = useState(false);
   const [designerError, setDesignerError] = useState<string | null>(null);
 
@@ -95,8 +237,9 @@ const GroupLayoutPreview = () => {
 
     setDesignerLoading(true);
     setDesignerError(null);
+    setDesignerHtmlTemplate(null);
     api.get<PptxDesignerTemplate[]>("/api/v1/account/pptx-templates")
-      .then((templates) => {
+      .then(async (templates) => {
         const found = templates.find((template) => template.id === designerTemplateId);
         if (!found) {
           setDesignerError("Designer template not found");
@@ -108,6 +251,18 @@ const GroupLayoutPreview = () => {
           return;
         }
         setDesignerTemplate(found);
+        if (found.html_template_id && found.html_conversion_status === "completed") {
+          try {
+            const convertedTemplate = await getCustomTemplateDetails(
+              found.html_template_id,
+              found.name,
+              found.description || "Designer template converted from PPTX"
+            );
+            setDesignerHtmlTemplate(convertedTemplate);
+          } catch (error) {
+            console.warn("Failed to load converted designer HTML template", error);
+          }
+        }
         return api
           .get<SelectableDesignerPreview>(`/api/v1/account/pptx-templates/${designerTemplateId}/selectable-preview`)
           .then(setDesignerSelectablePreview)
@@ -223,7 +378,7 @@ const GroupLayoutPreview = () => {
     ? customTemplate?.template.description || ""
     : staticGroup?.description || "";
   const layoutCount = isDesigner
-    ? designerTemplate?.slide_count || designerTemplate?.thumbnail_urls.length || 0
+    ? designerHtmlTemplate?.layouts.length || designerTemplate?.slide_count || designerTemplate?.thumbnail_urls.length || 0
     : isCustom
     ? customTemplate?.layouts.length || 0
     : staticTemplates.length;
@@ -371,8 +526,62 @@ const GroupLayoutPreview = () => {
           )
         )}
 
-        {isDesigner && designerTemplate && (
-          <div className="space-y-12 w-[1440px] h-[720px] aspect-video mx-auto">
+        {isDesigner && designerTemplate && shouldShowExcelPreview && (
+          <ReadOnlyExcelPreview title={designerTemplate.name || "Excel File"} />
+        )}
+
+        {isDesigner && designerTemplate && !shouldShowExcelPreview && designerHtmlTemplate?.layouts.length ? (
+          <div className="flex flex-col items-center justify-center w-full gap-10 aspect-video mx-auto">
+            {designerHtmlTemplate.layouts.map((layout: CustomTemplateLayout, index: number) => {
+              const LayoutComponent = layout.component;
+              return (
+                <Card
+                  key={`${templateParams}-html-${layout.rawLayoutId}-${index}`}
+                  id={`designer-html-${layout.rawLayoutId}`}
+                  className="overflow-hidden shadow-md"
+                >
+                  <div className="bg-white px-6 py-4 border-b">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-xl font-semibold text-gray-900">
+                          {layout.rawLayoutName}
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-1 max-w-2xl">
+                          Converted HTML layout from {designerTemplate.name}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium">
+                          HTML
+                        </span>
+                        <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
+                          {designerTemplate.html_template_slug}:{layout.rawLayoutId}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
+                    <div
+                      className="flex-shrink-0"
+                      style={{ width: "1280px", height: "720px" }}
+                    >
+                      <LayoutComponent data={layout.sampleData} />
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {isDesigner && designerTemplate && !shouldShowExcelPreview && !designerHtmlTemplate?.layouts.length && (
+          <div className="mx-auto w-full max-w-[1440px] space-y-12">
+            {designerTemplate.html_conversion_status && designerTemplate.html_conversion_status !== "completed" && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                HTML conversion is {designerTemplate.html_conversion_status}. Showing PPTX thumbnail preview for now.
+              </div>
+            )}
             {(designerSelectablePreview?.slides.length || designerTemplate.thumbnail_urls.length) > 0 ? (
               (designerSelectablePreview?.slides ?? designerTemplate.thumbnail_urls.map((url, index) => ({
                 slide_number: index + 1,

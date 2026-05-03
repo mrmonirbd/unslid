@@ -2,24 +2,22 @@
 
 import React from "react";
 import {
-  LayoutDashboard,
-  Star,
-  Palette,
+  Bell,
+  FolderOpen,
+  HelpCircle,
+  Home,
+  LayoutPanelLeft,
   LogOut,
-  User,
-  CreditCard,
-  Users,
+  Palette,
+  Plus,
   Shield,
-  Cpu,
-  BarChart2,
-  Sparkles,
-  ChevronRight,
-  LifeBuoy,
+  Star,
+  User,
+  WandSparkles,
 } from "lucide-react";
-import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useUser, signOut } from "@/app/hooks/useUser";
+import { usePathname, useRouter } from "next/navigation";
+import { signOut, useUser } from "@/app/hooks/useUser";
 
 export const defaultNavItems = [
   { key: "dashboard" as const, label: "Dashboard" },
@@ -27,229 +25,119 @@ export const defaultNavItems = [
   { key: "theme" as const, label: "Themes" },
 ];
 
-const PLAN_BADGE: Record<string, { label: string; className: string }> = {
-  free:  { label: "Free",  className: "bg-slate-700 text-slate-300" },
-  pro:   { label: "Pro",   className: "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30" },
-  team:  { label: "Team",  className: "bg-violet-500/20 text-violet-300 border border-violet-500/30" },
-  admin: { label: "Admin", className: "bg-amber-500/20 text-amber-300 border border-amber-500/30" },
-};
-
-interface NavLinkProps {
+interface RailLinkProps {
   href: string;
   label: string;
   icon: React.ElementType;
   active: boolean;
-  variant?: "default" | "danger" | "highlight";
+  highlight?: boolean;
 }
 
-const NavLink = ({ href, label, icon: Icon, active, variant = "default" }: NavLinkProps) => {
-  if (variant === "danger") {
-    return (
-      <Link
-        href={href}
-        prefetch={false}
-        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
-          active
-            ? "bg-red-500/15 text-red-400"
-            : "text-slate-400 hover:text-red-400 hover:bg-red-500/10"
-        }`}
-      >
-        <Icon className="h-4 w-4 shrink-0" />
-        <span>{label}</span>
-      </Link>
-    );
-  }
-
-  if (variant === "highlight") {
-    return (
-      <Link
-        href={href}
-        prefetch={false}
-        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
-          active
-            ? "bg-amber-500/15 text-amber-300"
-            : "text-amber-400/80 hover:text-amber-300 hover:bg-amber-500/10"
-        }`}
-      >
-        <Icon className="h-4 w-4 shrink-0" />
-        <span>{label}</span>
-      </Link>
-    );
-  }
-
-  return (
-    <Link
-      href={href}
-      prefetch={false}
-      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+const RailLink = ({ href, label, icon: Icon, active, highlight }: RailLinkProps) => (
+  <Link
+    href={href}
+    prefetch={false}
+    className={`group flex w-full flex-col items-center gap-1 rounded-xl px-1 py-2 text-[11px] font-semibold transition ${
+      active
+        ? "text-violet-700"
+        : highlight
+          ? "text-violet-600 hover:text-violet-700"
+          : "text-slate-600 hover:text-violet-700"
+    }`}
+    title={label}
+  >
+    <span
+      className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
         active
-          ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30"
-          : "text-slate-400 hover:text-slate-100 hover:bg-white/5"
+          ? "bg-violet-100 text-violet-700"
+          : highlight
+            ? "bg-violet-600 text-white shadow-sm shadow-violet-200"
+            : "text-slate-600 group-hover:bg-violet-50 group-hover:text-violet-700"
       }`}
     >
-      <Icon className="h-4 w-4 shrink-0" />
-      <span>{label}</span>
-    </Link>
-  );
-};
+      <Icon className="h-5 w-5" />
+    </span>
+    <span className="max-w-[58px] truncate leading-tight">{label}</span>
+  </Link>
+);
 
 const DashboardSidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading } = useUser();
 
-  const plan = user?.plan ?? "free";
-  const badge = user?.is_admin ? PLAN_BADGE.admin : (PLAN_BADGE[plan] ?? PLAN_BADGE.free);
   const initials = user?.full_name
     ? user.full_name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
     : user?.email?.[0]?.toUpperCase() ?? "?";
 
   const mainNav = [
-    { href: "/dashboard",  label: "Dashboard", icon: LayoutDashboard },
-    { href: "/templates",  label: "Templates",  icon: Star },
-    { href: "/theme",      label: "Themes",     icon: Palette },
-  ];
-
-  const settingsNav = [
-    { href: "/settings/account",   label: "Account",   icon: User },
-    { href: "/settings/billing",   label: "Billing",   icon: CreditCard },
-    { href: "/settings/team",      label: "Team",      icon: Users },
-    { href: "/settings/analytics", label: "Analytics", icon: BarChart2 },
-    ...(plan === "pro" || plan === "team"
-      ? [{ href: "/settings/ai-preferences", label: "AI Model", icon: Cpu }]
-      : []),
+    { href: "/dashboard", label: "Home", icon: Home },
+    { href: "/templates", label: "Templates", icon: LayoutPanelLeft },
+    { href: "/theme", label: "Brand", icon: Palette },
+    { href: "/settings/account", label: "Account", icon: User },
   ];
 
   return (
     <aside
-      className="sticky top-0 h-screen w-[240px] shrink-0 flex flex-col bg-[#0F172A] border-r border-white/5"
+      className="sticky top-0 z-40 flex h-screen w-[72px] shrink-0 flex-col items-center border-r border-violet-100 bg-[#fbf9ff] py-3"
       aria-label="Dashboard sidebar"
     >
-      {/* Logo */}
-      <div
+      <button
         onClick={() => router.push("/dashboard")}
-        className="flex items-center gap-3 px-5 py-[18px] border-b border-white/5 cursor-pointer"
+        className="mb-5 flex h-9 w-9 items-center justify-center rounded-xl text-violet-700 transition hover:bg-violet-50"
+        aria-label="Go to dashboard"
       >
-        <div className="bg-indigo-600 rounded-lg p-1.5 flex items-center justify-center shrink-0">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-            <rect x="3" y="3" width="7" height="7" rx="1" />
-            <rect x="14" y="3" width="7" height="7" rx="1" />
-            <rect x="3" y="14" width="7" height="7" rx="1" />
-            <rect x="14" y="14" width="7" height="7" rx="1" />
-          </svg>
-        </div>
-        <span className="font-bold text-slate-100 text-sm tracking-tight">Unslid</span>
-      </div>
+        <LayoutPanelLeft className="h-5 w-5" />
+      </button>
 
-      {/* Scrollable nav area */}
-      <div className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
-
-        {/* Main navigation */}
-        <nav aria-label="Main navigation">
-          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest px-3 mb-2">
-            Workspace
-          </p>
-          <div className="space-y-0.5">
-            {mainNav.map(({ href, label, icon }) => (
-              <NavLink
-                key={href}
-                href={href}
-                label={label}
-                icon={icon}
-                active={pathname === href}
-              />
-            ))}
-          </div>
-        </nav>
-
-        {/* Settings navigation */}
-        <nav aria-label="Settings navigation">
-          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest px-3 mb-2">
-            Account
-          </p>
-          <div className="space-y-0.5">
-            {settingsNav.map(({ href, label, icon }) => (
-              <NavLink
-                key={href}
-                href={href}
-                label={label}
-                icon={icon}
-                active={pathname === href || pathname.startsWith(href + "/")}
-              />
-            ))}
-          </div>
-        </nav>
-
-        {/* Admin link */}
+      <nav className="flex w-full flex-col items-center gap-1 px-2" aria-label="Main navigation">
+        <RailLink href="/upload" label="Create" icon={Plus} active={pathname === "/upload"} highlight />
+        {mainNav.map(({ href, label, icon }) => (
+          <RailLink
+            key={href}
+            href={href}
+            label={label}
+            icon={icon}
+            active={pathname === href || pathname.startsWith(href + "/")}
+          />
+        ))}
+        <RailLink href="/settings/ai-preferences" label="Canva AI" icon={WandSparkles} active={pathname === "/settings/ai-preferences"} />
         {user?.is_admin && (
-          <nav aria-label="Admin navigation">
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest px-3 mb-2">
-              Admin
-            </p>
-            <div className="space-y-0.5">
-              <NavLink
-                href="/admin"
-                label="Admin Panel"
-                icon={Shield}
-                active={pathname === "/admin" || pathname.startsWith("/admin/")}
-                variant="highlight"
-              />
-            </div>
-          </nav>
+          <RailLink href="/admin" label="Admin" icon={Shield} active={pathname === "/admin" || pathname.startsWith("/admin/")} />
         )}
-      </div>
+      </nav>
 
-      {/* Bottom section */}
-      <div className="border-t border-white/5 px-3 py-3 space-y-2">
-        {/* Upgrade nudge for free users */}
-        {plan === "free" && !user?.is_admin && (
-          <Link
-            href="/settings/billing"
-            prefetch={false}
-            className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition-all duration-150 text-white text-xs font-semibold group"
-          >
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-3.5 w-3.5 shrink-0" />
-              <span>Upgrade to Pro</span>
-            </div>
-            <ChevronRight className="h-3.5 w-3.5 opacity-70 group-hover:translate-x-0.5 transition-transform" />
-          </Link>
-        )}
-
-        {/* User info */}
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/5 border border-white/5">
-          <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0 ring-2 ring-indigo-500/30">
-            {loading ? "…" : initials}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-slate-200 truncate leading-tight">
-              {user?.full_name || user?.email || "Account"}
-            </p>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold mt-0.5 inline-block ${badge.className}`}>
-              {badge.label}
-            </span>
-          </div>
-        </div>
-
-        {/* Help & Support */}
+      <div className="mt-auto flex w-full flex-col items-center gap-1 px-2">
+        <RailLink href="/settings/team" label="Projects" icon={FolderOpen} active={pathname === "/settings/team"} />
+        <RailLink href="/settings/analytics" label="More" icon={Star} active={pathname === "/settings/analytics"} />
         <a
           href="mailto:support@yourcompany.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-slate-500 hover:text-slate-300 hover:bg-white/5 transition-all duration-150"
+          className="group flex w-full flex-col items-center gap-1 rounded-xl px-1 py-2 text-[11px] font-semibold text-slate-600 transition hover:text-violet-700"
+          title="Help"
         >
-          <LifeBuoy className="h-4 w-4 shrink-0" />
-          <span>Help &amp; Support</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl group-hover:bg-violet-50">
+            <HelpCircle className="h-5 w-5" />
+          </span>
         </a>
-
-        {/* Sign out */}
+        <button
+          className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 transition hover:bg-violet-50 hover:text-violet-700"
+          aria-label="Notifications"
+        >
+          <Bell className="h-5 w-5" />
+        </button>
         <button
           onClick={signOut}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150"
+          className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:bg-red-50 hover:text-red-500"
+          aria-label="Sign out"
+          title="Sign out"
         >
-          <LogOut className="h-4 w-4 shrink-0" />
-          <span>Sign out</span>
+          <LogOut className="h-5 w-5" />
         </button>
+        <div className="mt-2 flex h-9 w-9 items-center justify-center rounded-full bg-amber-300 text-xs font-bold text-slate-900 ring-2 ring-white">
+          {loading ? "..." : initials}
+        </div>
       </div>
     </aside>
   );

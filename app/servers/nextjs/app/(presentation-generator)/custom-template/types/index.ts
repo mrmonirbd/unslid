@@ -3,6 +3,7 @@ import type React from "react";
 export interface SlideData {
   slide_number: number;
   screenshot_url: string;
+  textless_screenshot_url?: string | null;
   xml_content?: string;
   normalized_fonts?: string[];
 }

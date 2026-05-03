@@ -16,14 +16,21 @@ from services.documents_loader import DocumentsLoader
 from utils.asset_directory_utils import get_images_directory
 import uuid
 from constants.documents import POWERPOINT_TYPES
+from pptx import Presentation
 
 
 PPTX_SLIDES_ROUTER = APIRouter(prefix="/pptx-slides", tags=["PPTX Slides"])
 
 
+def _is_pptx_upload(file: UploadFile) -> bool:
+    filename = (file.filename or "").lower()
+    return file.content_type in POWERPOINT_TYPES or filename.endswith(".pptx")
+
+
 class SlideData(BaseModel):
     slide_number: int
     screenshot_url: str
+    textless_screenshot_url: Optional[str] = None
     xml_content: str
     normalized_fonts: List[str]
 
@@ -303,7 +310,7 @@ async def process_pptx_slides(
     """
 
     # Validate PPTX file
-    if pptx_file.content_type not in POWERPOINT_TYPES:
+    if not _is_pptx_upload(pptx_file):
         raise HTTPException(
             status_code=400,
             detail=f"Invalid file type. Expected PPTX file, got {pptx_file.content_type}",
@@ -339,10 +346,30 @@ async def process_pptx_slides(
             pdf_path = await _convert_pptx_to_pdf(pptx_path, temp_dir)
 
             # Generate screenshots using LibreOffice
+            original_pages_dir = os.path.join(temp_dir, "original_pages")
+            os.makedirs(original_pages_dir, exist_ok=True)
             screenshot_paths = await DocumentsLoader.get_page_images_from_pdf_async(
-                pdf_path, temp_dir
+                pdf_path, original_pages_dir
             )
             print(f"Screenshot paths: {screenshot_paths}")
+
+            textless_screenshot_paths = []
+            try:
+                textless_pptx_path = os.path.join(temp_dir, "presentation_textless.pptx")
+                shutil.copy2(pptx_path, textless_pptx_path)
+                _clear_text_from_pptx(textless_pptx_path)
+                textless_pdf_path = await _convert_pptx_to_pdf(
+                    textless_pptx_path, temp_dir
+                )
+                textless_pages_dir = os.path.join(temp_dir, "textless_pages")
+                os.makedirs(textless_pages_dir, exist_ok=True)
+                textless_screenshot_paths = (
+                    await DocumentsLoader.get_page_images_from_pdf_async(
+                        textless_pdf_path, textless_pages_dir
+                    )
+                )
+            except Exception as e:
+                print(f"Warning: failed to generate textless screenshots: {e}")
 
             # Analyze fonts across all slides
             font_analysis = await analyze_fonts_in_all_slides(slide_xmls)
@@ -380,6 +407,19 @@ async def process_pptx_slides(
                     # Fallback if screenshot generation failed or file is empty placeholder
                     screenshot_url = "/static/images/placeholder.jpg"
 
+                textless_screenshot_url = None
+                if i - 1 < len(textless_screenshot_paths):
+                    textless_path = textless_screenshot_paths[i - 1]
+                    textless_filename = f"slide_{i}_textless.png"
+                    permanent_textless_path = os.path.join(
+                        presentation_images_dir, textless_filename
+                    )
+                    if os.path.exists(textless_path) and os.path.getsize(textless_path) > 0:
+                        shutil.copy2(textless_path, permanent_textless_path)
+                        textless_screenshot_url = (
+                            f"/app_data/images/{presentation_id}/{textless_filename}"
+                        )
+
                 # Compute normalized fonts for this slide
                 raw_slide_fonts = extract_fonts_from_oxml(xml_content)
                 normalized_fonts = sorted(
@@ -390,6 +430,7 @@ async def process_pptx_slides(
                     SlideData(
                         slide_number=i,
                         screenshot_url=screenshot_url,
+                        textless_screenshot_url=textless_screenshot_url,
                         xml_content=xml_content,
                         normalized_fonts=normalized_fonts,
                     )
@@ -414,7 +455,7 @@ async def process_pptx_fonts(
     Uses the exact same font extraction and analysis utilities as the /pptx-slides endpoint.
     """
     # Validate PPTX file
-    if pptx_file.content_type not in POWERPOINT_TYPES:
+    if not _is_pptx_upload(pptx_file):
         raise HTTPException(
             status_code=400,
             detail=f"Invalid file type. Expected PPTX file, got {pptx_file.content_type}",
@@ -543,10 +584,32 @@ def _extract_slide_xmls(pptx_path: str, temp_dir: str) -> List[str]:
         raise Exception(f"Failed to extract slide XMLs: {str(e)}")
 
 
+def _clear_shape_text(shape) -> None:
+    if getattr(shape, "has_text_frame", False):
+        shape.text_frame.clear()
+    if getattr(shape, "shapes", None):
+        for child in shape.shapes:
+            _clear_shape_text(child)
+
+
+def _clear_text_from_pptx(pptx_path: str) -> None:
+    presentation = Presentation(pptx_path)
+    for slide in presentation.slides:
+        for shape in slide.shapes:
+            _clear_shape_text(shape)
+    presentation.save(pptx_path)
+
+
 async def _convert_pptx_to_pdf(pptx_path: str, temp_dir: str) -> str:
     """Generate PNG screenshots of PPTX slides using LibreOffice + ImageMagick."""
     screenshots_dir = os.path.join(temp_dir, "screenshots")
     os.makedirs(screenshots_dir, exist_ok=True)
+    for existing_pdf in os.listdir(screenshots_dir):
+        if existing_pdf.lower().endswith(".pdf"):
+            try:
+                os.remove(os.path.join(screenshots_dir, existing_pdf))
+            except OSError:
+                pass
 
     try:
         # First, get the number of slides by extracting XMLs

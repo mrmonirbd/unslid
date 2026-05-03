@@ -10,20 +10,21 @@
 services:
 
   # ── Database ──────────────────────────────────────────────
-  postgres:
-    image: postgres:16-alpine
-    container_name: postgres
+  mysql:
+    image: mysql:8.4
+    container_name: mysql
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}        # required — no default
-      POSTGRES_DB: ${POSTGRES_DB:-aipresentation}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-aipresentation}
+      MYSQL_USER: ${MYSQL_USER:-presenton}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-aipresentation}"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --silent"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -60,10 +61,7 @@ services:
     environment:
       - APP_DATA_DIRECTORY=/app_data
       - TEMP_DIRECTORY=/tmp/presenton
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-aipresentation}
-      - SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - DATABASE_URL=mysql://${MYSQL_USER:-presenton}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-aipresentation}
       - WASABI_ACCESS_KEY_ID=${WASABI_ACCESS_KEY_ID}
       - WASABI_SECRET_ACCESS_KEY=${WASABI_SECRET_ACCESS_KEY}
       - WASABI_ENDPOINT_URL=${WASABI_ENDPOINT_URL}
@@ -98,7 +96,7 @@ services:
     networks:
       - app-network
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
       redis:
         condition: service_started
@@ -124,10 +122,7 @@ services:
     environment:
       - APP_DATA_DIRECTORY=/app_data
       - TEMP_DIRECTORY=/tmp/presenton
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-aipresentation}
-      - SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - DATABASE_URL=mysql://${MYSQL_USER:-presenton}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-aipresentation}
       - WASABI_ACCESS_KEY_ID=${WASABI_ACCESS_KEY_ID}
       - WASABI_SECRET_ACCESS_KEY=${WASABI_SECRET_ACCESS_KEY}
       - WASABI_ENDPOINT_URL=${WASABI_ENDPOINT_URL}
@@ -155,7 +150,7 @@ services:
     networks:
       - app-network
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
       redis:
         condition: service_started
@@ -167,8 +162,6 @@ services:
       dockerfile: Dockerfile
       target: runner           # production build — NOT dev
       args:
-        - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
         - NEXT_PUBLIC_API_URL=https://${APP_DOMAIN}
         - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
         - NEXT_PUBLIC_LEGAL_DOMAIN=${NEXT_PUBLIC_LEGAL_DOMAIN}
@@ -180,8 +173,6 @@ services:
       - "127.0.0.1:3000:3000"  # bind to loopback only
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       - NEXT_PUBLIC_API_URL=https://${APP_DOMAIN}
       - FASTAPI_INTERNAL_URL=http://fastapi:8000
       - SENTRY_DSN=${SENTRY_DSN_NEXTJS}
@@ -224,13 +215,13 @@ services:
 
   # ── Automated database backups ─────────────────────────────
   db-backup:
-    image: postgres:16-alpine
+    image: mysql:8.4
     container_name: db-backup
     restart: unless-stopped
     environment:
-      - PGPASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_DB=${POSTGRES_DB:-aipresentation}
+      - MYSQL_PWD=${MYSQL_PASSWORD}
+      - MYSQL_USER=${MYSQL_USER:-presenton}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-aipresentation}
       - BACKUP_RETAIN_DAYS=${BACKUP_RETAIN_DAYS:-14}
     volumes:
       - ./backups:/backups
@@ -240,13 +231,13 @@ services:
     networks:
       - app-network
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
 
 volumes:
   app_data:
   redis_data:
-  postgres_data:
+  mysql_data:
   fastapi_chroma:
   caddy_data:
   caddy_config:

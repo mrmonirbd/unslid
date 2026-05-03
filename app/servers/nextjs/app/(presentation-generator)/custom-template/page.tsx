@@ -9,14 +9,11 @@ import { useFontManagement } from "./hooks/useFontManagement";
 import { useFileUpload } from "./hooks/useFileUpload";
 import { useSlideProcessing } from "./hooks/useSlideProcessing";
 import { useLayoutSaving } from "./hooks/useLayoutSaving";
-import { useAPIKeyCheck } from "./hooks/useAPIKeyCheck";
 import { useRouter, usePathname } from "next/navigation";
-import { LoadingSpinner } from "./components/LoadingSpinner";
 import { FileUploadSection } from "./components/FileUploadSection";
 import { SaveLayoutButton } from "./components/SaveLayoutButton";
 import { SaveLayoutModal } from "./components/SaveLayoutModal";
 import EachSlide from "./components/EachSlide/NewEachSlide";
-import { APIKeyWarning } from "./components/APIKeyWarning";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 
 const CustomTemplatePage = () => {
@@ -25,7 +22,6 @@ const CustomTemplatePage = () => {
 
 
   // Custom hooks for different concerns
-  const { hasRequiredKey, isRequiredKeyLoading } = useAPIKeyCheck();
   const { selectedFile, handleFileSelect, removeFile } = useFileUpload();
   const { slides, setSlides, completedSlides } = useCustomLayout();
   const { fontsData, UploadedFonts, uploadFont, removeFont, getAllUnsupportedFonts, setFontsData } = useFontManagement();
@@ -82,17 +78,6 @@ const CustomTemplatePage = () => {
     }
   }, []);
 
-  // Loading state
-  if (isRequiredKeyLoading) {
-    return <LoadingSpinner message="Checking API Key..." />;
-  }
-
-  // Anthropic key warning
-  if (!hasRequiredKey) {
-    return <APIKeyWarning />;
-
-
-  }
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <Header />
@@ -103,14 +88,8 @@ const CustomTemplatePage = () => {
             Custom Template Processor
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Upload your PDF or PPTX file to extract slides and convert them to
-            a template which you can use to generate AI presentations.
+            Upload your PDF or PPTX file to import slides as a reusable template.
           </p>
-          <div className="max-w-2xl mx-auto mt-2">
-            <div className="inline-block rounded border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-700">
-              AI template generation can take around 5 minutes per slide.
-            </div>
-          </div>
         </div>
 
 
@@ -178,5 +157,3 @@ const CustomTemplatePage = () => {
 };
 
 export default CustomTemplatePage;
-
-

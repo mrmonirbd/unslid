@@ -7,8 +7,11 @@ PUT  /admin/pptx-templates/{id}     → update name/desc/tier/active/order
 DELETE /admin/pptx-templates/{id}   → soft-delete (is_active=False) or hard delete
 """
 import asyncio
+import html
 import io
 import logging
+import tempfile
+import uuid
 import zipfile
 from pathlib import Path
 from typing import Optional
@@ -17,10 +20,13 @@ from xml.etree import ElementTree as ET
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from sqlalchemy import delete
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from api.auth import get_current_user
+from models.sql.presentation_layout_code import PresentationLayoutCodeModel
+from models.sql.template import TemplateModel
 from models.sql.user import UserModel
 from models.sql.pptx_designer_template import PptxDesignerTemplate
 from services.database import get_async_session
@@ -35,6 +41,7 @@ PUBLIC_PPTX_TEMPLATES_ROUTER = APIRouter(prefix="/api/v1/account/pptx-templates"
 MAX_PPTX_SIZE_BYTES = 50 * 1024 * 1024
 MAX_ZIP_SIZE_BYTES = 250 * 1024 * 1024
 MAX_PPTX_FILES_PER_ZIP = 100
+HTML_CONVERSION_SEMAPHORE = asyncio.Semaphore(1)
 
 PML_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
 DML_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -65,6 +72,10 @@ def _row_to_dict(r: PptxDesignerTemplate, base_url: str = "/api/v1/pptx-template
         "file_url": f"/api/v1/account/pptx-templates/{r.id}/download",
         "color_scheme": r.color_scheme,
         "font_scheme": r.font_scheme,
+        "html_template_id": r.html_template_id,
+        "html_template_slug": f"custom-{r.html_template_id}" if r.html_template_id else None,
+        "html_conversion_status": r.html_conversion_status,
+        "html_conversion_error": r.html_conversion_error,
         "created_at": r.created_at.isoformat(),
         "updated_at": r.updated_at.isoformat(),
     }
@@ -144,6 +155,60 @@ async def _create_pptx_template_row(
 def _template_name_from_zip_path(zip_path: str) -> str:
     stem = Path(zip_path).stem.replace("_", " ").replace("-", " ").strip()
     return " ".join(part.capitalize() for part in stem.split()) or "Untitled Template"
+
+
+def _html_template_uuid(template_id: int) -> uuid.UUID:
+    return uuid.uuid5(uuid.NAMESPACE_URL, f"unslid:pptx-designer-template:{template_id}")
+
+
+def _abs_app_data_path(relative_path: str) -> Path:
+    return Path(get_app_data_directory_env()) / relative_path
+
+
+def _editable_slide_html(slide: dict) -> str:
+    slide_number = slide.get("slide_number") or 1
+    background_url = slide.get("background_thumbnail_url") or slide.get("thumbnail_url") or ""
+    text_nodes = []
+    for idx, box in enumerate(slide.get("text_boxes") or [], 1):
+        text = html.escape(box.get("text") or "").replace("\n", "<br />")
+        font_size_pt = box.get("font_size_pt") or 18
+        font_size_cqh = (float(font_size_pt) * 1.333 / 720) * 100
+        text_nodes.append(
+            f'''
+  <div
+    class="imported-editable-text"
+    data-slide-text="{idx}"
+    style="position:absolute;left:{box.get("left_pct", 0):.3f}%;top:{box.get("top_pct", 0):.3f}%;width:{box.get("width_pct", 0):.3f}%;height:{box.get("height_pct", 0):.3f}%;color:#111827;font-family:Arial, sans-serif;font-size:{font_size_cqh:.3f}cqh;font-weight:400;line-height:1.18;white-space:pre-wrap;overflow:hidden;"
+  >{text}</div>'''
+        )
+
+    return f'''
+<div class="imported-slide-canvas relative h-full w-full overflow-hidden bg-white" style="position:relative;width:100%;height:100%;aspect-ratio:16/9;background:#fff;container-type:size;">
+  <img src="{html.escape(background_url, quote=True)}" alt="Imported slide {slide_number} background" class="absolute inset-0 h-full w-full object-contain" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;" draggable="false" />
+  <div class="imported-editable-layer" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:auto;">
+{''.join(text_nodes)}
+  </div>
+</div>
+'''
+
+
+def _editable_layout_code(slide: dict) -> str:
+    slide_number = slide.get("slide_number") or 1
+    imported_html = _editable_slide_html(slide)
+    return f'''
+const layoutId = "{slide_number}";
+const layoutName = "Slide{slide_number}";
+const layoutDescription = "Editable imported slide {slide_number}";
+const Schema = z.object({{}});
+const importedHtml = {imported_html!r};
+
+const dynamicSlideLayout = () => (
+  <div
+    className="relative h-full w-full overflow-hidden bg-white"
+    dangerouslySetInnerHTML={{{{ __html: importedHtml }}}}
+  />
+);
+'''
 
 
 def _pptx_slide_size(zip_file: zipfile.ZipFile) -> tuple[int, int]:
@@ -292,10 +357,10 @@ async def upload_pptx_template(
         session=session,
     )
 
-    # Generate thumbnails in the background (non-blocking)
+    # Generate thumbnails and HTML layouts in the background (non-blocking).
     template_id = template.id
     asyncio.create_task(
-        _generate_and_save_thumbnails(abs_path, str(template_id), template_id, session)
+        _generate_thumbnails_and_convert_html(abs_path, str(template_id), template_id)
     )
 
     return _row_to_dict(template)
@@ -367,7 +432,7 @@ async def bulk_import_pptx_templates(
 
                 template_id = template.id
                 asyncio.create_task(
-                    _generate_and_save_thumbnails(abs_path, str(template_id), template_id, session)
+                    _generate_thumbnails_and_convert_html(abs_path, str(template_id), template_id)
                 )
             except Exception as exc:
                 logger.exception("Bulk PPTX import failed for %s", info.filename)
@@ -386,15 +451,18 @@ async def bulk_import_pptx_templates(
     }
 
 
-async def _generate_and_save_thumbnails(
+async def _generate_thumbnails_and_convert_html(
     abs_path: str,
     uuid_str: str,
     template_id: int,
-    _session: AsyncSession,  # session from the request is closed; open a new one
 ) -> None:
-    """Background task: generate thumbnails and update the DB row."""
+    """Background task: generate thumbnails, then convert the PPTX into HTML layouts."""
     from services.database import async_session_maker
+
     thumb_paths = await svc.generate_thumbnails(abs_path, uuid_str)
+    textless_thumb_paths = await svc.generate_textless_thumbnails(abs_path, uuid_str)
+    html_template_uuid = _html_template_uuid(template_id)
+
     async with async_session_maker() as session:
         result = await session.execute(
             select(PptxDesignerTemplate).where(PptxDesignerTemplate.id == template_id)
@@ -402,9 +470,123 @@ async def _generate_and_save_thumbnails(
         row = result.scalar_one_or_none()
         if row:
             row.thumbnail_paths = thumb_paths
+            row.html_template_id = str(html_template_uuid)
+            row.html_conversion_status = "processing"
+            row.html_conversion_error = None
             session.add(row)
             await session.commit()
             logger.info("Thumbnails saved for pptx_designer_template id=%s", template_id)
+
+    try:
+        async with HTML_CONVERSION_SEMAPHORE:
+            await _convert_pptx_to_html_template(
+                abs_path=abs_path,
+                template_id=template_id,
+                html_template_uuid=html_template_uuid,
+                thumbnail_paths=thumb_paths,
+                textless_thumbnail_paths=textless_thumb_paths,
+            )
+    except Exception as exc:
+        logger.exception("HTML conversion failed for pptx_designer_template id=%s", template_id)
+        async with async_session_maker() as session:
+            row = await session.get(PptxDesignerTemplate, template_id)
+            if row:
+                row.html_conversion_status = "failed"
+                row.html_conversion_error = str(exc)[:4000]
+                session.add(row)
+                await session.commit()
+
+
+async def _convert_pptx_to_html_template(
+    *,
+    abs_path: str,
+    template_id: int,
+    html_template_uuid: uuid.UUID,
+    thumbnail_paths: list[str],
+    textless_thumbnail_paths: list[str] | None = None,
+) -> None:
+    """Convert an uploaded designer PPTX into reusable editable custom layouts.
+
+    This intentionally avoids AI calls: text is extracted from PPTX XML and
+    placed over a textless visual background.
+    """
+    from services.database import async_session_maker
+
+    async with async_session_maker() as session:
+        row = await session.get(PptxDesignerTemplate, template_id)
+        if not row:
+            return
+        template_name = row.name
+        template_description = row.description
+
+    thumbnail_urls = [f"/api/v1/pptx-template-thumbs/{p}" for p in thumbnail_paths]
+    textless_thumbnail_urls = [
+        f"/api/v1/pptx-template-thumbs/{p}" for p in (textless_thumbnail_paths or [])
+    ]
+    selectable_slides = _extract_selectable_slides(
+        Path(abs_path),
+        thumbnail_urls,
+        textless_thumbnail_urls or None,
+    )
+
+    layouts: list[PresentationLayoutCodeModel] = []
+    for index, slide in enumerate(selectable_slides, 1):
+        if index > len(thumbnail_paths):
+            break
+
+        image_path = _abs_app_data_path(thumbnail_paths[index - 1])
+        if not image_path.exists() or image_path.stat().st_size == 0:
+            continue
+
+        layouts.append(
+            PresentationLayoutCodeModel(
+                presentation=html_template_uuid,
+                layout_id=str(index),
+                layout_name=f"Slide{index}",
+                layout_code=_editable_layout_code(slide),
+                fonts=None,
+            )
+        )
+
+    if not layouts:
+        raise RuntimeError("No slides were converted to HTML layouts.")
+
+    async with async_session_maker() as session:
+        existing = await session.get(TemplateModel, html_template_uuid)
+        if existing:
+            existing.name = template_name
+            existing.description = template_description
+        else:
+            session.add(
+                TemplateModel(
+                    id=html_template_uuid,
+                    name=template_name,
+                    description=template_description,
+                )
+            )
+
+        await session.execute(
+            delete(PresentationLayoutCodeModel).where(
+                PresentationLayoutCodeModel.presentation == html_template_uuid
+            )
+        )
+        for layout in layouts:
+            session.add(layout)
+
+        row = await session.get(PptxDesignerTemplate, template_id)
+        if row:
+            row.html_template_id = str(html_template_uuid)
+            row.html_conversion_status = "completed"
+            row.html_conversion_error = None
+            session.add(row)
+
+        await session.commit()
+        logger.info(
+            "HTML conversion saved for pptx_designer_template id=%s as template=%s (%s layouts)",
+            template_id,
+            html_template_uuid,
+            len(layouts),
+        )
 
 
 @PPTX_TEMPLATES_ROUTER.get("")

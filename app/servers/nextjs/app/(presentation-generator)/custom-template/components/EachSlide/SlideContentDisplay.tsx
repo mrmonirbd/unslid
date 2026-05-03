@@ -36,7 +36,7 @@ export const SlideContentDisplay: React.FC<SlideContentDisplayProps> = ({
   if (slide.processing) {
     return (
       <div className="space-y-4">
-        <p className="text-base text-blue-600 font-medium">🔄 Converting to HTML...</p>
+        <p className="text-base text-blue-600 font-medium">Importing slide...</p>
         <div className="space-y-3">
           <Timer duration={160} />
         </div>
@@ -94,7 +94,7 @@ export const SlideContentDisplay: React.FC<SlideContentDisplayProps> = ({
   if (slide.error) {
     return (
       <div className="space-y-4">
-        <p className="text-base text-red-600 font-medium">✗ Conversion failed</p>
+        <p className="text-base text-red-600 font-medium">Import failed</p>
         <div className="text-sm text-gray-700 p-4 bg-red-50 rounded border border-red-200">
           {slide.error.includes("image exceeds 5 MB maximum") ? (
             <div>

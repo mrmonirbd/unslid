@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 import uuid
-from sqlalchemy import JSON, Column, DateTime, String, Integer, ForeignKey
+from sqlalchemy import JSON, Column, DateTime, String, Integer, ForeignKey, Text
 from sqlmodel import Boolean, Field, SQLModel
 
 from models.presentation_layout import PresentationLayoutModel
@@ -22,7 +22,7 @@ class PresentationModel(SQLModel, table=True):
         sa_column=Column(Integer, ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True),
         default=None,
     )
-    content: str
+    content: str = Field(sa_column=Column(Text, nullable=False))
     n_slides: int
     language: str
     title: Optional[str] = None
@@ -44,9 +44,9 @@ class PresentationModel(SQLModel, table=True):
     layout: Optional[dict] = Field(sa_column=Column(JSON), default=None)
     structure: Optional[dict] = Field(sa_column=Column(JSON), default=None)
     theme: Optional[dict] = Field(sa_column=Column(JSON), default=None)
-    instructions: Optional[str] = Field(sa_column=Column(String), default=None)
-    tone: Optional[str] = Field(sa_column=Column(String), default=None)
-    verbosity: Optional[str] = Field(sa_column=Column(String), default=None)
+    instructions: Optional[str] = Field(sa_column=Column(Text), default=None)
+    tone: Optional[str] = Field(sa_column=Column(String(64)), default=None)
+    verbosity: Optional[str] = Field(sa_column=Column(String(64)), default=None)
     include_table_of_contents: bool = Field(sa_column=Column(Boolean), default=False)
     include_title_slide: bool = Field(sa_column=Column(Boolean), default=True)
     web_search: bool = Field(sa_column=Column(Boolean), default=False)

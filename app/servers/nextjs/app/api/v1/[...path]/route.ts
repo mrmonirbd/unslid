@@ -30,14 +30,32 @@ const HOP_BY_HOP = new Set([
   "trailers",
   "transfer-encoding",
   "upgrade",
+  // Node/undici fetch rejects forwarded Expect headers, which curl and some
+  // upload clients add for multipart file uploads.
+  "expect",
 ]);
 
 type Ctx = { params: { path: string[] } };
 
+const TRAILING_SLASH_ENDPOINTS = new Set([
+  "slide-to-html",
+  "html-to-react",
+  "html-edit",
+]);
+
 async function proxy(request: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const segments = ctx.params.path ?? [];
   const search = request.nextUrl.search ?? "";
-  const targetUrl = `${FASTAPI_URL}/api/v1/${segments.join("/")}${search}`;
+  let targetPath = `/api/v1/${segments.join("/")}`;
+
+  if (
+    !targetPath.endsWith("/") &&
+    TRAILING_SLASH_ENDPOINTS.has(segments[segments.length - 1] ?? "")
+  ) {
+    targetPath += "/";
+  }
+
+  const targetUrl = `${FASTAPI_URL}${targetPath}${search}`;
 
   // Copy request headers, skipping hop-by-hop and rewriting Host
   const forwardHeaders = new Headers();

@@ -1,27 +1,21 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+
+const COOKIE_NAME = "unslid_access_token";
 
 export async function createClient() {
   const cookieStore = await cookies();
 
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Server component — cookies can only be set in middleware or route handlers
-          }
-        },
+  return {
+    auth: {
+      async getSession() {
+        const access_token = cookieStore.get(COOKIE_NAME)?.value ?? null;
+        return { data: { session: access_token ? { access_token } : null }, error: null };
       },
-    }
-  );
+      async getUser() {
+        const access_token = cookieStore.get(COOKIE_NAME)?.value ?? null;
+        if (!access_token) return { data: { user: null }, error: null };
+        return { data: { user: { access_token } }, error: null };
+      },
+    },
+  };
 }
