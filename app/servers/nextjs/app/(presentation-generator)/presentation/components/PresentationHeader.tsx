@@ -208,7 +208,13 @@ const PresentationHeader = ({
   // Legacy Puppeteer-based extractor — kept as fallback only
   const get_presentation_pptx_model_puppeteer = async (id: string): Promise<PptxPresentationModel> => {
     const response = await fetch(`/api/presentation_to_pptx_model?id=${id}`);
-    return response.json();
+    const data = await response.json();
+    if (!response.ok) {
+      const message =
+        data?.detail || data?.message || "Failed to build presentation PPTX model";
+      throw new Error(message);
+    }
+    return data;
   };
 
   const exportViaIpc = async (format: "pptx" | "pdf"): Promise<boolean> => {

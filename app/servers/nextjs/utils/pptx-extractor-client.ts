@@ -341,6 +341,28 @@ async function svgToPngDataUrl(svgEl: Element, w: number, h: number): Promise<st
   }
 }
 
+async function imageToDataUrl(imgEl: HTMLImageElement): Promise<string> {
+  try {
+    if (!imgEl.complete) {
+      await new Promise<void>((resolve, reject) => {
+        imgEl.onload = () => resolve();
+        imgEl.onerror = () => reject(new Error("Image failed to load"));
+      });
+    }
+
+    const rect = imgEl.getBoundingClientRect();
+    const width = Math.max(1, Math.round(imgEl.naturalWidth || rect.width));
+    const height = Math.max(1, Math.round(imgEl.naturalHeight || rect.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext("2d")!.drawImage(imgEl, 0, 0, width, height);
+    return canvas.toDataURL("image/png");
+  } catch {
+    return "";
+  }
+}
+
 // ─── Recursive attribute tree traversal ───────────────────────────────────────
 
 interface TraversalState {
@@ -374,11 +396,12 @@ async function collectChildAttributes(
 
     // Make position relative to slide root
     if (attrs.position && state.rootRect) {
+      const position = attrs.position;
       attrs.position = {
-        left: attrs.position.left - state.rootRect.left,
-        top: attrs.position.top - state.rootRect.top,
-        width: attrs.position.width,
-        height: attrs.position.height,
+        left: (position.left ?? 0) - state.rootRect.left,
+        top: (position.top ?? 0) - state.rootRect.top,
+        width: position.width,
+        height: position.height,
       };
     }
 
@@ -406,6 +429,16 @@ async function collectChildAttributes(
       }
       results.push({ attributes: attrs, depth });
       // Don't recurse into SVG children
+      continue;
+    }
+
+    if (attrs.tagName === "img") {
+      const dataUrl = await imageToDataUrl(child as HTMLImageElement);
+      if (dataUrl) {
+        attrs.imageSrc = dataUrl;
+        attrs.should_screenshot = false;
+      }
+      results.push({ attributes: attrs, depth });
       continue;
     }
 
@@ -485,11 +518,11 @@ async function extractSlideAttributes(slideContentEl: Element): Promise<SlideAtt
     return (hasContent && !occupiesRoot) || !!a.imageSrc;
   });
 
-  // Sort: higher z-index on top, then by depth
+  // PPTX draws later shapes on top, so keep low z-index elements first.
   const sorted = filtered
     .sort((a, b) => {
       const za = a.attributes.zIndex ?? 0, zb = b.attributes.zIndex ?? 0;
-      return za !== zb ? zb - za : a.depth - b.depth;
+      return za !== zb ? za - zb : a.depth - b.depth;
     })
     .map(({ attributes: a }) => {
       // If element has shadow but no background, assign slide bg so PPTX looks right

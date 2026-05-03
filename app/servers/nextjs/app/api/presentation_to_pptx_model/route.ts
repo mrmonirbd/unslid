@@ -1,6 +1,7 @@
 import { ApiError } from "@/models/errors";
 import { NextRequest, NextResponse } from "next/server";
-import puppeteer, { Browser, ElementHandle, Page } from "puppeteer";
+import type { ElementHandle, Page } from "puppeteer";
+import { createExportPage } from "@/utils/puppeteer-browser";
 import {
   ElementAttributes,
   SlideAttributesResult,
@@ -30,12 +31,14 @@ interface GetAllChildElementsAttributesArgs {
 }
 
 export async function GET(request: NextRequest) {
-  let browser: Browser | null = null;
   let page: Page | null = null;
 
   try {
     const id = await getPresentationId(request);
-    [browser, page] = await getBrowserAndPage(id);
+    page = await getBrowserPage(
+      id,
+      request.headers.get("cookie")
+    );
     const screenshotsDir = getScreenshotsDir();
 
     const { slides, speakerNotes } = await getSlidesAndSpeakerNotes(page);
@@ -51,12 +54,12 @@ export async function GET(request: NextRequest) {
       slides: slides_pptx_models,
     };
 
-    await closeBrowserAndPage(browser, page);
+    await closePage(page);
 
     return NextResponse.json(presentation_pptx_model);
   } catch (error: any) {
     console.error(error);
-    await closeBrowserAndPage(browser, page);
+    await closePage(page);
     if (error instanceof ApiError) {
       return NextResponse.json(error, { status: 400 });
     }
@@ -75,46 +78,31 @@ async function getPresentationId(request: NextRequest) {
   return id;
 }
 
-async function getBrowserAndPage(id: string): Promise<[Browser, Page]> {
-  const browser = await puppeteer.launch({
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
-      "--disable-web-security",
-      "--disable-background-timer-throttling",
-      "--disable-backgrounding-occluded-windows",
-      "--disable-renderer-backgrounding",
-      "--disable-features=TranslateUI",
-      "--disable-ipc-flooding-protection",
-    ],
-  });
-
-  const page = await browser.newPage();
-
-  await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
-  page.setDefaultNavigationTimeout(300000);
-  page.setDefaultTimeout(300000);
+async function getBrowserPage(
+  id: string,
+  cookieHeader: string | null
+): Promise<Page> {
+  const page = await createExportPage(cookieHeader);
   const port = process.env.PORT ?? "3000";
   await page.goto(`http://localhost:${port}/pdf-maker?id=${id}`, {
     waitUntil: "networkidle0",
     timeout: 300000,
   });
 
-  // Wait for slides wrapper to exist, then for actual slide divs to render
-  await page.waitForSelector("#presentation-slides-wrapper", { timeout: 30000 });
-  // Wait for at least one rendered slide (data-speaker-note is set on each slide div)
-  await page.waitForSelector("[data-speaker-note]", { timeout: 30000 });
+  if (page.url().includes("/login")) {
+    throw new ApiError("Authentication required to export this presentation");
+  }
 
-  return [browser, page];
+  // Wait for slides wrapper to exist, then for actual slide divs to render
+  await page.waitForSelector("#presentation-slides-wrapper", { timeout: 60000 });
+  // Wait for at least one rendered slide (data-speaker-note is set on each slide div)
+  await page.waitForSelector("[data-speaker-note]", { timeout: 60000 });
+
+  return page;
 }
 
-async function closeBrowserAndPage(browser: Browser | null, page: Page | null) {
-  await page?.close();
-  await browser?.close();
+async function closePage(page: Page | null) {
+  await page?.close().catch(() => undefined);
 }
 
 function getScreenshotsDir() {
@@ -478,7 +466,7 @@ async function getAllChildElementsAttributes({
           return a.depth - b.depth;
         }
 
-        return zIndexB - zIndexA;
+        return zIndexA - zIndexB;
       })
       .map(({ attributes }) => {
         if (
