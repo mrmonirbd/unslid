@@ -1,6 +1,6 @@
 import { sanitizeFilename } from "@/app/(presentation-generator)/utils/others";
+import { createExportPage } from "@/utils/puppeteer-browser";
 import { NextResponse, NextRequest } from "next/server";
-import puppeteer from "puppeteer";
 
 export async function POST(req: NextRequest) {
   const { id, title } = await req.json();
@@ -12,33 +12,17 @@ export async function POST(req: NextRequest) {
   }
 
   const port = process.env.PORT ?? "3000";
-  const browser = await puppeteer.launch({
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
-      "--disable-web-security",
-      "--disable-background-timer-throttling",
-      "--disable-backgrounding-occluded-windows",
-      "--disable-renderer-backgrounding",
-      "--disable-features=TranslateUI",
-      "--disable-ipc-flooding-protection",
-    ],
-  });
+  const page = await createExportPage(req.headers.get("cookie"));
 
   try {
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 720 });
-    page.setDefaultNavigationTimeout(300000);
-    page.setDefaultTimeout(300000);
-
     await page.goto(`http://localhost:${port}/pdf-maker?id=${id}`, {
       waitUntil: "networkidle0",
       timeout: 300000,
     });
+
+    if (page.url().includes("/login")) {
+      throw new Error("Authentication required to export this presentation");
+    }
 
     await page.waitForFunction('() => document.readyState === "complete"');
 
@@ -79,12 +63,14 @@ export async function POST(req: NextRequest) {
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
     });
 
-    await browser.close();
+    await page.close();
 
     const sanitizedTitle = sanitizeFilename(title ?? "presentation");
 
     // Return the PDF buffer directly as a download — no filesystem access needed.
-    return new NextResponse(pdfBuffer, {
+    const pdfArrayBuffer = new ArrayBuffer(pdfBuffer.byteLength);
+    new Uint8Array(pdfArrayBuffer).set(pdfBuffer);
+    return new NextResponse(pdfArrayBuffer, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
@@ -93,7 +79,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
-    await browser.close();
+    await page.close().catch(() => undefined);
     throw err;
   }
 }

@@ -188,14 +188,14 @@ const DesignerTemplateSlideRender = ({
 
   if (!imageSrc) {
     return (
-      <div className="flex aspect-video h-full w-full items-center justify-center bg-[#F3F4F6] text-sm text-gray-500">
+      <div data-slide-content="true" className="flex aspect-video h-full w-full items-center justify-center bg-[#F3F4F6] text-sm text-gray-500">
         Designer template preview is loading
       </div>
     );
   }
 
   return (
-    <div className="relative aspect-video h-full w-full overflow-hidden bg-white">
+    <div data-slide-content="true" className="relative aspect-video h-full w-full overflow-hidden bg-white">
       <img
         src={imageSrc}
         alt={`Designer template slide ${slide.slide_number}`}
