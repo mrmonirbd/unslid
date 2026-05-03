@@ -490,7 +490,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                             className="h-16 w-full rounded-2xl border border-violet-200 bg-white/95 pl-14 pr-5 text-sm text-slate-900 shadow-[0_18px_50px_rgba(124,58,237,0.12)] outline-none transition placeholder:text-slate-500 focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
                         />
                     </div>
-                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                    {/* <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                         {quickCategories.map(({ label, icon: Icon, tag }) => (
                             <button
                                 key={label}
@@ -511,7 +511,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                             New Template
                             <ChevronRight className="h-4 w-4" />
                         </Link>
-                    </div>
+                    </div> */}
                 </div>
             </div>
 
@@ -523,7 +523,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                             {totalVisible} available
                         </span>
                     </div>
-                    <div className="flex gap-5 overflow-x-auto pb-2">
+                    {/* <div className="flex gap-5 overflow-x-auto pb-2">
                         {exploreTiles.map((tile) => (
                             <button
                                 key={tile.label}
@@ -535,7 +535,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                                 <span className="absolute right-6 top-5 h-2 w-14 rounded-full bg-white/55" />
                             </button>
                         ))}
-                    </div>
+                    </div> */}
                 </section>
 
                 <div className="mt-8 flex flex-wrap items-center gap-2">
@@ -569,7 +569,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
 
                 <section className="mt-8">
                     <div className="mb-4 flex items-center justify-between">
-                        <h2 className="text-2xl font-bold tracking-[-0.01em]">Inspired by your designs</h2>
+                        <h2 className="text-2xl font-bold tracking-[-0.01em]">Create your custom designs</h2>
                         <button className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50" aria-label="More templates">
                             <ArrowRight className="h-4 w-4" />
                         </button>
