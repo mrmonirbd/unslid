@@ -22,12 +22,44 @@ export const useLayoutSaving = (
     setIsModalOpen(false);
   }, []);
 
-  const toJsStringLiteral = (value: string) =>
-    JSON.stringify(
-      value
+  const bakeEditableImportedHtml = (value: string) => {
+    if (typeof document === "undefined") {
+      return value
         .replace(/contenteditable="true"/g, "")
-        .replace(/contentEditable="true"/g, "")
-    );
+        .replace(/contentEditable="true"/g, "");
+    }
+
+    const container = document.createElement("div");
+    container.innerHTML = value;
+
+    container.querySelectorAll<HTMLElement>(".imported-slide-canvas").forEach((canvas) => {
+      const hasEditableText = canvas.getAttribute("data-editable-text") === "true";
+      if (!hasEditableText) return;
+
+      const originalBg = canvas.querySelector<HTMLElement>(".imported-original-bg");
+      const editBg = canvas.querySelector<HTMLElement>(".imported-edit-bg");
+      const editableLayer = canvas.querySelector<HTMLElement>(".imported-editable-layer");
+
+      if (originalBg) originalBg.style.opacity = "0";
+      if (editBg) editBg.style.opacity = "1";
+      if (editableLayer) {
+        editableLayer.style.opacity = "1";
+        editableLayer.style.pointerEvents = "none";
+      }
+
+      canvas.querySelectorAll<HTMLElement>("[contenteditable]").forEach((node) => {
+        node.removeAttribute("contenteditable");
+        node.removeAttribute("contentEditable");
+        node.style.pointerEvents = "none";
+        node.style.outline = "none";
+      });
+    });
+
+    return container.innerHTML;
+  };
+
+  const toJsStringLiteral = (value: string) =>
+    JSON.stringify(bakeEditableImportedHtml(value));
 
   const convertSlideToReact = async (slide: ProcessedSlide, presentationId: string, FontUrls: string[]) => {
     const importedHtml = toJsStringLiteral(slide.html || "");
@@ -41,7 +73,7 @@ const importedHtml = ${importedHtml};
 
 const dynamicSlideLayout = () => (
   <div
-    className="relative h-full w-full overflow-hidden bg-white [&_.imported-slide-canvas]:h-full [&_.imported-slide-canvas]:w-full [&_.imported-slide-canvas]:max-w-none [&_.imported-editable-layer]:pointer-events-none [&_.imported-editable-layer]:opacity-0"
+    className="relative h-full w-full overflow-hidden bg-white [&_.imported-slide-canvas]:h-full [&_.imported-slide-canvas]:w-full [&_.imported-slide-canvas]:max-w-none [&_.imported-editable-layer]:pointer-events-none"
     dangerouslySetInnerHTML={{ __html: importedHtml }}
   />
 );

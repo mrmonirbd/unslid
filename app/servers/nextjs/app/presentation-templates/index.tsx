@@ -175,6 +175,8 @@ import neoGeneralSettings from "./neo-general/settings.json";
 import neoStandardSettings from "./neo-standard/settings.json";
 import neoModernSettings from "./neo-modern/settings.json";
 import neoSwiftSettings from "./neo-swift/settings.json";
+import megaSettings from "./mega/settings.json";
+import { megaTemplateGroups, megaTemplates } from "./mega";
 
 
 // Helper to create template entry
@@ -344,6 +346,7 @@ export const swiftTemplates: TemplateWithData[] = [
 // TODO: Step 4: Combine all templates into a single array For UseCases (like the ones below)
 // All templates combined
 export const allLayouts: TemplateWithData[] = [
+    ...megaTemplates,
     ...neoGeneralTemplates,
     ...neoModernTemplates,
     ...neoStandardTemplates,
@@ -360,6 +363,14 @@ export const allLayouts: TemplateWithData[] = [
 // TODO: Step 5: Combine all templates into a single array For UseCases (like the ones below)
 // For UseCases we need to combine all templates into a single array with settings
 export const templates: TemplateLayoutsWithSettings[] = [
+    ...megaTemplateGroups,
+    {
+        id: "mega",
+        name: "Mega 100",
+        description: megaSettings.description,
+        settings: megaSettings as TemplateGroupSettings,
+        layouts: megaTemplates,
+    },
     {
         id: "neo-general",
         name: "Neo General",

@@ -181,7 +181,7 @@ async def generate_html_from_slide(
             if fonts
             else ""
         )
-        user_text = f"OXML: \n\n{fonts_text}"
+        user_text = f"OXML:\n{xml_content or ''}\n\n{fonts_text}"
         input_payload = [
             {"role": "system", "content": GENERATE_HTML_SYSTEM_PROMPT},
             {

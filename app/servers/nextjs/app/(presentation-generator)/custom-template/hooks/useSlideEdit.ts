@@ -163,6 +163,7 @@ export const useSlideEdit = (
         processed: true,
         processing: false,
         error: undefined,
+        modified: true,
       };
      
 

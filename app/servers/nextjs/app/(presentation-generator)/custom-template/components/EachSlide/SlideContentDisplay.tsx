@@ -63,9 +63,13 @@ export const SlideContentDisplay: React.FC<SlideContentDisplayProps> = ({
           ref={slideDisplayRef}
           className={[
             "relative mx-auto w-full",
+            "[&_.imported-slide-canvas:focus-within_.imported-original-bg]:opacity-0 [&_.imported-slide-canvas:focus-within_.imported-edit-bg]:!opacity-100 [&_.imported-slide-canvas:focus-within_.imported-editable-layer]:!opacity-100",
             "[&_.imported-editable-text]:cursor-text [&_.imported-editable-text]:rounded-sm [&_.imported-editable-text]:transition-shadow [&_.imported-editable-text:focus]:bg-white/95 [&_.imported-editable-text:focus]:outline [&_.imported-editable-text:focus]:outline-2 [&_.imported-editable-text:focus]:outline-blue-500 [&_.imported-editable-text:focus]:outline-offset-1",
+            slide.modified
+              ? "[&_.imported-original-bg]:opacity-0 [&_.imported-edit-bg]:!opacity-100 [&_.imported-editable-layer]:z-40 [&_.imported-editable-layer]:!opacity-100"
+              : "",
             isEditMode
-              ? "[&_.imported-editable-layer]:z-40 [&_.imported-editable-text]:bg-white/95 [&_.imported-editable-text]:outline [&_.imported-editable-text]:outline-1 [&_.imported-editable-text]:outline-blue-400 [&_.imported-editable-text]:outline-offset-1"
+              ? "[&_.imported-original-bg]:opacity-0 [&_.imported-edit-bg]:!opacity-100 [&_.imported-editable-layer]:z-40 [&_.imported-editable-layer]:!opacity-100 [&_.imported-editable-layer]:pointer-events-auto [&_.imported-editable-text]:pointer-events-auto [&_.imported-editable-text]:bg-white/95 [&_.imported-editable-text]:outline [&_.imported-editable-text]:outline-1 [&_.imported-editable-text]:outline-blue-400 [&_.imported-editable-text]:outline-offset-1"
               : "",
           ].join(" ")}
         >
