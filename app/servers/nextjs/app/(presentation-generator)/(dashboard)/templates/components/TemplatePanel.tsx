@@ -365,6 +365,66 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
     );
 });
 
+const EditedStaticTemplateCard = React.memo(function EditedStaticTemplateCard({
+    template,
+    sourceTemplate,
+}: {
+    template: EditedStaticTemplateSummary;
+    sourceTemplate?: TemplateLayoutsWithSettings;
+}) {
+    const router = useRouter();
+    const previewLayouts = useMemo(() => (sourceTemplate?.layouts ?? []).slice(0, 4), [sourceTemplate?.layouts]);
+
+    return (
+        <Card
+            className={CARD_CLASS}
+            onClick={() => router.push(`/template-preview/${template.templateId}`)}
+        >
+            <img src="/card_bg.svg" alt="" className={CARD_BACKGROUND_CLASS} />
+            <div className="p-4">
+                <div className="grid grid-cols-2 gap-2">
+                    {previewLayouts.length > 0 ? previewLayouts.map((layout: TemplateWithData, index: number) => {
+                        const LayoutComponent = layout.component;
+                        return (
+                            <div
+                                key={`${template.id}-preview-${index}`}
+                                className={PREVIEW_TILE_CLASS}
+                            >
+                                <div className="absolute inset-0 bg-transparent z-10 pointer-events-none" />
+                                <div
+                                    className="transform scale-[0.12] origin-top-left"
+                                    style={PREVIEW_SCALE_STYLE}
+                                >
+                                    <LayoutComponent data={layout.sampleData} />
+                                </div>
+                            </div>
+                        );
+                    }) : PREVIEW_PLACEHOLDERS.map((index) => (
+                        <div
+                            key={`${template.id}-placeholder-${index}`}
+                            className="relative aspect-video overflow-hidden rounded border border-gray-200 bg-gradient-to-br from-violet-50 to-blue-50"
+                        />
+                    ))}
+                </div>
+            </div>
+            <div className="absolute left-3 top-3 z-20 rounded-full bg-violet-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow">
+                Edited
+            </div>
+            <div className="absolute inset-x-0 bottom-0 z-40 flex items-center justify-between border-t border-[#EDEEEF] bg-white px-4 py-3">
+                <div className="min-w-0">
+                    <h3 className="line-clamp-1 text-sm font-bold text-gray-900">
+                        {template.name}
+                    </h3>
+                    <p className="mt-1 line-clamp-1 text-xs text-gray-600">
+                        {template.layoutCount} saved layouts • {template.description}
+                    </p>
+                </div>
+                <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
+            </div>
+        </Card>
+    );
+});
+
 interface PptxDesignerTemplate {
     id: number;
     name: string;
@@ -453,6 +513,9 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
     const [activeTag, setActiveTag] = useState<string | null>(null);
     const router = useRouter();
     const { isLocked } = useTemplateTiers();
+    const { user } = useUser();
+    const userKey = String(user?.id || user?.email || "guest");
+    const editedStaticTemplates = useEditedStaticTemplates(userKey);
     const { templates: customTemplates, loading: customLoading } = useCustomTemplateSummaries();
     const [designerTemplates, setDesignerTemplates] = useState<PptxDesignerTemplate[]>([]);
     const [designerLoading, setDesignerLoading] = useState(false);
@@ -474,6 +537,11 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
         [],
     );
 
+    const getEditedTags = useCallback(
+        (template: EditedStaticTemplateSummary) => ["edited", ...getTagsFromText(`${template.name} ${template.description ?? ""}`)],
+        [],
+    );
+
     const getDesignerTags = useCallback(
         (template: PptxDesignerTemplate) => [
             template.tier,
@@ -492,6 +560,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
         const addTag = (tag: string) => tags.set(tag, (tags.get(tag) ?? 0) + 1);
 
         customTemplates.forEach((template) => getCustomTags(template).forEach(addTag));
+        editedStaticTemplates.forEach((template) => getEditedTags(template).forEach(addTag));
         if (!isUserGeneratedOnly) {
             templates.forEach((template) => getInbuiltTags(template).forEach(addTag));
             designerTemplates.forEach((template) => getDesignerTags(template).forEach(addTag));
@@ -501,7 +570,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
             .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
             .slice(0, 12)
             .map(([tag, count]) => ({ tag, count }));
-    }, [customTemplates, designerTemplates, getCustomTags, getDesignerTags, getInbuiltTags, isUserGeneratedOnly]);
+    }, [customTemplates, designerTemplates, editedStaticTemplates, getCustomTags, getDesignerTags, getEditedTags, getInbuiltTags, isUserGeneratedOnly]);
 
     const filteredInbuiltTemplates = useMemo(
         () =>
@@ -525,6 +594,17 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
         [activeTag, customTemplates, getCustomTags, normalizedQuery],
     );
 
+    const filteredEditedStaticTemplates = useMemo(
+        () =>
+            editedStaticTemplates.filter((template: EditedStaticTemplateSummary) => {
+                const searchable = `${template.name} ${template.description ?? ""}`.toLowerCase();
+                const matchesSearch = !normalizedQuery || searchable.includes(normalizedQuery);
+                const matchesTag = !activeTag || getEditedTags(template).includes(activeTag);
+                return matchesSearch && matchesTag;
+            }),
+        [activeTag, editedStaticTemplates, getEditedTags, normalizedQuery],
+    );
+
     const filteredDesignerTemplates = useMemo(
         () =>
             designerTemplates.filter((template: PptxDesignerTemplate) => {
@@ -538,6 +618,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
 
     const totalVisible =
         filteredCustomTemplates.length +
+        filteredEditedStaticTemplates.length +
         (isUserGeneratedOnly ? 0 : filteredInbuiltTemplates.length + filteredDesignerTemplates.length);
 
     const handleOpenPreview = useCallback((id: string) => router.push(`/template-preview/${id}`), [router]);
@@ -558,6 +639,17 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
     const customTemplateCards = useMemo(
         () => filteredCustomTemplates.map((template: CustomTemplates) => <CustomTemplateCard key={template.id} template={template} />),
         [filteredCustomTemplates],
+    );
+
+    const editedStaticTemplateCards = useMemo(
+        () => filteredEditedStaticTemplates.map((template) => (
+            <EditedStaticTemplateCard
+                key={template.id}
+                template={template}
+                sourceTemplate={templates.find((source) => source.id === template.templateId)}
+            />
+        )),
+        [filteredEditedStaticTemplates],
     );
 
     const isGridLayout = layout === "grid" || layout === "user-grid";
@@ -587,7 +679,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                         <div className="mb-4 flex items-center justify-between gap-4">
                             <h2 className="text-2xl font-bold tracking-[-0.01em]">Explore templates</h2>
                             <span className="text-xs font-semibold text-slate-500">
-                                {filteredCustomTemplates.length} available
+                                {filteredCustomTemplates.length + filteredEditedStaticTemplates.length} available
                             </span>
                         </div>
                     </section>
@@ -631,7 +723,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
 
                         {customLoading ? (
                             <TemplateGridSkeleton includeCreateCard={!normalizedQuery && !activeTag} />
-                        ) : filteredCustomTemplates.length === 0 && (normalizedQuery || activeTag) ? (
+                        ) : filteredCustomTemplates.length + filteredEditedStaticTemplates.length === 0 && (normalizedQuery || activeTag) ? (
                             <EmptyTemplates label="matching" />
                         ) : (
                             <div className="grid grid-cols-1 gap-6 pb-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -640,6 +732,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                                         <CreateCustomTemplate />
                                     </div>
                                 )}
+                                {editedStaticTemplateCards}
                                 {customTemplateCards}
                             </div>
                         )}
@@ -732,6 +825,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                                     <CreateCustomTemplate />
                                 </div>
                             )}
+                            {editedStaticTemplateCards}
                             {inbuiltTemplateCards}
                             {customTemplateCards}
                             {filteredDesignerTemplates.map((t) => (
