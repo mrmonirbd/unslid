@@ -38,6 +38,7 @@ const PREVIEW_SCALE_STYLE = { width: "833.33%", height: "833.33%" };
 const PREVIEW_PLACEHOLDERS = [0, 1, 2, 3];
 const TEMPLATE_SKELETONS = [0, 1, 2, 3, 4, 5, 6, 7];
 const STATIC_TEMPLATE_EDIT_INDEX_PREFIX = "static-template-edits:index:";
+const STATIC_TEMPLATE_EDIT_STORAGE_PREFIX = "static-template-edits";
 const FREE_BUILT_IN_TEMPLATE_LIMIT = 10;
 const STOP_WORDS = new Set([
     "template",
@@ -209,6 +210,30 @@ function useEditedStaticTemplates(userKey: string) {
     return editedTemplates;
 }
 
+function useSavedStaticLayoutHtml(userKey: string, templateId: string, layouts: TemplateWithData[]) {
+    const [savedLayoutHtml, setSavedLayoutHtml] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        if (typeof window === "undefined" || !layouts.length) {
+            setSavedLayoutHtml({});
+            return;
+        }
+
+        const nextSavedLayouts: Record<string, string> = {};
+        layouts.forEach((layout) => {
+            const savedHtml = window.localStorage.getItem(
+                [STATIC_TEMPLATE_EDIT_STORAGE_PREFIX, userKey, templateId, layout.layoutId].join(":"),
+            );
+            if (savedHtml) {
+                nextSavedLayouts[layout.layoutId] = savedHtml;
+            }
+        });
+        setSavedLayoutHtml(nextSavedLayouts);
+    }, [layouts, templateId, userKey]);
+
+    return savedLayoutHtml;
+}
+
 // Component for rendering custom template card with lazy-loaded previews
 export const CustomTemplateCard = React.memo(function CustomTemplateCard({ template }: { template: CustomTemplates }) {
     const router = useRouter();
@@ -295,12 +320,29 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
     template,
     onOpen,
     locked,
+    editedTemplate,
+    userKey,
 }: {
     template: TemplateLayoutsWithSettings;
     onOpen: (id: string) => void;
     locked?: boolean;
+    editedTemplate?: EditedStaticTemplateSummary;
+    userKey: string;
 }) {
     const previewLayouts = useMemo(() => template.layouts.slice(0, 4), [template.layouts]);
+    const savedLayoutHtml = useSavedStaticLayoutHtml(userKey, template.id, template.layouts);
+    const hasEdits = !!editedTemplate;
+    const previewItems = useMemo(() => {
+        const editedItems = template.layouts
+            .filter((layout) => savedLayoutHtml[layout.layoutId])
+            .map((layout) => ({ type: "edited" as const, layout, html: savedLayoutHtml[layout.layoutId] }));
+
+        const originalItems = template.layouts
+            .filter((layout) => !savedLayoutHtml[layout.layoutId])
+            .map((layout) => ({ type: "original" as const, layout }));
+
+        return [...editedItems, ...originalItems].slice(0, 4);
+    }, [savedLayoutHtml, template.layouts]);
     const cardRef = useRef<HTMLDivElement>(null);
     const shouldRenderPreview = useInViewport(cardRef);
     const router = useRouter();
@@ -329,28 +371,41 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
                     </span>
                 </div>
             )}
+            {hasEdits && !locked && (
+                <div className="absolute left-3 top-3 z-20 rounded-full bg-violet-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow">
+                    Edited
+                </div>
+            )}
             <img src="/card_bg.svg" alt="" className={CARD_BACKGROUND_CLASS} />
             <div className="p-4">
                 <div className="grid grid-cols-2 gap-2">
-                    {shouldRenderPreview ? previewLayouts.map((layout: TemplateWithData, index: number) => {
-                        const LayoutComponent = layout.component;
+                    {shouldRenderPreview ? previewItems.map((item, index: number) => {
+                        const LayoutComponent = item.layout.component;
                         return (
                             <div
-                                key={`${template.id}-preview-${index}`}
+                                key={`${template.id}-preview-${item.layout.layoutId}-${index}`}
                                 className={PREVIEW_TILE_CLASS}
                             >
                                 <div className="absolute inset-0 bg-transparent z-10 pointer-events-none" />
-                                <div
-                                    className="transform scale-[0.12] origin-top-left"
-                                    style={PREVIEW_SCALE_STYLE}
-                                >
-                                    <LayoutComponent data={layout.sampleData} />
-                                </div>
+                                {item.type === "edited" ? (
+                                    <div
+                                        className="transform scale-[0.12] origin-top-left"
+                                        style={PREVIEW_SCALE_STYLE}
+                                        dangerouslySetInnerHTML={{ __html: item.html }}
+                                    />
+                                ) : (
+                                    <div
+                                        className="transform scale-[0.12] origin-top-left"
+                                        style={PREVIEW_SCALE_STYLE}
+                                    >
+                                        <LayoutComponent data={item.layout.sampleData} />
+                                    </div>
+                                )}
                             </div>
                         );
-                    }) : PREVIEW_PLACEHOLDERS.map((index) => (
+                    }) : (previewLayouts.length ? previewLayouts : PREVIEW_PLACEHOLDERS).map((layoutOrIndex, index) => (
                         <div
-                            key={`${template.id}-placeholder-${index}`}
+                            key={`${template.id}-placeholder-${typeof layoutOrIndex === "number" ? layoutOrIndex : layoutOrIndex.layoutId}`}
                             className="relative aspect-video overflow-hidden rounded border border-gray-200 bg-gradient-to-br from-slate-50 to-violet-50"
                         />
                     ))}
@@ -382,12 +437,27 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
 const EditedStaticTemplateCard = React.memo(function EditedStaticTemplateCard({
     template,
     sourceTemplate,
+    userKey,
 }: {
     template: EditedStaticTemplateSummary;
     sourceTemplate?: TemplateLayoutsWithSettings;
+    userKey: string;
 }) {
     const router = useRouter();
-    const previewLayouts = useMemo(() => (sourceTemplate?.layouts ?? []).slice(0, 4), [sourceTemplate?.layouts]);
+    const sourceLayouts = useMemo(() => sourceTemplate?.layouts ?? [], [sourceTemplate?.layouts]);
+    const savedLayoutHtml = useSavedStaticLayoutHtml(userKey, template.templateId, sourceLayouts);
+
+    const previewItems = useMemo(() => {
+        const editedItems = sourceLayouts
+            .filter((layout) => savedLayoutHtml[layout.layoutId])
+            .map((layout) => ({ type: "edited" as const, layout, html: savedLayoutHtml[layout.layoutId] }));
+
+        const originalItems = sourceLayouts
+            .filter((layout) => !savedLayoutHtml[layout.layoutId])
+            .map((layout) => ({ type: "original" as const, layout }));
+
+        return [...editedItems, ...originalItems].slice(0, 4);
+    }, [savedLayoutHtml, sourceLayouts]);
 
     return (
         <Card
@@ -397,20 +467,28 @@ const EditedStaticTemplateCard = React.memo(function EditedStaticTemplateCard({
             <img src="/card_bg.svg" alt="" className={CARD_BACKGROUND_CLASS} />
             <div className="p-4">
                 <div className="grid grid-cols-2 gap-2">
-                    {previewLayouts.length > 0 ? previewLayouts.map((layout: TemplateWithData, index: number) => {
-                        const LayoutComponent = layout.component;
+                    {previewItems.length > 0 ? previewItems.map((item, index: number) => {
+                        const LayoutComponent = item.layout.component;
                         return (
                             <div
-                                key={`${template.id}-preview-${index}`}
+                                key={`${template.id}-preview-${item.layout.layoutId}-${index}`}
                                 className={PREVIEW_TILE_CLASS}
                             >
                                 <div className="absolute inset-0 bg-transparent z-10 pointer-events-none" />
-                                <div
-                                    className="transform scale-[0.12] origin-top-left"
-                                    style={PREVIEW_SCALE_STYLE}
-                                >
-                                    <LayoutComponent data={layout.sampleData} />
-                                </div>
+                                {item.type === "edited" ? (
+                                    <div
+                                        className="transform scale-[0.12] origin-top-left"
+                                        style={PREVIEW_SCALE_STYLE}
+                                        dangerouslySetInnerHTML={{ __html: item.html }}
+                                    />
+                                ) : (
+                                    <div
+                                        className="transform scale-[0.12] origin-top-left"
+                                        style={PREVIEW_SCALE_STYLE}
+                                    >
+                                        <LayoutComponent data={item.layout.sampleData} />
+                                    </div>
+                                )}
                             </div>
                         );
                     }) : PREVIEW_PLACEHOLDERS.map((index) => (
@@ -574,7 +652,9 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
         const addTag = (tag: string) => tags.set(tag, (tags.get(tag) ?? 0) + 1);
 
         customTemplates.forEach((template) => getCustomTags(template).forEach(addTag));
-        editedStaticTemplates.forEach((template) => getEditedTags(template).forEach(addTag));
+        if (isUserGeneratedOnly) {
+            editedStaticTemplates.forEach((template) => getEditedTags(template).forEach(addTag));
+        }
         if (!isUserGeneratedOnly) {
             templates.forEach((template) => getInbuiltTags(template).forEach(addTag));
             designerTemplates.forEach((template) => getDesignerTags(template).forEach(addTag));
@@ -632,10 +712,18 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
 
     const totalVisible =
         filteredCustomTemplates.length +
-        filteredEditedStaticTemplates.length +
+        (isUserGeneratedOnly ? filteredEditedStaticTemplates.length : 0) +
         (isUserGeneratedOnly ? 0 : filteredInbuiltTemplates.length + filteredDesignerTemplates.length);
 
     const handleOpenPreview = useCallback((id: string) => router.push(`/template-preview/${id}`), [router]);
+
+    const editedStaticTemplateMap = useMemo(() => {
+        const map = new Map<string, EditedStaticTemplateSummary>();
+        editedStaticTemplates.forEach((template) => {
+            map.set(template.templateId, template);
+        });
+        return map;
+    }, [editedStaticTemplates]);
 
     const inbuiltTemplateCards = useMemo(
         () =>
@@ -645,9 +733,11 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                     template={template}
                     onOpen={handleOpenPreview}
                     locked={isLocked(template.id, templates.findIndex((source) => source.id === template.id))}
+                    editedTemplate={editedStaticTemplateMap.get(template.id)}
+                    userKey={userKey}
                 />
             )),
-        [filteredInbuiltTemplates, handleOpenPreview, isLocked],
+        [editedStaticTemplateMap, filteredInbuiltTemplates, handleOpenPreview, isLocked, userKey],
     );
 
     const customTemplateCards = useMemo(
@@ -661,9 +751,10 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                 key={template.id}
                 template={template}
                 sourceTemplate={templates.find((source) => source.id === template.templateId)}
+                userKey={userKey}
             />
         )),
-        [filteredEditedStaticTemplates],
+        [filteredEditedStaticTemplates, userKey],
     );
 
     const isGridLayout = layout === "grid" || layout === "user-grid";
@@ -839,7 +930,6 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                                     <CreateCustomTemplate />
                                 </div>
                             )}
-                            {editedStaticTemplateCards}
                             {inbuiltTemplateCards}
                             {customTemplateCards}
                             {filteredDesignerTemplates.map((t) => (

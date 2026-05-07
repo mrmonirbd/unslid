@@ -7,6 +7,7 @@ import { ArrowLeft, Download, FileSpreadsheet, Home, Loader2, Minus, MoveDiagona
 
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import TemplateService from "../../services/api/template";
+import { PresentationGenerationApi } from "../../services/api/presentation-generation";
 import DashboardSidebar from "../../(dashboard)/Components/DashboardSidebar";
 import { toast } from "sonner";
 import {
@@ -18,6 +19,7 @@ import {
 import { templates as templateGroups, getTemplatesByTemplateName } from "@/app/presentation-templates";
 import { api } from "@/lib/api";
 import { useUser } from "@/app/hooks/useUser";
+import { extractElementPptxModel } from "@/utils/pptx-extractor-client";
 
 interface PptxDesignerTemplate {
   id: number;
@@ -65,6 +67,81 @@ function TemplatePreviewShell({ children }: { children: React.ReactNode }) {
       <div className="flex-1 h-screen overflow-y-auto">
         {children}
       </div>
+    </div>
+  );
+}
+
+function slugifyFileName(value: string) {
+  return value.replace(/[^a-z0-9_\-. ]/gi, "_").replace(/\s+/g, "_").slice(0, 90) || "template-preview";
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
+  const blobUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = blobUrl;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(blobUrl);
+}
+
+function PreviewDownloadButtons({
+  targetId,
+  title,
+}: {
+  targetId: string;
+  title: string;
+}) {
+  const [downloading, setDownloading] = useState<"pptx" | "pdf" | null>(null);
+
+  const handleDownload = async (format: "pptx" | "pdf") => {
+    const target = document.getElementById(targetId);
+    if (!target) {
+      toast.error("Preview is not ready yet");
+      return;
+    }
+
+    try {
+      setDownloading(format);
+      const model = await extractElementPptxModel(target, title);
+      const blob = format === "pptx"
+        ? await PresentationGenerationApi.exportAsPPTX(model)
+        : await PresentationGenerationApi.exportAsPDFFromModel(model);
+      downloadBlob(blob, `${slugifyFileName(title)}.${format}`);
+      toast.success(`${format.toUpperCase()} download ready`);
+    } catch (error) {
+      console.error(`Failed to download ${format}`, error);
+      toast.error(`Failed to download ${format.toUpperCase()}`);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="gap-2"
+        disabled={!!downloading}
+        onClick={() => handleDownload("pdf")}
+      >
+        {downloading === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+        PDF
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="gap-2"
+        disabled={!!downloading}
+        onClick={() => handleDownload("pptx")}
+      >
+        {downloading === "pptx" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+        PPTX
+      </Button>
     </div>
   );
 }
@@ -183,7 +260,7 @@ function AdminEditableLayout({
         element.onfocus = null;
       });
     };
-  }, [children, selectElement, storageKey]);
+  }, [children, selectElement]);
 
   const changeFontSize = (delta: number) => {
     const selected = selectedRef.current;
@@ -478,6 +555,7 @@ function StaticTemplateEditor({
   const [saveState, setSaveState] = useState<"idle" | "saved">("idle");
 
   const clearSelection = React.useCallback(() => {
+    if (!selectedRef.current) return;
     const previous = selectedRef.current?.element;
     if (previous) {
       previous.style.outline = "";
@@ -489,6 +567,11 @@ function StaticTemplateEditor({
   }, [onPanelStateChange]);
 
   const selectElement = React.useCallback((type: "text" | "image", element: HTMLElement) => {
+    const current = selectedRef.current;
+    if (current?.element === element && current.type === type) {
+      return;
+    }
+
     selectedRef.current?.element && (selectedRef.current.element.style.outline = "");
     selectedRef.current?.element && (selectedRef.current.element.style.outlineOffset = "");
 
@@ -530,6 +613,12 @@ function StaticTemplateEditor({
         return !(hasTextChild && element.children.length > 0);
       });
 
+    const textHandlers: Array<{
+      element: HTMLElement;
+      handleMouseDown: (event: MouseEvent) => void;
+      handleFocus: () => void;
+    }> = [];
+
     textElements.forEach((element) => {
       element.contentEditable = "true";
       element.spellcheck = false;
@@ -538,24 +627,44 @@ function StaticTemplateEditor({
       if (getComputedStyle(element).display === "inline") {
         element.style.display = "inline-block";
       }
-      element.addEventListener("mousedown", (event) => {
+      const handleMouseDown = (event: MouseEvent) => {
         event.stopPropagation();
         selectElement("text", element);
-      });
-      element.addEventListener("focus", () => selectElement("text", element));
+      };
+      const handleFocus = () => selectElement("text", element);
+      element.addEventListener("mousedown", handleMouseDown);
+      element.addEventListener("focus", handleFocus);
+      textHandlers.push({ element, handleMouseDown, handleFocus });
     });
 
     const imageElements = Array.from(root.querySelectorAll<HTMLImageElement>("img"));
+    const imageHandlers: Array<{
+      image: HTMLImageElement;
+      handleMouseDown: (event: MouseEvent) => void;
+    }> = [];
+
     imageElements.forEach((image) => {
       image.dataset.staticEditorImage = "true";
       image.style.cursor = "pointer";
       image.draggable = false;
-      image.addEventListener("mousedown", (event) => {
+      const handleMouseDown = (event: MouseEvent) => {
         event.preventDefault();
         event.stopPropagation();
         selectElement("image", image);
-      });
+      };
+      image.addEventListener("mousedown", handleMouseDown);
+      imageHandlers.push({ image, handleMouseDown });
     });
+
+    return () => {
+      textHandlers.forEach(({ element, handleMouseDown, handleFocus }) => {
+        element.removeEventListener("mousedown", handleMouseDown);
+        element.removeEventListener("focus", handleFocus);
+      });
+      imageHandlers.forEach(({ image, handleMouseDown }) => {
+        image.removeEventListener("mousedown", handleMouseDown);
+      });
+    };
   }, [children, selectElement, storageKey]);
 
   const saveEdits = () => {
@@ -1107,6 +1216,8 @@ const GroupLayoutPreview = () => {
           <div className="mx-auto w-full max-w-[1440px] space-y-12">
             {staticTemplates.map((template: any, index: number) => {
               const LayoutComponent = template.component;
+              const previewTargetId = `${templateParams}-static-preview-${index}`;
+              const downloadTitle = `${resolvedTemplateName} - ${template.layoutName || `Slide ${index + 1}`}`;
 
               return (
                 <Card
@@ -1125,6 +1236,7 @@ const GroupLayoutPreview = () => {
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
+                        <PreviewDownloadButtons targetId={previewTargetId} title={downloadTitle} />
                         <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
                           {template.layoutId}
                         </span>
@@ -1154,6 +1266,7 @@ const GroupLayoutPreview = () => {
                       }}
                     >
                       <div
+                        id={previewTargetId}
                         className="flex-shrink-0"
                         style={{ width: "1280px", height: "720px" }}
                       >
@@ -1176,6 +1289,8 @@ const GroupLayoutPreview = () => {
           <div className="flex flex-col items-center justify-center w-full gap-10 aspect-video mx-auto">
             {designerHtmlTemplate.layouts.map((layout: CustomTemplateLayout, index: number) => {
               const LayoutComponent = layout.component;
+              const previewTargetId = `${templateParams}-designer-html-preview-${index}`;
+              const downloadTitle = `${designerTemplate.name} - ${layout.rawLayoutName || `Slide ${index + 1}`}`;
               return (
                 <Card
                   key={`${templateParams}-html-${layout.rawLayoutId}-${index}`}
@@ -1192,16 +1307,19 @@ const GroupLayoutPreview = () => {
                           Converted HTML layout from {designerTemplate.name}
                         </p>
                       </div>
-                      {isAdmin && (
-                        <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3">
+                        <PreviewDownloadButtons targetId={previewTargetId} title={downloadTitle} />
+                        {isAdmin && (
+                          <>
                           <span className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium">
                             HTML
                           </span>
                           <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
                             {designerTemplate.html_template_slug}:{layout.rawLayoutId}
                           </span>
-                        </div>
-                      )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -1213,6 +1331,7 @@ const GroupLayoutPreview = () => {
                         onSaved={() => toast.success("Reload the page to see the saved compiled version")}
                       >
                         <div
+                          id={previewTargetId}
                           className="flex-shrink-0"
                           style={{ width: "1280px", height: "720px" }}
                         >
@@ -1221,6 +1340,7 @@ const GroupLayoutPreview = () => {
                       </AdminEditableLayout>
                     ) : (
                       <div
+                        id={previewTargetId}
                         className="flex-shrink-0"
                         style={{ width: "1280px", height: "720px" }}
                       >
@@ -1246,7 +1366,10 @@ const GroupLayoutPreview = () => {
                 slide_number: index + 1,
                 thumbnail_url: url,
                 text_boxes: [],
-              }))).map((slide, index) => (
+              }))).map((slide, index) => {
+                const previewTargetId = `${templateParams}-designer-slide-preview-${index}`;
+                const downloadTitle = `${designerTemplate.name} - Slide ${slide.slide_number}`;
+                return (
                 <Card
                   key={`${templateParams}-designer-slide-${index}`}
                   id={`designer-slide-${slide.slide_number}`}
@@ -1262,21 +1385,25 @@ const GroupLayoutPreview = () => {
                           {designerTemplate.name}
                         </p>
                       </div>
-                      {isAdmin && (
-                        <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3">
+                        <PreviewDownloadButtons targetId={previewTargetId} title={downloadTitle} />
+                        {isAdmin && (
+                          <>
                           <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
                             {templateParams}:slide-{index + 1}
                           </span>
                           <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
                             #{index + 1}
                           </span>
-                        </div>
-                      )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
                     <div
+                      id={previewTargetId}
                       className="relative flex-shrink-0 bg-white"
                       style={{ width: "1280px", height: "720px" }}
                     >
@@ -1314,7 +1441,8 @@ const GroupLayoutPreview = () => {
                     </div>
                   </div>
                 </Card>
-              ))
+                );
+              })
             ) : (
               <Card className="flex flex-1 flex-col items-center justify-center py-20 text-gray-500">
                 <Loader2 className="mb-3 h-8 w-8 animate-spin text-purple-600" />
@@ -1333,6 +1461,8 @@ const GroupLayoutPreview = () => {
 
             {customTemplate && customTemplate.layouts.map((layout: CustomTemplateLayout, index: number) => {
               const LayoutComponent = layout.component;
+              const previewTargetId = `${templateParams}-custom-preview-${index}`;
+              const downloadTitle = `${resolvedTemplateName} - ${layout.rawLayoutName || layout.layoutName || `Slide ${index + 1}`}`;
               return (
                 <Card
                   key={`${templateParams}-${layout.layoutId}-${index}`}
@@ -1349,6 +1479,7 @@ const GroupLayoutPreview = () => {
                           {layout.layoutDescription}
                         </p>
                       </div>
+                      <PreviewDownloadButtons targetId={previewTargetId} title={downloadTitle} />
                     </div>
                     <div className="flex items-end justify-end ">
                       <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
@@ -1360,6 +1491,7 @@ const GroupLayoutPreview = () => {
 
                   <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
                     <div
+                      id={previewTargetId}
                       className="flex-shrink-0"
                       style={{ width: "1280px", height: "720px" }}
                     >
