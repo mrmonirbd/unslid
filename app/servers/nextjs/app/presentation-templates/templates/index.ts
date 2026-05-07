@@ -1,6 +1,5 @@
-cat > index.ts << 'EOF'
-import Layout1 from './Layout1';
-import Layout2 from './Layout2';
+import Layout1 from './my_new_template/Layout1';
+import Layout2 from './my_new_template/Layout2';
 
 export const myNewTemplate = {
     id: 'my-new-template',
@@ -29,4 +28,3 @@ export const myNewTemplate = {
         }
     ]
 };
-EOF

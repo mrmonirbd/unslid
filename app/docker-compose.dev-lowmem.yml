@@ -1,0 +1,73 @@
+# Low-memory development override.
+#
+# Usage from the app directory:
+#   docker compose -f docker-compose.yml -f docker-compose.dev-lowmem.yml up nextjs fastapi worker mysql redis
+#
+# This keeps local hot reload available while reducing memory pressure on small
+# laptops. phpMyAdmin is moved behind a profile so it does not start by default.
+
+services:
+  mysql:
+    command:
+      - mysqld
+      - --performance-schema=OFF
+      - --innodb-buffer-pool-size=96M
+      - --innodb-log-buffer-size=8M
+      - --max-connections=20
+      - --table-open-cache=128
+      - --thread-cache-size=4
+      - --tmp-table-size=32M
+      - --max-heap-table-size=32M
+    mem_limit: 384m
+    cpus: "0.50"
+
+  phpmyadmin:
+    profiles:
+      - tools
+    mem_limit: 128m
+    cpus: "0.25"
+
+  redis:
+    command:
+      - redis-server
+      - --save
+      - "60"
+      - "1"
+      - --loglevel
+      - warning
+      - --maxmemory
+      - 64mb
+      - --maxmemory-policy
+      - allkeys-lru
+    mem_limit: 96m
+    cpus: "0.25"
+
+  fastapi:
+    environment:
+      - MALLOC_ARENA_MAX=2
+      - OMP_NUM_THREADS=1
+      - OPENBLAS_NUM_THREADS=1
+      - MKL_NUM_THREADS=1
+      - NUMEXPR_NUM_THREADS=1
+    mem_limit: 768m
+    cpus: "0.75"
+
+  worker:
+    environment:
+      - ARQ_MAX_JOBS=1
+      - MALLOC_ARENA_MAX=2
+      - OMP_NUM_THREADS=1
+      - OPENBLAS_NUM_THREADS=1
+      - MKL_NUM_THREADS=1
+      - NUMEXPR_NUM_THREADS=1
+    mem_limit: 768m
+    cpus: "0.50"
+
+  nextjs:
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=384
+      - NEXT_TELEMETRY_DISABLED=1
+      - WATCHPACK_POLLING=false
+      - CHOKIDAR_USEPOLLING=false
+    mem_limit: 512m
+    cpus: "0.75"
