@@ -1056,6 +1056,10 @@ const GroupLayoutPreview = () => {
 
       {/* Layout Grid - Wrapped in SchemaHighlightProvider for custom templates */}
       <main className="mx-auto px-2 py-8" id="presentation-page">
+        {!isCustom && !isDesigner && (
+          <StaticTemplateEditPanel state={staticEditorPanelState} />
+        )}
+
         {/* Static Templates */}
         {!isCustom && (
           !isDesigner && (
@@ -1098,6 +1102,8 @@ const GroupLayoutPreview = () => {
                         templateParams,
                         template.layoutId,
                       ].join(":")}
+                      editorId={`${templateParams}-${template.layoutId}-${index}`}
+                      onPanelStateChange={setStaticEditorPanelState}
                     >
                       <div
                         className="flex-shrink-0"
