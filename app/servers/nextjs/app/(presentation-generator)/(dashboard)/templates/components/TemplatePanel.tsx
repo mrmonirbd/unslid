@@ -151,9 +151,9 @@ export const CustomTemplateCard = React.memo(function CustomTemplateCard({ templ
         >
 
             <img src="/card_bg.svg" alt="" className={CARD_BACKGROUND_CLASS} />
-            <span className={LAYOUT_BADGE_CLASS}>
+            {/* <span className={LAYOUT_BADGE_CLASS}>
                 Layouts- {totalLayouts || template.layoutCount}
-            </span>
+            </span> */}
             <div className="p-4">
 
                 {/* Layout previews */}
@@ -236,9 +236,9 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
             className={`${CARD_CLASS} ${locked ? "opacity-80" : ""}`}
             onClick={handleOpen}
         >
-            <span className={LAYOUT_BADGE_CLASS}>
+            {/* <span className={LAYOUT_BADGE_CLASS}>
                 Layouts- {template.layouts.length}
-            </span>
+            </span> */}
             {locked && (
                 <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/40 gap-2">
                     <div className="bg-white/90 rounded-full p-2.5 shadow">
