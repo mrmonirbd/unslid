@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { ArrowRight, ArrowUpRight, FileDown, Lock, Loader2, Search } from "lucide-react";
 import { templates } from "@/app/presentation-templates";
-import { TemplateWithData, TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
+import { getTemplateRouteId, TemplateWithData, TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
 import {
     useCustomTemplateSummaries,
     useCustomTemplatePreview,
@@ -324,7 +324,7 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
     userKey,
 }: {
     template: TemplateLayoutsWithSettings;
-    onOpen: (id: string) => void;
+    onOpen: (template: TemplateLayoutsWithSettings) => void;
     locked?: boolean;
     editedTemplate?: EditedStaticTemplateSummary;
     userKey: string;
@@ -351,8 +351,8 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
             router.push("/settings/billing");
             return;
         }
-        onOpen(template.id);
-    }, [locked, onOpen, router, template.id]);
+        onOpen(template);
+    }, [locked, onOpen, router, template]);
 
     return (
         <Card
@@ -446,6 +446,7 @@ const EditedStaticTemplateCard = React.memo(function EditedStaticTemplateCard({
     const router = useRouter();
     const sourceLayouts = useMemo(() => sourceTemplate?.layouts ?? [], [sourceTemplate?.layouts]);
     const savedLayoutHtml = useSavedStaticLayoutHtml(userKey, template.templateId, sourceLayouts);
+    const previewRouteId = sourceTemplate ? getTemplateRouteId(sourceTemplate) : template.templateId;
 
     const previewItems = useMemo(() => {
         const editedItems = sourceLayouts
@@ -462,7 +463,7 @@ const EditedStaticTemplateCard = React.memo(function EditedStaticTemplateCard({
     return (
         <Card
             className={CARD_CLASS}
-            onClick={() => router.push(`/template-preview/${template.templateId}`)}
+            onClick={() => router.push(`/template-preview/${previewRouteId}`)}
         >
             <img src="/card_bg.svg" alt="" className={CARD_BACKGROUND_CLASS} />
             <div className="p-4">
@@ -715,7 +716,9 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
         (isUserGeneratedOnly ? filteredEditedStaticTemplates.length : 0) +
         (isUserGeneratedOnly ? 0 : filteredInbuiltTemplates.length + filteredDesignerTemplates.length);
 
-    const handleOpenPreview = useCallback((id: string) => router.push(`/template-preview/${id}`), [router]);
+    const handleOpenPreview = useCallback((template: TemplateLayoutsWithSettings) => {
+        router.push(`/template-preview/${getTemplateRouteId(template)}`);
+    }, [router]);
 
     const editedStaticTemplateMap = useMemo(() => {
         const map = new Map<string, EditedStaticTemplateSummary>();
