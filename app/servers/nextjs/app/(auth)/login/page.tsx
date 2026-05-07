@@ -39,27 +39,27 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="bg-slate-800/50 backdrop-blur border border-slate-700/50 rounded-2xl p-8 shadow-2xl">
+    <div className="rounded-2xl border border-violet-100 bg-white/95 p-8 shadow-[0_18px_50px_rgba(124,58,237,0.12)] backdrop-blur">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white mb-1">Welcome back</h1>
-        <p className="text-slate-400 text-sm">Sign in to your account </p>
+        <h1 className="text-2xl font-bold text-slate-950 mb-1">Welcome back</h1>
+        <p className="text-slate-600 text-sm">Sign in to your account </p>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
           {error}
         </div>
       )}
 
       {message === "account_created" && !error && (
-        <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-green-300 text-sm">
+        <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm">
           Account successfully created. Please sign in.
         </div>
       )}
 
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
             Email address
           </label>
           <input
@@ -68,18 +68,18 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             required
             placeholder="you@example.com"
-            className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+            className="w-full px-4 py-2.5 bg-white border border-violet-200 rounded-xl text-slate-950 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-violet-100 focus:border-violet-300 transition"
           />
         </div>
 
         <div>
           <div className="flex justify-between items-center mb-1.5">
-            <label className="block text-sm font-medium text-slate-300">
+            <label className="block text-sm font-medium text-slate-700">
               Password
             </label>
             <Link
               href="/forgot-password"
-              className="text-xs text-indigo-400 hover:text-indigo-300 transition"
+              className="text-xs text-violet-700 hover:text-violet-600 transition"
             >
               Forgot password?
             </Link>
@@ -90,14 +90,14 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
             placeholder="••••••••"
-            className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+            className="w-full px-4 py-2.5 bg-white border border-violet-200 rounded-xl text-slate-950 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-violet-100 focus:border-violet-300 transition"
           />
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition"
+          className="w-full py-2.5 bg-slate-950 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition"
         >
           {loading ? "Signing in..." : "Sign in"}
         </button>
@@ -106,16 +106,16 @@ export default function LoginPage() {
       {/* Divider — Google OAuth ready for when it's enabled */}
       <div className="relative my-5">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-700" />
+          <div className="w-full border-t border-violet-100" />
         </div>
         <div className="relative flex justify-center text-xs">
-          <span className="px-2 bg-slate-800/50 text-slate-500">or</span>
+          <span className="px-2 bg-white text-slate-500">or</span>
         </div>
       </div>
 
       <button
         disabled
-        className="w-full py-2.5 bg-slate-700/50 border border-slate-600 text-slate-400 font-medium rounded-lg flex items-center justify-center gap-2 cursor-not-allowed opacity-60"
+        className="w-full py-2.5 bg-slate-50 border border-violet-100 text-slate-500 font-medium rounded-lg flex items-center justify-center gap-2 cursor-not-allowed opacity-60"
         title="Coming soon"
       >
         <svg width="18" height="18" viewBox="0 0 24 24">
@@ -127,9 +127,9 @@ export default function LoginPage() {
         Continue with Google (coming soon)
       </button>
 
-      <p className="text-center text-slate-400 text-sm mt-6">
+      <p className="text-center text-slate-600 text-sm mt-6">
         Don&apos;t have an account?{" "}
-        <Link href="/signup" className="text-indigo-400 hover:text-indigo-300 font-medium transition">
+        <Link href="/signup" className="text-violet-700 hover:text-violet-600 font-medium transition">
           Sign up free
         </Link>
       </p>
