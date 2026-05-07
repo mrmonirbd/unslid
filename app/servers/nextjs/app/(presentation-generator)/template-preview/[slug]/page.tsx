@@ -480,7 +480,7 @@ const GroupLayoutPreview = () => {
         {/* Static Templates */}
         {!isCustom && (
           !isDesigner && (
-          <div className="space-y-12 w-[1440px] h-[720px] aspect-video mx-auto">
+          <div className="mx-auto w-full max-w-[1440px] space-y-12">
             {staticTemplates.map((template: any, index: number) => {
               const LayoutComponent = template.component;
 
