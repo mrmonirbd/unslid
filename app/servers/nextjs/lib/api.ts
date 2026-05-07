@@ -4,7 +4,9 @@
  */
 import { createClient } from "@/lib/auth/client";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Default to same-origin so production builds keep working even when
+// NEXT_PUBLIC_API_URL is not injected. /api/v1/* is proxied by Next/nginx.
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 async function getToken(): Promise<string | null> {
   const authClient = createClient();

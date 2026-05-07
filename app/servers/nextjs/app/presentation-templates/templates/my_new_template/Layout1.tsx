@@ -1,4 +1,3 @@
-cat > Layout1.tsx << 'EOF'
 import React from 'react';
 
 interface LayoutProps {
@@ -19,4 +18,3 @@ const Layout1: React.FC<LayoutProps> = ({ data }) => {
 };
 
 export default Layout1;
-EOF

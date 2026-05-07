@@ -67,3 +67,10 @@ logs/
 
 # Demo / test accounts (contains real credentials)
 demo_accounts.txt
+
+# Next.js build cache
+.next-codex/
+.next/
+out/
+build/
+dist/

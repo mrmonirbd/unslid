@@ -45,6 +45,8 @@ interface PlanAIConfig {
   updated_at: string | null;
 }
 
+type PlanAIConfigUpdate = Record<string, string | boolean | null>;
+
 interface PlanPricingEntry {
   price_monthly: number;
   price_annual: number;
@@ -226,7 +228,7 @@ function PlanAIConfigCard({
 }: {
   config: PlanAIConfig;
   catalog: ProviderCatalog | null;
-  onSave: (plan: string, data: Record<string, string | null>) => Promise<void>;
+  onSave: (plan: string, data: PlanAIConfigUpdate) => Promise<void>;
 }) {
   // Resolve which UI provider matches the saved backend config
   // selectedProviderId is the UI-level provider id (e.g. "kimi", not "custom")
@@ -929,7 +931,7 @@ export default function AdminPage() {
     }
   };
 
-  const handleSaveAIConfig = async (plan: string, data: Record<string, string | null>) => {
+  const handleSaveAIConfig = async (plan: string, data: PlanAIConfigUpdate) => {
     if (dbOffline) {
       throw new Error("Database is offline — connect the DB first to persist keys.");
     }

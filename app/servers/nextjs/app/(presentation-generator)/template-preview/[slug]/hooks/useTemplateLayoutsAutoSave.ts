@@ -79,7 +79,7 @@ export const useTemplateLayoutsAutoSave = ({
 
             const response = await fetch('/api/v1/ppt/template/update', {
                 method: 'PUT',
-                headers: getHeader(),
+                headers: await getHeader(),
                 body: JSON.stringify({
                     id: templateId,
 
@@ -181,4 +181,3 @@ export const useTemplateLayoutsAutoSave = ({
         saveNow,
     };
 };
-
