@@ -3,7 +3,7 @@ import TemplatePanel from './components/TemplatePanel'
 
 const page = () => {
     return (
-        <TemplatePanel layout="user-grid" />
+        <TemplatePanel layout="grid" />
     )
 }
 
