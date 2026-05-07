@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -183,7 +183,7 @@ function AdminEditableLayout({
         element.onfocus = null;
       });
     };
-  }, [children, selectElement]);
+  }, [children, selectElement, storageKey]);
 
   const changeFontSize = (delta: number) => {
     const selected = selectedRef.current;
@@ -254,6 +254,388 @@ function AdminEditableLayout({
         </div>
       </div>
       <div ref={rootRef} onMouseDown={(event) => event.currentTarget === event.target && selectElement(null)}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+type StaticEditableSelection = {
+  type: "text" | "image";
+  element: HTMLElement;
+  label: string;
+  editorId: string;
+};
+
+type StaticEditorPanelState = {
+  selection: StaticEditableSelection | null;
+  fontSize: number;
+  fontFamily: string;
+  imageUrl: string;
+  animation: string;
+  saveState: "idle" | "saved";
+  actions: {
+    updateFontSize: (size: number) => void;
+    setFontFamily: (family: string) => void;
+    toggleBold: () => void;
+    toggleItalic: () => void;
+    setColor: (color: string) => void;
+    replaceImage: (url: string) => void;
+    replaceImageFile: (file: File) => void;
+    setAnimation: (animation: string) => void;
+    enableResize: () => void;
+    moveSelected: (dx: number, dy: number) => void;
+    clearSelection: () => void;
+    saveEdits: () => void;
+    resetEdits: () => void;
+  } | null;
+};
+
+const STATIC_EDITOR_ANIMATIONS: Record<string, string> = {
+  none: "",
+  fade: "staticEditorFade 800ms ease both",
+  rise: "staticEditorRise 800ms ease both",
+  zoom: "staticEditorZoom 700ms ease both",
+  pulse: "staticEditorPulse 1200ms ease-in-out infinite",
+};
+
+const EMPTY_STATIC_EDITOR_PANEL_STATE: StaticEditorPanelState = {
+  selection: null,
+  fontSize: 24,
+  fontFamily: "Inter, Arial, sans-serif",
+  imageUrl: "",
+  animation: "none",
+  saveState: "idle",
+  actions: null,
+};
+
+function StaticTemplateEditPanel({ state }: { state: StaticEditorPanelState }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [draftImageUrl, setDraftImageUrl] = useState(state.imageUrl);
+  const actions = state.actions;
+  const selection = state.selection;
+  const isText = selection?.type === "text";
+  const isImage = selection?.type === "image";
+
+  useEffect(() => {
+    setDraftImageUrl(state.imageUrl);
+  }, [state.imageUrl, selection?.element]);
+
+  if (!selection || !actions) {
+    return null;
+  }
+
+  return (
+    <div className="sticky top-[132px] z-40 mx-auto mb-6 flex w-full max-w-[1440px] flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur">
+      <span className="max-w-[240px] truncate rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
+        {selection.type}: {selection.label}
+      </span>
+      <select
+        className="h-9 rounded-md border px-2 text-sm"
+        value={state.fontFamily}
+        disabled={!isText}
+        onChange={(event) => actions.setFontFamily(event.target.value)}
+      >
+        <option value="Inter, Arial, sans-serif">Inter</option>
+        <option value="Impact, Arial Black, sans-serif">Impact</option>
+        <option value="Georgia, serif">Georgia</option>
+        <option value="'Times New Roman', serif">Times</option>
+        <option value="'Courier New', monospace">Courier</option>
+        <option value="Arial, sans-serif">Arial</option>
+      </select>
+      <Button type="button" variant="outline" size="sm" disabled={!isText} onClick={() => actions.updateFontSize(state.fontSize - 4)}>
+        <Minus className="h-4 w-4" />
+      </Button>
+      <input
+        className="h-9 w-16 rounded-md border px-2 text-sm"
+        type="number"
+        min={8}
+        max={180}
+        value={state.fontSize}
+        disabled={!isText}
+        onChange={(event) => actions.updateFontSize(Number(event.target.value))}
+      />
+      <Button type="button" variant="outline" size="sm" disabled={!isText} onClick={() => actions.updateFontSize(state.fontSize + 4)}>
+        <Plus className="h-4 w-4" />
+      </Button>
+      <Button type="button" variant="outline" size="sm" disabled={!isText} onClick={actions.toggleBold}>B</Button>
+      <Button type="button" variant="outline" size="sm" disabled={!isText} onClick={actions.toggleItalic}>I</Button>
+      <input
+        type="color"
+        className="h-9 w-10 rounded-md border bg-white p-1"
+        disabled={!isText}
+        onChange={(event) => actions.setColor(event.target.value)}
+        title="Text color"
+      />
+      <Button type="button" variant="outline" size="sm" disabled={!isImage} onClick={() => fileInputRef.current?.click()}>
+        Replace image
+      </Button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) actions.replaceImageFile(file);
+          event.target.value = "";
+        }}
+      />
+      <input
+        className="h-9 w-56 rounded-md border px-2 text-xs"
+        value={draftImageUrl}
+        disabled={!isImage}
+        placeholder="Image URL"
+        onChange={(event) => setDraftImageUrl(event.target.value)}
+        onKeyDown={(event) => event.key === "Enter" && actions.replaceImage(draftImageUrl)}
+      />
+      <select
+        className="h-9 rounded-md border px-2 text-sm"
+        value={state.animation}
+        onChange={(event) => actions.setAnimation(event.target.value)}
+      >
+        <option value="none">No animation</option>
+        <option value="fade">Fade</option>
+        <option value="rise">Rise</option>
+        <option value="zoom">Zoom</option>
+        <option value="pulse">Pulse</option>
+      </select>
+      <Button type="button" variant="outline" size="sm" onClick={actions.enableResize}>Resize</Button>
+      <Button type="button" variant="outline" size="sm" onClick={() => actions.moveSelected(-8, 0)}>←</Button>
+      <Button type="button" variant="outline" size="sm" onClick={() => actions.moveSelected(8, 0)}>→</Button>
+      <Button type="button" variant="outline" size="sm" onClick={() => actions.moveSelected(0, -8)}>↑</Button>
+      <Button type="button" variant="outline" size="sm" onClick={() => actions.moveSelected(0, 8)}>↓</Button>
+      <Button type="button" variant="ghost" size="sm" onClick={actions.clearSelection}>Done</Button>
+      <Button type="button" size="sm" onClick={actions.saveEdits} className="gap-2">
+        <Save className="h-4 w-4" />
+        {state.saveState === "saved" ? "Saved" : "Save for me"}
+      </Button>
+      <Button type="button" variant="outline" size="sm" onClick={actions.resetEdits}>
+        Reset
+      </Button>
+    </div>
+  );
+}
+
+function cleanStaticEditorHtml(root: HTMLElement) {
+  const clone = root.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll<HTMLElement>("[data-static-editor-text],[data-static-editor-image]").forEach((element) => {
+    element.removeAttribute("contenteditable");
+    element.removeAttribute("data-static-editor-text");
+    element.removeAttribute("data-static-editor-image");
+    element.removeAttribute("spellcheck");
+    element.style.outline = "";
+    element.style.outlineOffset = "";
+    element.style.cursor = "";
+  });
+  return clone.innerHTML;
+}
+
+function StaticTemplateEditor({
+  children,
+  storageKey,
+  editorId,
+  onPanelStateChange,
+}: {
+  children: React.ReactNode;
+  storageKey: string;
+  editorId: string;
+  onPanelStateChange: (state: StaticEditorPanelState) => void;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const selectedRef = useRef<StaticEditableSelection | null>(null);
+  const loadedStorageKeyRef = useRef<string | null>(null);
+  const [selection, setSelection] = useState<StaticEditableSelection | null>(null);
+  const [fontSize, setFontSize] = useState(24);
+  const [fontFamily, setFontFamily] = useState("Inter, Arial, sans-serif");
+  const [imageUrl, setImageUrl] = useState("");
+  const [animation, setAnimation] = useState("none");
+  const [saveState, setSaveState] = useState<"idle" | "saved">("idle");
+
+  const clearSelection = React.useCallback(() => {
+    const previous = selectedRef.current?.element;
+    if (previous) {
+      previous.style.outline = "";
+      previous.style.outlineOffset = "";
+    }
+    selectedRef.current = null;
+    setSelection(null);
+    onPanelStateChange(EMPTY_STATIC_EDITOR_PANEL_STATE);
+  }, [onPanelStateChange]);
+
+  const selectElement = React.useCallback((type: "text" | "image", element: HTMLElement) => {
+    selectedRef.current?.element && (selectedRef.current.element.style.outline = "");
+    selectedRef.current?.element && (selectedRef.current.element.style.outlineOffset = "");
+
+    element.style.outline = "3px solid #7c3aed";
+    element.style.outlineOffset = "3px";
+    const label = type === "image"
+      ? "Selected image"
+      : element.textContent?.trim().slice(0, 48) || "Selected text";
+    const next = { type, element, label, editorId };
+    selectedRef.current = next;
+    setSelection(next);
+
+    const computed = getComputedStyle(element);
+    const nextSize = Number.parseFloat(computed.fontSize || "24");
+    setFontSize(Number.isFinite(nextSize) ? Math.round(nextSize) : 24);
+    setFontFamily(computed.fontFamily || "Inter, Arial, sans-serif");
+    setAnimation(Object.entries(STATIC_EDITOR_ANIMATIONS).find(([, value]) => value && computed.animation.includes(value.split(" ")[0]))?.[0] || "none");
+    if (type === "image" && element instanceof HTMLImageElement) {
+      setImageUrl(element.src);
+    }
+  }, [editorId]);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    if (loadedStorageKeyRef.current !== storageKey) {
+      const savedHtml = window.localStorage.getItem(storageKey);
+      if (savedHtml) {
+        root.innerHTML = savedHtml;
+      }
+      loadedStorageKeyRef.current = storageKey;
+    }
+
+    const textElements = Array.from(root.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6,p,span,li,strong,em,button,div"))
+      .filter((element) => {
+        const text = element.textContent?.trim();
+        if (!text) return false;
+        const hasTextChild = Array.from(element.children).some((child) => child.textContent?.trim());
+        return !(hasTextChild && element.children.length > 0);
+      });
+
+    textElements.forEach((element) => {
+      element.contentEditable = "true";
+      element.spellcheck = false;
+      element.dataset.staticEditorText = "true";
+      element.style.cursor = "text";
+      if (getComputedStyle(element).display === "inline") {
+        element.style.display = "inline-block";
+      }
+      element.addEventListener("mousedown", (event) => {
+        event.stopPropagation();
+        selectElement("text", element);
+      });
+      element.addEventListener("focus", () => selectElement("text", element));
+    });
+
+    const imageElements = Array.from(root.querySelectorAll<HTMLImageElement>("img"));
+    imageElements.forEach((image) => {
+      image.dataset.staticEditorImage = "true";
+      image.style.cursor = "pointer";
+      image.draggable = false;
+      image.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        selectElement("image", image);
+      });
+    });
+  }, [children, selectElement, storageKey]);
+
+  const saveEdits = () => {
+    const root = rootRef.current;
+    if (!root) return;
+    window.localStorage.setItem(storageKey, cleanStaticEditorHtml(root));
+    setSaveState("saved");
+    setTimeout(() => setSaveState("idle"), 1400);
+  };
+
+  const resetEdits = () => {
+    window.localStorage.removeItem(storageKey);
+    window.location.reload();
+  };
+
+  const applyToSelected = (updater: (element: HTMLElement) => void) => {
+    if (!selectedRef.current?.element) return;
+    updater(selectedRef.current.element);
+  };
+
+  const updateFontSize = (nextSize: number) => {
+    const size = Math.max(8, Math.min(180, Math.round(nextSize)));
+    setFontSize(size);
+    applyToSelected((element) => {
+      element.style.fontSize = `${size}px`;
+      element.style.lineHeight = "1.05";
+    });
+  };
+
+  const replaceImage = (url: string) => {
+    const element = selectedRef.current?.element;
+    if (!element || !(element instanceof HTMLImageElement) || !url.trim()) return;
+    element.src = url.trim();
+    setImageUrl(url.trim());
+  };
+
+  const replaceImageFile = (file: File) => {
+    replaceImage(URL.createObjectURL(file));
+  };
+
+  const enableResize = () => {
+    applyToSelected((element) => {
+      const rect = element.getBoundingClientRect();
+      element.style.width ||= `${Math.ceil(rect.width)}px`;
+      element.style.height ||= `${Math.ceil(rect.height)}px`;
+      element.style.resize = "both";
+      element.style.overflow = "auto";
+    });
+  };
+
+  const moveSelected = (dx: number, dy: number) => {
+    applyToSelected((element) => {
+      const computed = getComputedStyle(element);
+      if (computed.position === "static") {
+        element.style.position = "relative";
+      }
+      const left = Number.parseFloat(element.style.left || "0");
+      const top = Number.parseFloat(element.style.top || "0");
+      element.style.left = `${left + dx}px`;
+      element.style.top = `${top + dy}px`;
+    });
+  };
+
+  useEffect(() => {
+    if (!selection) return;
+    onPanelStateChange({
+      selection,
+      fontSize,
+      fontFamily,
+      imageUrl,
+      animation,
+      saveState,
+      actions: {
+        updateFontSize,
+        setFontFamily: (family) => {
+          setFontFamily(family);
+          applyToSelected((element) => { element.style.fontFamily = family; });
+        },
+        toggleBold: () => applyToSelected((element) => { element.style.fontWeight = element.style.fontWeight === "900" ? "" : "900"; }),
+        toggleItalic: () => applyToSelected((element) => { element.style.fontStyle = element.style.fontStyle === "italic" ? "" : "italic"; }),
+        setColor: (color) => applyToSelected((element) => { element.style.color = color; }),
+        replaceImage,
+        replaceImageFile,
+        setAnimation: (nextAnimation) => {
+          setAnimation(nextAnimation);
+          applyToSelected((element) => { element.style.animation = STATIC_EDITOR_ANIMATIONS[nextAnimation]; });
+        },
+        enableResize,
+        moveSelected,
+        clearSelection,
+        saveEdits,
+        resetEdits,
+      },
+    });
+  }, [selection, fontSize, fontFamily, imageUrl, animation, saveState, onPanelStateChange]);
+
+  return (
+    <div className="space-y-3">
+      <style>{`
+        @keyframes staticEditorFade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes staticEditorRise { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes staticEditorZoom { from { opacity: 0; transform: scale(.86); } to { opacity: 1; transform: scale(1); } }
+        @keyframes staticEditorPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+      `}</style>
+      <div ref={rootRef} onMouseDown={(event) => event.currentTarget === event.target && clearSelection()}>
         {children}
       </div>
     </div>
@@ -409,6 +791,7 @@ const GroupLayoutPreview = () => {
   const [designerHtmlTemplate, setDesignerHtmlTemplate] = useState<CustomTemplateDetail | null>(null);
   const [designerLoading, setDesignerLoading] = useState(false);
   const [designerError, setDesignerError] = useState<string | null>(null);
+  const [staticEditorPanelState, setStaticEditorPanelState] = useState<StaticEditorPanelState>(EMPTY_STATIC_EDITOR_PANEL_STATE);
   const { user } = useUser();
   const isAdmin = !!user?.is_admin;
 
@@ -708,12 +1091,21 @@ const GroupLayoutPreview = () => {
                   </div>
 
                   <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
-                    <div
-                      className="flex-shrink-0"
-                      style={{ width: "1280px", height: "720px" }}
+                    <StaticTemplateEditor
+                      storageKey={[
+                        "static-template-edits",
+                        user?.id || user?.email || "guest",
+                        templateParams,
+                        template.layoutId,
+                      ].join(":")}
                     >
-                      <LayoutComponent data={template.sampleData} />
-                    </div>
+                      <div
+                        className="flex-shrink-0"
+                        style={{ width: "1280px", height: "720px" }}
+                      >
+                        <LayoutComponent data={template.sampleData} />
+                      </div>
+                    </StaticTemplateEditor>
                   </div>
                 </Card>
               );
