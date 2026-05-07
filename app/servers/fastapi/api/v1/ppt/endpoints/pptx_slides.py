@@ -32,6 +32,7 @@ class SlideData(BaseModel):
     screenshot_url: str
     textless_screenshot_url: Optional[str] = None
     xml_content: str
+    html_content: Optional[str] = None
     normalized_fonts: List[str]
     slide_width_emu: int
     slide_height_emu: int
@@ -681,3 +682,76 @@ async def _convert_pptx_to_pdf(pptx_path: str, temp_dir: str) -> str:
             raise
         # Handle any other unexpected exceptions
         raise Exception(f"Screenshot generation failed: {str(e)}")
+
+
+async def _convert_pptx_to_html_slides(
+    pptx_path: str, temp_dir: str, slide_xmls: List[str]
+) -> List[str]:
+    """Convert PPTX to LibreOffice XHTML and split the exported pages per slide."""
+    html_dir = os.path.join(temp_dir, "html")
+    os.makedirs(html_dir, exist_ok=True)
+
+    raw_fonts: List[str] = []
+    for xml in slide_xmls:
+        raw_fonts.extend(extract_fonts_from_oxml(xml))
+    fonts_conf_path = _create_font_alias_config(list({f for f in raw_fonts if f}))
+    env = os.environ.copy()
+    env["FONTCONFIG_FILE"] = fonts_conf_path
+
+    try:
+        result = subprocess.run(
+            [
+                "libreoffice",
+                "--headless",
+                "--convert-to",
+                "html",
+                "--outdir",
+                html_dir,
+                pptx_path,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=500,
+            env=env,
+        )
+
+        print(f"LibreOffice HTML conversion output: {result.stdout}")
+        if result.stderr:
+            print(f"LibreOffice HTML conversion warnings: {result.stderr}")
+    except subprocess.TimeoutExpired:
+        print("Warning: LibreOffice HTML conversion timed out")
+        return []
+    except subprocess.CalledProcessError as e:
+        error_msg = e.stderr if e.stderr else str(e)
+        print(f"Warning: LibreOffice HTML conversion failed: {error_msg}")
+        return []
+
+    html_files = [f for f in os.listdir(html_dir) if f.lower().endswith((".html", ".htm"))]
+    if not html_files:
+        print("Warning: LibreOffice did not generate an HTML file")
+        return []
+
+    html_path = os.path.join(html_dir, html_files[0])
+    with open(html_path, "r", encoding="utf-8", errors="replace") as f:
+        html = f.read()
+
+    style_match = re.search(r"<style[^>]*>(.*?)</style>", html, re.IGNORECASE | re.DOTALL)
+    style_html = f"<style>{style_match.group(1)}</style>" if style_match else ""
+
+    body_match = re.search(r"<body[^>]*>(.*?)</body>", html, re.IGNORECASE | re.DOTALL)
+    body_html = body_match.group(1) if body_match else html
+
+    raw_pages = re.split(r"(?=<div id=\"page\d+\"[^>]*>)", body_html)
+    pages = [page.strip() for page in raw_pages if re.match(r"<div id=\"page\d+\"", page.strip())]
+
+    return [
+        (
+            f"{style_html}"
+            '<div class="libreoffice-slide-html" contenteditable="true" '
+            'style="display:inline-block;max-width:100%;transform-origin:top left;">'
+            f"{page}"
+            "</div>"
+        )
+        for page in pages
+    ]

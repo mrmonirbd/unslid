@@ -10,13 +10,17 @@ const SlideContent = memo(({
   onHtmlChange?: (html: string) => void;
 }) => {
   const cleanHtml = slide.html
-    .replace(/```html/g, "")
+    .replace(/```html\s*/gi, "")
     .replace(/```/g, "")
-    .replace(/<html>/g, "")
-    .replace(/<\/html>/g, "")
-    .replace(/html/g, "");
+    .replace(/<!doctype[^>]*>/gi, "")
+    .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "")
+    .replace(/<\/?html[^>]*>/gi, "")
+    .replace(/<\/?body[^>]*>/gi, "");
   return (
     <div
+      onInput={(event) => {
+        onHtmlChange?.(event.currentTarget.innerHTML);
+      }}
       onBlur={(event) => {
         onHtmlChange?.(event.currentTarget.innerHTML);
       }}

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, FileSpreadsheet, Home, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, FileSpreadsheet, Home, Loader2, Minus, MoveDiagonal, Plus, Save, Trash2, Type } from "lucide-react";
 
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import TemplateService from "../../services/api/template";
@@ -63,6 +63,197 @@ function TemplatePreviewShell({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-gray-50">
       <DashboardSidebar />
       <div className="flex-1 h-screen overflow-y-auto">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function buildStaticLayoutCode(layout: CustomTemplateLayout, html: string) {
+  return `
+import * as z from "zod";
+
+const layoutId = ${JSON.stringify(layout.rawLayoutId || layout.layoutId || "custom-layout")};
+const layoutName = ${JSON.stringify(layout.rawLayoutName || layout.layoutName || "Custom Layout")};
+const layoutDescription = ${JSON.stringify(layout.layoutDescription || "")};
+const Schema = z.object({});
+const EDITED_TEMPLATE_HTML = ${JSON.stringify(html)};
+
+const dynamicSlideLayout = () => (
+  <div
+    style={{ width: "1280px", height: "720px", position: "relative", overflow: "hidden", background: "#ffffff" }}
+    dangerouslySetInnerHTML={{ __html: EDITED_TEMPLATE_HTML }}
+  />
+);
+
+export default dynamicSlideLayout;
+`;
+}
+
+function cleanEditedLayoutHtml(root: HTMLElement) {
+  const clone = root.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll<HTMLElement>("[data-admin-editable]").forEach((element) => {
+    element.removeAttribute("contenteditable");
+    element.removeAttribute("data-admin-editable");
+    element.removeAttribute("data-selected-admin-editable");
+    element.style.outline = "";
+    element.style.outlineOffset = "";
+    element.style.cursor = "";
+    element.style.resize = "";
+  });
+  return clone.innerHTML;
+}
+
+function makeTextElementsEditable(root: HTMLElement, onSelect: (element: HTMLElement) => void) {
+  const candidates = Array.from(
+    root.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6,p,span,div,li,td,th,strong,em")
+  );
+
+  candidates.forEach((element) => {
+    const text = element.textContent?.trim();
+    if (!text) return;
+
+    const childWithText = Array.from(element.children).some(
+      (child) => child.textContent?.trim()
+    );
+    if (childWithText && element.children.length > 0) return;
+
+    element.contentEditable = "true";
+    element.dataset.adminEditable = "true";
+    element.spellcheck = false;
+    element.style.cursor = "text";
+    if (getComputedStyle(element).display === "inline") {
+      element.style.display = "inline-block";
+    }
+    element.style.minWidth ||= "24px";
+    element.style.minHeight ||= "18px";
+
+    element.onmousedown = (event) => {
+      event.stopPropagation();
+      onSelect(element);
+    };
+    element.onfocus = () => onSelect(element);
+  });
+}
+
+function AdminEditableLayout({
+  layout,
+  templateId,
+  onSaved,
+  children,
+}: {
+  layout: CustomTemplateLayout;
+  templateId: string;
+  onSaved?: () => void;
+  children: React.ReactNode;
+}) {
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  const selectedRef = React.useRef<HTMLElement | null>(null);
+  const [selectedLabel, setSelectedLabel] = useState("No text selected");
+  const [fontSize, setFontSize] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const selectElement = React.useCallback((element: HTMLElement | null) => {
+    selectedRef.current?.removeAttribute("data-selected-admin-editable");
+    selectedRef.current && (selectedRef.current.style.outline = "");
+    selectedRef.current && (selectedRef.current.style.outlineOffset = "");
+
+    selectedRef.current = element;
+    if (!element) {
+      setSelectedLabel("No text selected");
+      setFontSize(null);
+      return;
+    }
+
+    element.dataset.selectedAdminEditable = "true";
+    element.style.outline = "2px solid #4f46e5";
+    element.style.outlineOffset = "2px";
+    const computedSize = Number.parseFloat(getComputedStyle(element).fontSize || "16");
+    setFontSize(Number.isFinite(computedSize) ? Math.round(computedSize) : 16);
+    setSelectedLabel(element.textContent?.trim().slice(0, 42) || "Selected text");
+  }, []);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    makeTextElementsEditable(root, selectElement);
+    return () => {
+      root.querySelectorAll<HTMLElement>("[data-admin-editable]").forEach((element) => {
+        element.onmousedown = null;
+        element.onfocus = null;
+      });
+    };
+  }, [children, selectElement]);
+
+  const changeFontSize = (delta: number) => {
+    const selected = selectedRef.current;
+    if (!selected) return;
+    const current = Number.parseFloat(getComputedStyle(selected).fontSize || "16");
+    const next = Math.max(6, Math.min(160, Math.round(current + delta)));
+    selected.style.fontSize = `${next}px`;
+    setFontSize(next);
+  };
+
+  const enableResize = () => {
+    const selected = selectedRef.current;
+    if (!selected) return;
+    const rect = selected.getBoundingClientRect();
+    selected.style.width ||= `${Math.ceil(rect.width)}px`;
+    selected.style.height ||= `${Math.ceil(rect.height)}px`;
+    selected.style.overflow = "auto";
+    selected.style.resize = "both";
+    selected.style.outline = "2px solid #4f46e5";
+  };
+
+  const saveLayout = async () => {
+    if (!rootRef.current) return;
+    try {
+      setSaving(true);
+      const html = cleanEditedLayoutHtml(rootRef.current);
+      await api.put("/api/v1/ppt/template/update", {
+        id: templateId,
+        layouts: [
+          {
+            layout_id: layout.rawLayoutId,
+            layout_name: layout.rawLayoutName || layout.layoutName || "Custom Layout",
+            layout_code: buildStaticLayoutCode(layout, html),
+          },
+        ],
+      });
+      toast.success("Template layout saved");
+      onSaved?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save layout");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-indigo-100 bg-indigo-50 px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2 text-sm text-indigo-900">
+          <Type className="h-4 w-4 shrink-0" />
+          <span className="truncate">{selectedLabel}</span>
+          {fontSize ? <span className="rounded bg-white px-2 py-0.5 font-mono text-xs">{fontSize}px</span> : null}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => changeFontSize(-2)} title="Decrease font size">
+            <Minus className="h-4 w-4" />
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => changeFontSize(2)} title="Increase font size">
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={enableResize} title="Make selected text resizable">
+            <MoveDiagonal className="h-4 w-4" />
+          </Button>
+          <Button type="button" size="sm" onClick={saveLayout} disabled={saving} className="gap-2">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save
+          </Button>
+        </div>
+      </div>
+      <div ref={rootRef} onMouseDown={(event) => event.currentTarget === event.target && selectElement(null)}>
         {children}
       </div>
     </div>
@@ -569,12 +760,27 @@ const GroupLayoutPreview = () => {
                   </div>
 
                   <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
-                    <div
-                      className="flex-shrink-0"
-                      style={{ width: "1280px", height: "720px" }}
-                    >
-                      <LayoutComponent data={layout.sampleData} />
-                    </div>
+                    {isAdmin && customTemplateId ? (
+                      <AdminEditableLayout
+                        layout={layout}
+                        templateId={customTemplateId}
+                        onSaved={() => toast.success("Reload the page to see the saved compiled version")}
+                      >
+                        <div
+                          className="flex-shrink-0"
+                          style={{ width: "1280px", height: "720px" }}
+                        >
+                          <LayoutComponent data={layout.sampleData} />
+                        </div>
+                      </AdminEditableLayout>
+                    ) : (
+                      <div
+                        className="flex-shrink-0"
+                        style={{ width: "1280px", height: "720px" }}
+                      >
+                        <LayoutComponent data={layout.sampleData} />
+                      </div>
+                    )}
                   </div>
                 </Card>
               );

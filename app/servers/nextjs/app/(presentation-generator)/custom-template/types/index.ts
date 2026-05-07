@@ -5,6 +5,7 @@ export interface SlideData {
   screenshot_url: string;
   textless_screenshot_url?: string | null;
   xml_content?: string;
+  html_content?: string | null;
   normalized_fonts?: string[];
   slide_width_emu?: number;
   slide_height_emu?: number;
