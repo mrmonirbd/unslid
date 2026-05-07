@@ -2,6 +2,7 @@ import React from "react";
 
 import UploadPage from "./components/UploadPage";
 import Header from "@/app/(presentation-generator)/(dashboard)/dashboard/components/Header";
+import DashboardSidebar from "@/app/(presentation-generator)/(dashboard)/Components/DashboardSidebar";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -43,16 +44,18 @@ export const metadata: Metadata = {
 
 const page = () => {
   return (
-    <div className="relative">
-      <Header />
-      <div className="flex flex-col items-center justify-center  mb-8">
-        <h1 className="text-[64px] font-normal font-unbounded text-[#101323] ">
-          Unslid   
-        </h1>
-        <p className="text-xl font-syne text-[#101323CC]">Choose a design, set preferences, and generate polished slides.</p>
+    <div className="flex min-h-screen bg-[#fbf9ff]">
+      <DashboardSidebar />
+      <div className="relative flex-1">
+        <Header />
+        <div className="mb-8 flex flex-col items-center justify-center">
+          <h1 className="font-unbounded text-[64px] font-normal text-[#101323]">Unslid</h1>
+          <p className="font-syne text-xl text-[#101323CC]">
+            Choose a design, set preferences, and generate polished slides.
+          </p>
+        </div>
+        <UploadPage />
       </div>
-
-      <UploadPage />
     </div>
   );
 };

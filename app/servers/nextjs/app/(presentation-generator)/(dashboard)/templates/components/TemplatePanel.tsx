@@ -23,8 +23,6 @@ interface TemplateTierEntry {
 const CARD_CLASS =
     "relative h-[210px] min-w-[340px] cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md";
 const CARD_BACKGROUND_CLASS = "absolute left-0 top-0 h-full w-full object-cover";
-const LAYOUT_BADGE_CLASS =
-    "absolute left-2 top-2 z-40 flex items-center gap-1 rounded-[100px] bg-[#3A3A3AF5] px-2.5 py-1 font-syne text-xs font-semibold capitalize text-white";
 const PREVIEW_TILE_CLASS = "relative aspect-video overflow-hidden rounded border border-gray-200 bg-gray-100";
 const PREVIEW_SCALE_STYLE = { width: "833.33%", height: "833.33%" };
 const PREVIEW_PLACEHOLDERS = [0, 1, 2, 3];
@@ -133,7 +131,7 @@ export const CustomTemplateCard = React.memo(function CustomTemplateCard({ templ
     const router = useRouter();
     const cardRef = useRef<HTMLDivElement>(null);
     const shouldLoadPreview = useInViewport(cardRef);
-    const { previewLayouts, loading, totalLayouts } = useCustomTemplatePreview(`${template.id}`, shouldLoadPreview);
+    const { previewLayouts, loading } = useCustomTemplatePreview(`${template.id}`, shouldLoadPreview);
     const handleOpen = useCallback(() => {
         if (template.id.startsWith('custom-')) {
             router.push(`/template-preview/${template.id}`)
@@ -151,9 +149,6 @@ export const CustomTemplateCard = React.memo(function CustomTemplateCard({ templ
         >
 
             <img src="/card_bg.svg" alt="" className={CARD_BACKGROUND_CLASS} />
-            {/* <span className={LAYOUT_BADGE_CLASS}>
-                Layouts- {totalLayouts || template.layoutCount}
-            </span> */}
             <div className="p-4">
 
                 {/* Layout previews */}
@@ -236,9 +231,6 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
             className={`${CARD_CLASS} ${locked ? "opacity-80" : ""}`}
             onClick={handleOpen}
         >
-            {/* <span className={LAYOUT_BADGE_CLASS}>
-                Layouts- {template.layouts.length}
-            </span> */}
             {locked && (
                 <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/40 gap-2">
                     <div className="bg-white/90 rounded-full p-2.5 shadow">
@@ -335,9 +327,6 @@ const DesignerTemplateCard = React.memo(function DesignerTemplateCard({
                     </span>
                 </div>
             )}
-            <span className={LAYOUT_BADGE_CLASS}>
-                Layouts- {template.slide_count}
-            </span>
             <img src="/card_bg.svg" alt="" className={CARD_BACKGROUND_CLASS} />
             <div className="p-4">
                 {template.thumbnail_urls.length > 0 ? (
