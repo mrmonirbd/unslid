@@ -1,0 +1,74 @@
+# Low-memory production override.
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.lowmem.yml up -d
+#
+# This profile trades concurrency and cache size for lower RAM/CPU usage. It is
+# intended for small VPS instances where only a few users are active at a time.
+
+services:
+  mysql:
+    command:
+      - mysqld
+      - --performance-schema=OFF
+      - --innodb-buffer-pool-size=96M
+      - --innodb-log-buffer-size=8M
+      - --max-connections=20
+      - --table-open-cache=128
+      - --thread-cache-size=4
+      - --tmp-table-size=32M
+      - --max-heap-table-size=32M
+    mem_limit: 384m
+    cpus: "0.50"
+
+  redis:
+    command:
+      - redis-server
+      - --save
+      - "60"
+      - "1"
+      - --loglevel
+      - warning
+      - --maxmemory
+      - 64mb
+      - --maxmemory-policy
+      - allkeys-lru
+    mem_limit: 96m
+    cpus: "0.25"
+
+  fastapi:
+    environment:
+      - MALLOC_ARENA_MAX=2
+      - OMP_NUM_THREADS=1
+      - OPENBLAS_NUM_THREADS=1
+      - MKL_NUM_THREADS=1
+      - NUMEXPR_NUM_THREADS=1
+    mem_limit: 768m
+    cpus: "0.50"
+
+  worker:
+    environment:
+      - ARQ_MAX_JOBS=1
+      - MALLOC_ARENA_MAX=2
+      - OMP_NUM_THREADS=1
+      - OPENBLAS_NUM_THREADS=1
+      - MKL_NUM_THREADS=1
+      - NUMEXPR_NUM_THREADS=1
+    mem_limit: 1024m
+    cpus: "0.75"
+
+  nextjs:
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=192
+    mem_limit: 384m
+    cpus: "0.5"
+
+  caddy:
+    mem_limit: 96m
+    cpus: "0.25"
+
+  db-backup:
+    profiles:
+      - backup
+    mem_limit: 128m
+    cpus: "0.25"

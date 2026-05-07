@@ -1,21 +1,33 @@
 import asyncio
 import json
-import chromadb
-from chromadb.config import Settings
-from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
 
 
 class IconFinderService:
     def __init__(self):
         self.collection_name = "icons"
-        self.client = chromadb.PersistentClient(
+        self._initialized = False
+        self._init_lock = asyncio.Lock()
+
+    async def _ensure_initialized(self):
+        if self._initialized:
+            return
+
+        async with self._init_lock:
+            if self._initialized:
+                return
+
+            await asyncio.to_thread(self._initialize_icons_collection)
+            self._initialized = True
+
+    def _initialize_icons_collection(self):
+        from chromadb import PersistentClient
+        from chromadb.config import Settings
+        from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
+
+        self.client = PersistentClient(
             path="chroma", settings=Settings(anonymized_telemetry=False)
         )
         print("Initializing icons collection...")
-        self._initialize_icons_collection()
-        print("Icons collection initialized.")
-
-    def _initialize_icons_collection(self):
         self.embedding_function = ONNXMiniLM_L6_V2()
         self.embedding_function.DOWNLOAD_PATH = "chroma/models"
         self.embedding_function._download_model_if_not_exists()
@@ -43,8 +55,10 @@ class IconFinderService:
                     metadata={"hnsw:space": "cosine"},
                 )
                 self.collection.add(documents=documents, ids=ids)
+        print("Icons collection initialized.")
 
     async def search_icons(self, query: str, k: int = 1):
+        await self._ensure_initialized()
         result = await asyncio.to_thread(
             self.collection.query,
             query_texts=[query],

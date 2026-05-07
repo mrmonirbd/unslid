@@ -19,6 +19,7 @@ from models.sql.async_presentation_generation_status import (
 logger = logging.getLogger(__name__)
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+ARQ_MAX_JOBS = int(os.getenv("ARQ_MAX_JOBS", "10"))
 _redis_settings = None
 
 
@@ -214,7 +215,7 @@ class WorkerSettings:
         cron(expire_trials,                      hour=1,  minute=0),   # daily at 1am
     ]
     redis_settings = get_redis_settings()
-    max_jobs = 10
+    max_jobs = ARQ_MAX_JOBS
     job_timeout = 600  # 10 minutes max per job
     keep_result = 3600  # Keep job results for 1 hour
     retry_jobs = False  # Don't auto-retry failed AI jobs (expensive)
