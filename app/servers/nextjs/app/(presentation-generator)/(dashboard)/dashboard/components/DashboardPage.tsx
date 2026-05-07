@@ -5,7 +5,7 @@ import { DashboardApi } from "@/app/(presentation-generator)/services/api/dashbo
 import { PresentationGrid } from "@/app/(presentation-generator)/(dashboard)/dashboard/components/PresentationGrid";
 import Link from "next/link";
 import { Upload, Plus, Zap, LayoutGrid, TrendingUp } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/auth/client";
 import { useRouter } from "next/navigation";
 
 function getGreeting() {
@@ -29,8 +29,8 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const supabase = createClient();
-        const { data: { session } } = await supabase.auth.getSession();
+        const authClient = createClient();
+        const { data: { session } } = await authClient.auth.getSession();
         if (session?.access_token) {
           const res = await fetch("/api/v1/account/me", {
             headers: { Authorization: `Bearer ${session.access_token}` },
@@ -77,8 +77,8 @@ const DashboardPage: React.FC = () => {
     if (!file) return;
     setImporting(true);
     try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
+      const authClient = createClient();
+      const { data: { session } } = await authClient.auth.getSession();
       const formData = new FormData();
       formData.append("file", file);
       const res = await fetch("/api/v1/ppt/presentation/import", {

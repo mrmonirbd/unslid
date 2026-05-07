@@ -7,7 +7,7 @@ import { ArrowLeft, Download, FileSpreadsheet, Home, Loader2, Trash2 } from "luc
 
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import TemplateService from "../../services/api/template";
-import Header from "../../(dashboard)/dashboard/components/Header";
+import DashboardSidebar from "../../(dashboard)/Components/DashboardSidebar";
 import { toast } from "sonner";
 import {
   CustomTemplateDetail,
@@ -17,6 +17,7 @@ import {
 } from "@/app/hooks/useCustomTemplates";
 import { templates as templateGroups, getTemplatesByTemplateName } from "@/app/presentation-templates";
 import { api } from "@/lib/api";
+import { useUser } from "@/app/hooks/useUser";
 
 interface PptxDesignerTemplate {
   id: number;
@@ -55,6 +56,17 @@ interface SelectableDesignerPreview {
   name: string;
   slide_count: number;
   slides: SelectableDesignerSlide[];
+}
+
+function TemplatePreviewShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-screen overflow-hidden bg-gray-50">
+      <DashboardSidebar />
+      <div className="flex-1 h-screen overflow-y-auto">
+        {children}
+      </div>
+    </div>
+  );
 }
 
 const DESIGNER_18_EXCEL_SHEETS = [
@@ -206,6 +218,8 @@ const GroupLayoutPreview = () => {
   const [designerHtmlTemplate, setDesignerHtmlTemplate] = useState<CustomTemplateDetail | null>(null);
   const [designerLoading, setDesignerLoading] = useState(false);
   const [designerError, setDesignerError] = useState<string | null>(null);
+  const { user } = useUser();
+  const isAdmin = !!user?.is_admin;
 
 
   // Fetch static templates if not custom
@@ -293,33 +307,30 @@ const GroupLayoutPreview = () => {
   // Loading state for custom templates
   if (isCustom && (customLoading)) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <TemplatePreviewShell>
         <div className="flex items-center justify-center py-24">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           <span className="ml-3 text-gray-600">Compiling templates...</span>
         </div>
-      </div>
+      </TemplatePreviewShell>
     );
   }
 
   if (isDesigner && designerLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <TemplatePreviewShell>
         <div className="flex items-center justify-center py-24">
           <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
           <span className="ml-3 text-gray-600">Loading designer template...</span>
         </div>
-      </div>
+      </TemplatePreviewShell>
     );
   }
 
   // Error state
   if (isCustom && customError) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <TemplatePreviewShell>
         <div className="flex flex-col items-center justify-center py-24">
           <h2 className="text-2xl font-bold text-red-600 mb-4">Error loading template</h2>
           <p className="text-gray-600 mb-4">{customError}</p>
@@ -328,14 +339,13 @@ const GroupLayoutPreview = () => {
             Back to Templates
           </Button>
         </div>
-      </div>
+      </TemplatePreviewShell>
     );
   }
 
   if (isDesigner && designerError) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <TemplatePreviewShell>
         <div className="flex flex-col items-center justify-center py-24">
           <h2 className="text-2xl font-bold text-red-600 mb-4">Error loading template</h2>
           <p className="text-gray-600 mb-4">{designerError}</p>
@@ -344,7 +354,7 @@ const GroupLayoutPreview = () => {
             Back to Templates
           </Button>
         </div>
-      </div>
+      </TemplatePreviewShell>
     );
   }
 
@@ -355,8 +365,7 @@ const GroupLayoutPreview = () => {
     (isDesigner && !designerTemplate)
   ) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <TemplatePreviewShell>
         <div className="flex flex-col items-center justify-center py-24">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             Template not found
@@ -366,7 +375,7 @@ const GroupLayoutPreview = () => {
             Back to Templates
           </Button>
         </div>
-      </div>
+      </TemplatePreviewShell>
     );
   }
 
@@ -384,12 +393,8 @@ const GroupLayoutPreview = () => {
     : staticTemplates.length;
   const resolvedTemplateName = isDesigner ? designerTemplate?.name || "Designer Template" : templateName;
 
-  console.log('compileLayout', customTemplate)
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-
+    <TemplatePreviewShell>
       {/* Header */}
       <header className="bg-white shadow-sm border-b sticky top-0 z-30">
         <div className=" mx-auto px-6 py-6">
@@ -550,14 +555,16 @@ const GroupLayoutPreview = () => {
                           Converted HTML layout from {designerTemplate.name}
                         </p>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium">
-                          HTML
-                        </span>
-                        <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
-                          {designerTemplate.html_template_slug}:{layout.rawLayoutId}
-                        </span>
-                      </div>
+                      {isAdmin && (
+                        <div className="flex items-center gap-3">
+                          <span className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium">
+                            HTML
+                          </span>
+                          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
+                            {designerTemplate.html_template_slug}:{layout.rawLayoutId}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -603,14 +610,16 @@ const GroupLayoutPreview = () => {
                           {designerTemplate.name}
                         </p>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
-                          {templateParams}:slide-{index + 1}
-                        </span>
-                        <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                          #{index + 1}
-                        </span>
-                      </div>
+                      {isAdmin && (
+                        <div className="flex items-center gap-3">
+                          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
+                            {templateParams}:slide-{index + 1}
+                          </span>
+                          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                            #{index + 1}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -713,7 +722,7 @@ const GroupLayoutPreview = () => {
           </div>
         )}
       </main>
-    </div>
+    </TemplatePreviewShell>
   );
 };
 

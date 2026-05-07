@@ -19,6 +19,7 @@ from typing import Optional
 from xml.etree import ElementTree as ET
 
 from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.util import Pt
 
 from utils.get_env import get_app_data_directory_env
@@ -48,6 +49,41 @@ def save_pptx_file(file_bytes: bytes) -> tuple[str, str]:
     abs_path = Path(get_app_data_directory_env()) / rel
     abs_path.write_bytes(file_bytes)
     return str(abs_path), rel
+
+
+async def convert_legacy_ppt_to_pptx_bytes(file_bytes: bytes) -> bytes:
+    """
+    Convert a legacy .ppt upload to .pptx bytes so the rest of the template
+    pipeline can use python-pptx and OOXML extraction.
+    """
+    _pptx_templates_dir().mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=_pptx_templates_dir()) as tmp:
+        tmp_dir = Path(tmp)
+        source = tmp_dir / "source.ppt"
+        source.write_bytes(file_bytes)
+
+        cmd = [
+            "libreoffice",
+            "--headless",
+            "--convert-to", "pptx",
+            "--outdir", str(tmp_dir),
+            str(source),
+        ]
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+        if proc.returncode != 0:
+            raise RuntimeError(
+                "Legacy PPT conversion failed: " + stderr.decode(errors="ignore")[:1000]
+            )
+
+        converted = sorted(tmp_dir.glob("*.pptx"))
+        if not converted:
+            raise RuntimeError("Legacy PPT conversion did not produce a PPTX file.")
+        return converted[0].read_bytes()
 
 
 def delete_pptx_files(file_path: str, template_uuid: str) -> None:
@@ -128,9 +164,47 @@ async def generate_textless_thumbnails(abs_pptx_path: str, template_uuid: str) -
             for slide in prs.slides:
                 for shape in slide.shapes:
                     _clear_shape_text(shape)
+                _remove_small_picture_shapes(slide, int(prs.slide_width), int(prs.slide_height))
             prs.save(str(tmp_copy))
 
         await asyncio.to_thread(clear_text)
+
+        pdf_path = await _convert_pptx_to_pdf(tmp_copy, tmp_dir)
+        if pdf_path:
+            await _render_pdf_pages_to_pngs(pdf_path, thumb_dir)
+
+    png_files = sorted(
+        thumb_dir.glob("slide_*.png"),
+        key=lambda p: _slide_index_from_name(p.stem),
+    )
+
+    app_data = get_app_data_directory_env()
+    return [str(p.relative_to(app_data)) for p in png_files]
+
+
+async def generate_clean_thumbnails(abs_pptx_path: str, template_uuid: str) -> list[str]:
+    """
+    Convert each slide to PNG after removing tiny broken picture placeholders.
+    Text is preserved, so the result is a faithful static HTML background.
+    """
+    thumb_dir = _thumbs_dir(f"{template_uuid}_clean")
+    thumb_dir.mkdir(parents=True, exist_ok=True)
+
+    for old_png in thumb_dir.glob("*.png"):
+        old_png.unlink(missing_ok=True)
+
+    with tempfile.TemporaryDirectory(dir=thumb_dir) as tmp:
+        tmp_dir = Path(tmp)
+        tmp_copy = tmp_dir / "clean_source.pptx"
+        shutil.copy(abs_pptx_path, tmp_copy)
+
+        def clean_placeholders() -> None:
+            prs = Presentation(str(tmp_copy))
+            for slide in prs.slides:
+                _remove_small_picture_shapes(slide, int(prs.slide_width), int(prs.slide_height))
+            prs.save(str(tmp_copy))
+
+        await asyncio.to_thread(clean_placeholders)
 
         pdf_path = await _convert_pptx_to_pdf(tmp_copy, tmp_dir)
         if pdf_path:
@@ -151,6 +225,39 @@ def _clear_shape_text(shape) -> None:
     if getattr(shape, "shapes", None):
         for child in shape.shapes:
             _clear_shape_text(child)
+
+
+def _remove_small_picture_shapes(slide, slide_width: int, slide_height: int) -> None:
+    """Drop tiny repeated picture placeholders from textless previews.
+
+    Legacy or emoji-like PPT assets can render as broken image icons in
+    LibreOffice. When a slide has repeated tiny picture shapes, they usually
+    behave as decorative bullets/icons; removing them is better than baking red
+    X placeholders into the converted HTML background.
+    """
+    candidates = []
+    for shape in slide.shapes:
+        if getattr(shape, "shapes", None):
+            for child in shape.shapes:
+                _clear_shape_text(child)
+
+        width_pct = float(getattr(shape, "width", 0) or 0) / float(slide_width or 1)
+        height_pct = float(getattr(shape, "height", 0) or 0) / float(slide_height or 1)
+        if (
+            width_pct <= 0.08
+            and height_pct <= 0.10
+            and getattr(shape, "shape_type", None) == MSO_SHAPE_TYPE.PICTURE
+        ):
+            candidates.append(shape)
+
+    if len(candidates) < 2:
+        return
+
+    for shape in candidates:
+        element = shape._element
+        parent = element.getparent()
+        if parent is not None:
+            parent.remove(element)
 
 
 async def _convert_pptx_to_pdf(pptx_path: Path, out_dir: Path) -> Optional[Path]:

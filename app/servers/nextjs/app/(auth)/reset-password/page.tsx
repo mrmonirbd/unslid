@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/auth/client";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -12,7 +12,7 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const supabase = createClient();
+  const authClient = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +28,7 @@ export default function ResetPasswordPage() {
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error } = await authClient.auth.updateUser({ password });
 
     if (error) {
       setError(error.message);

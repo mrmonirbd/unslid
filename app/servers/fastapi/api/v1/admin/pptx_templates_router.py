@@ -161,6 +161,15 @@ def _html_template_uuid(template_id: int) -> uuid.UUID:
     return uuid.uuid5(uuid.NAMESPACE_URL, f"unslid:pptx-designer-template:{template_id}")
 
 
+async def _normalize_powerpoint_upload(file_bytes: bytes, filename: str) -> bytes:
+    lower = filename.lower()
+    if lower.endswith(".pptx"):
+        return file_bytes
+    if lower.endswith(".ppt"):
+        return await svc.convert_legacy_ppt_to_pptx_bytes(file_bytes)
+    raise HTTPException(status_code=400, detail="Only .ppt and .pptx files are accepted")
+
+
 def _abs_app_data_path(relative_path: str) -> Path:
     return Path(get_app_data_directory_env()) / relative_path
 
@@ -172,13 +181,14 @@ def _editable_slide_html(slide: dict) -> str:
     for idx, box in enumerate(slide.get("text_boxes") or [], 1):
         text = html.escape(box.get("text") or "").replace("\n", "<br />")
         font_size_pt = box.get("font_size_pt") or 18
-        font_size_cqh = (float(font_size_pt) * 1.333 / 720) * 100
+        font_size_cqh = (float(font_size_pt) * 1.18 / 720) * 100
+        box_height_pct = max(float(box.get("height_pct", 0) or 0) * 1.35, 3.5)
         text_nodes.append(
             f'''
   <div
     class="imported-editable-text"
     data-slide-text="{idx}"
-    style="position:absolute;left:{box.get("left_pct", 0):.3f}%;top:{box.get("top_pct", 0):.3f}%;width:{box.get("width_pct", 0):.3f}%;height:{box.get("height_pct", 0):.3f}%;color:#111827;font-family:Arial, sans-serif;font-size:{font_size_cqh:.3f}cqh;font-weight:400;line-height:1.18;white-space:pre-wrap;overflow:hidden;"
+    style="position:absolute;left:{box.get("left_pct", 0):.3f}%;top:{box.get("top_pct", 0):.3f}%;width:{box.get("width_pct", 0):.3f}%;min-height:{box_height_pct:.3f}%;color:#111827;font-family:Arial, sans-serif;font-size:{font_size_cqh:.3f}cqh;font-weight:400;line-height:1.08;white-space:pre-wrap;overflow:visible;word-break:normal;"
   >{text}</div>'''
         )
 
@@ -211,6 +221,27 @@ const dynamicSlideLayout = () => (
 '''
 
 
+def _static_slide_layout_code(slide_number: int, background_url: str) -> str:
+    safe_url = html.escape(background_url, quote=True)
+    return f'''
+const layoutId = "{slide_number}";
+const layoutName = "Slide{slide_number}";
+const layoutDescription = "Imported slide {slide_number}";
+const Schema = z.object({{}});
+
+const dynamicSlideLayout = () => (
+  <div className="relative h-full w-full overflow-hidden bg-white">
+    <img
+      src="{safe_url}"
+      alt="Imported slide {slide_number}"
+      className="absolute inset-0 h-full w-full object-contain"
+      draggable={{false}}
+    />
+  </div>
+);
+'''
+
+
 def _pptx_slide_size(zip_file: zipfile.ZipFile) -> tuple[int, int]:
     try:
         root = ET.fromstring(zip_file.read("ppt/presentation.xml"))
@@ -236,7 +267,14 @@ def _extract_shape_text(shape: ET.Element) -> str:
         paragraph_text = "".join(parts).strip()
         if paragraph_text:
             paragraphs.append(paragraph_text)
-    return "\n".join(paragraphs).strip()
+    return _clean_extracted_text("\n".join(paragraphs).strip())
+
+
+def _clean_extracted_text(text: str) -> str:
+    # LibreOffice/PPT XML can expose unsupported emoji as a leading "?".
+    if text.startswith("? ") and len(text) > 2 and text[2].isupper():
+        text = text[2:]
+    return text.replace("\ufffd", "—").strip()
 
 
 def _extract_shape_box(shape: ET.Element, slide_width: int, slide_height: int) -> Optional[dict]:
@@ -336,9 +374,9 @@ async def upload_pptx_template(
     admin: UserModel = Depends(_require_admin),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Upload a .pptx file as a designer template. Thumbnails are generated asynchronously."""
-    if not file.filename or not file.filename.lower().endswith(".pptx"):
-        raise HTTPException(status_code=400, detail="Only .pptx files are accepted")
+    """Upload a PowerPoint file as a designer template. HTML layouts are generated asynchronously."""
+    if not file.filename or not file.filename.lower().endswith((".ppt", ".pptx")):
+        raise HTTPException(status_code=400, detail="Only .ppt and .pptx files are accepted")
     if tier not in ("free", "premium"):
         raise HTTPException(status_code=400, detail="tier must be 'free' or 'premium'")
 
@@ -348,8 +386,13 @@ async def upload_pptx_template(
     if len(file_bytes) > MAX_PPTX_SIZE_BYTES:
         raise HTTPException(status_code=400, detail="File too large (max 50 MB)")
 
+    try:
+        normalized_file_bytes = await _normalize_powerpoint_upload(file_bytes, file.filename)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     template, abs_path = await _create_pptx_template_row(
-        file_bytes=file_bytes,
+        file_bytes=normalized_file_bytes,
         name=name,
         description=description,
         tier=tier,
@@ -374,7 +417,7 @@ async def bulk_import_pptx_templates(
     admin: UserModel = Depends(_require_admin),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Import every .pptx file inside a .zip as designer templates."""
+    """Import every .ppt/.pptx file inside a .zip as designer templates."""
     if not file.filename or not file.filename.lower().endswith(".zip"):
         raise HTTPException(status_code=400, detail="Only .zip files are accepted")
     if tier not in ("free", "premium"):
@@ -399,10 +442,10 @@ async def bulk_import_pptx_templates(
     with archive:
         pptx_entries = [
             info for info in archive.infolist()
-            if not info.is_dir() and info.filename.lower().endswith(".pptx")
+            if not info.is_dir() and info.filename.lower().endswith((".ppt", ".pptx"))
         ]
         if not pptx_entries:
-            raise HTTPException(status_code=400, detail="ZIP does not contain any .pptx files")
+            raise HTTPException(status_code=400, detail="ZIP does not contain any .ppt or .pptx files")
         if len(pptx_entries) > MAX_PPTX_FILES_PER_ZIP:
             raise HTTPException(
                 status_code=400,
@@ -419,6 +462,7 @@ async def bulk_import_pptx_templates(
 
             try:
                 pptx_bytes = archive.read(info)
+                pptx_bytes = await _normalize_powerpoint_upload(pptx_bytes, info.filename)
                 template, abs_path = await _create_pptx_template_row(
                     file_bytes=pptx_bytes,
                     name=_template_name_from_zip_path(info.filename),
@@ -459,8 +503,21 @@ async def _generate_thumbnails_and_convert_html(
     """Background task: generate thumbnails, then convert the PPTX into HTML layouts."""
     from services.database import async_session_maker
 
-    thumb_paths = await svc.generate_thumbnails(abs_path, uuid_str)
-    textless_thumb_paths = await svc.generate_textless_thumbnails(abs_path, uuid_str)
+    try:
+        thumb_paths = await svc.generate_thumbnails(abs_path, uuid_str)
+    except Exception:
+        logger.exception("Thumbnail generation failed for pptx_designer_template id=%s", template_id)
+        thumb_paths = []
+    try:
+        textless_thumb_paths = await svc.generate_textless_thumbnails(abs_path, uuid_str)
+    except Exception:
+        logger.exception("Textless thumbnail generation failed for pptx_designer_template id=%s", template_id)
+        textless_thumb_paths = []
+    try:
+        clean_thumb_paths = await svc.generate_clean_thumbnails(abs_path, uuid_str)
+    except Exception:
+        logger.exception("Clean thumbnail generation failed for pptx_designer_template id=%s", template_id)
+        clean_thumb_paths = thumb_paths
     html_template_uuid = _html_template_uuid(template_id)
 
     async with async_session_maker() as session:
@@ -483,7 +540,7 @@ async def _generate_thumbnails_and_convert_html(
                 abs_path=abs_path,
                 template_id=template_id,
                 html_template_uuid=html_template_uuid,
-                thumbnail_paths=thumb_paths,
+                thumbnail_paths=clean_thumb_paths or thumb_paths,
                 textless_thumbnail_paths=textless_thumb_paths,
             )
     except Exception as exc:
@@ -523,27 +580,14 @@ async def _convert_pptx_to_html_template(
     textless_thumbnail_urls = [
         f"/api/v1/pptx-template-thumbs/{p}" for p in (textless_thumbnail_paths or [])
     ]
-    selectable_slides = _extract_selectable_slides(
-        Path(abs_path),
-        thumbnail_urls,
-        textless_thumbnail_urls or None,
-    )
-
     layouts: list[PresentationLayoutCodeModel] = []
-    for index, slide in enumerate(selectable_slides, 1):
-        if index > len(thumbnail_paths):
-            break
-
-        image_path = _abs_app_data_path(thumbnail_paths[index - 1])
-        if not image_path.exists() or image_path.stat().st_size == 0:
-            continue
-
+    for index, thumbnail_url in enumerate(thumbnail_urls, 1):
         layouts.append(
             PresentationLayoutCodeModel(
                 presentation=html_template_uuid,
                 layout_id=str(index),
                 layout_name=f"Slide{index}",
-                layout_code=_editable_layout_code(slide),
+                layout_code=_static_slide_layout_code(index, thumbnail_url),
                 fonts=None,
             )
         )

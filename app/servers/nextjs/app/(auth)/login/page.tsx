@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/auth/client";
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirectTo") ?? "/";
   const urlError = searchParams.get("error");
+  const message = searchParams.get("message");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,14 +19,14 @@ export default function LoginPage() {
     urlError === "auth_callback_failed" ? "Authentication failed. Please try again." : null
   );
 
-  const supabase = createClient();
+  const authClient = createClient();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await authClient.auth.signInWithPassword({ email, password });
 
     if (error) {
       setError(error.message);
@@ -47,6 +48,12 @@ export default function LoginPage() {
       {error && (
         <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
           {error}
+        </div>
+      )}
+
+      {message === "account_created" && !error && (
+        <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-green-300 text-sm">
+          Account successfully created. Please sign in.
         </div>
       )}
 

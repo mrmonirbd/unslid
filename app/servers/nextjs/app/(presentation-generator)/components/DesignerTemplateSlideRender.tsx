@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/auth/client";
 import { useDispatch } from "react-redux";
 import { updateSlideContent } from "@/store/slices/presentationGeneration";
 import ImageEditor from "./ImageEditor";
@@ -140,9 +140,9 @@ const DesignerTemplateSlideRender = ({
 
     let objectUrl: string | null = null;
     let active = true;
-    const supabase = createClient();
+    const authClient = createClient();
 
-    supabase.auth.getSession()
+    authClient.auth.getSession()
       .then(async ({ data: { session } }) => {
         const response = await fetch(sourceUrl, {
           headers: session?.access_token

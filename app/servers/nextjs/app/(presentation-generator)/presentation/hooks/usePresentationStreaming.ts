@@ -8,7 +8,7 @@ import {
 import { jsonrepair } from "jsonrepair";
 import { toast } from "sonner";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/auth/client";
 
 export const usePresentationStreaming = (
   presentationId: string,
@@ -32,8 +32,8 @@ export const usePresentationStreaming = (
 
       // EventSource cannot send custom headers, so pass the JWT as a query
       // param so the backend middleware can load the correct plan AI config.
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
+      const authClient = createClient();
+      const { data: { session } } = await authClient.auth.getSession();
       const token = session?.access_token ?? "";
       const streamUrl = `/api/v1/ppt/presentation/stream/${presentationId}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
 

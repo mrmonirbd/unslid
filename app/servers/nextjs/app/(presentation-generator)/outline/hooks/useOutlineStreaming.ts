@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { setOutlines } from "@/store/slices/presentationGeneration";
 import { jsonrepair } from "jsonrepair";
 import { RootState } from "@/store/store";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/auth/client";
 
 
 
@@ -31,8 +31,8 @@ export const useOutlineStreaming = (presentationId: string | null) => {
       try {
         // EventSource cannot send custom headers, so we pass the JWT as a
         // query param so the backend middleware can identify the user's plan.
-        const supabase = createClient();
-        const { data: { session } } = await supabase.auth.getSession();
+        const authClient = createClient();
+        const { data: { session } } = await authClient.auth.getSession();
         const token = session?.access_token ?? "";
         const url = `/api/v1/ppt/outlines/stream/${presentationId}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
 

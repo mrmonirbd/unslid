@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/auth/client";
 import { api } from "@/lib/api";
 
 export default function AcceptInvitePage({
@@ -19,8 +19,8 @@ export default function AcceptInvitePage({
   const [orgSlug, setOrgSlug] = useState<string | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    const authClient = createClient();
+    authClient.auth.getUser().then(({ data: { user } }) => {
       if (!user) {
         setStatus("needs-login");
       } else {

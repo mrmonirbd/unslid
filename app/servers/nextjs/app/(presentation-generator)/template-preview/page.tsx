@@ -13,7 +13,7 @@ import {
   CustomTemplates,
 } from "@/app/hooks/useCustomTemplates";
 import { CompiledLayout } from "@/app/hooks/compileLayout";
-import Header from "../(dashboard)/dashboard/components/Header";
+import DashboardSidebar from "../(dashboard)/Components/DashboardSidebar";
 
 // Component for rendering custom template card with lazy-loaded previews
 const CustomTemplateCard = ({ template }: { template: CustomTemplates }) => {
@@ -115,8 +115,9 @@ const LayoutPreview = () => {
   const totalCustomLayouts = customTemplates.reduce((acc: number, t: CustomTemplates) => acc + t.layoutCount, 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
+    <div className="flex h-screen overflow-hidden bg-gray-50">
+      <DashboardSidebar />
+      <div className="flex-1 h-screen overflow-y-auto">
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">All Templates</h1>
@@ -214,6 +215,7 @@ const LayoutPreview = () => {
             </div>
           )}
         </section>
+      </div>
       </div>
     </div>
   );

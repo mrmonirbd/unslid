@@ -1,9 +1,9 @@
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/auth/client";
 
 async function getAuthToken(): Promise<string | null> {
   try {
-    const supabase = createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const authClient = createClient();
+    const { data: { session } } = await authClient.auth.getSession();
     return session?.access_token ?? null;
   } catch {
     return null;
