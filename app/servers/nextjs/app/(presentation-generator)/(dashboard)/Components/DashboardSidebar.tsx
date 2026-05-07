@@ -3,7 +3,6 @@
 import React from "react";
 import {
   Bell,
-  FolderOpen,
   HelpCircle,
   Home,
   LayoutPanelLeft,
@@ -11,9 +10,7 @@ import {
   Palette,
   Plus,
   Shield,
-  Star,
   User,
-  WandSparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -64,19 +61,12 @@ const RailLink = ({ href, label, icon: Icon, active, highlight }: RailLinkProps)
 const DashboardSidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading } = useUser();
-
-  const initials = user?.full_name
-    ? user.full_name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
-    : user?.email?.[0]?.toUpperCase() ?? "?";
+  const { user } = useUser();
 
   const mainNav = [
     { href: "/dashboard", label: "Home", icon: Home },
     { href: "/templates", label: "My Templates", icon: LayoutPanelLeft },
     { href: "/theme", label: "Themes", icon: Palette },
-    { href: "/settings/account", label: "Account", icon: User },
-    
-
   ];
 
   return (
@@ -110,8 +100,7 @@ const DashboardSidebar = () => {
       </nav>
 
       <div className="mt-auto flex w-full flex-col items-center gap-1 px-2">
-        <RailLink href="/settings/team" label="Projects" icon={FolderOpen} active={pathname === "/settings/team"} />
-        <RailLink href="/settings/analytics" label="More" icon={Star} active={pathname === "/settings/analytics"} />
+        <RailLink href="/settings/account" label="Account" icon={User} active={pathname === "/settings/account"} />
         <a
           href="mailto:support@yourcompany.com"
           target="_blank"
@@ -137,10 +126,6 @@ const DashboardSidebar = () => {
         >
           <LogOut className="h-5 w-5" />
         </button>
-        <div className="mt-2 flex h-9 w-9 items-center justify-center rounded-full bg-amber-300 text-xs font-bold text-slate-900 ring-2 ring-white">
-          {loading ? "..." : initials}
-        </div>
-        
       </div>
     </aside>
   );
