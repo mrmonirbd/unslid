@@ -65,7 +65,7 @@ const DashboardSidebar = () => {
 
   const mainNav = [
     { href: "/dashboard", label: "Home", icon: Home },
-    { href: "/templates", label: "My Templates", icon: LayoutPanelLeft },
+    { href: "/my-templates", label: "My Templates", icon: LayoutPanelLeft },
     { href: "/theme", label: "Themes", icon: Palette },
   ];
 

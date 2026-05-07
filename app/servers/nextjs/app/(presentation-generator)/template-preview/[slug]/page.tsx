@@ -346,7 +346,10 @@ function StaticTemplateEditPanel({ state }: { state: StaticEditorPanelState }) {
   }
 
   return (
-    <div className="sticky top-[132px] z-40 mx-auto mb-6 flex w-full max-w-[1440px] flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur">
+    <div
+      data-static-editor-panel="true"
+      className="sticky top-[132px] z-40 mx-auto mb-6 flex w-full max-w-[1440px] flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur"
+    >
       <span className="max-w-[240px] truncate rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
         {selection.type}: {selection.label}
       </span>
@@ -649,6 +652,21 @@ function StaticTemplateEditor({
       },
     });
   }, [selection, fontSize, fontFamily, imageUrl, animation, saveState, onPanelStateChange]);
+
+  useEffect(() => {
+    if (!selection) return;
+
+    const handleOutsideMouseDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (rootRef.current?.contains(target)) return;
+      if (target instanceof HTMLElement && target.closest("[data-static-editor-panel='true']")) return;
+      clearSelection();
+    };
+
+    document.addEventListener("mousedown", handleOutsideMouseDown, true);
+    return () => document.removeEventListener("mousedown", handleOutsideMouseDown, true);
+  }, [clearSelection, selection]);
 
   return (
     <div className="space-y-3">
