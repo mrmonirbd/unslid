@@ -574,3 +574,12 @@ export async function extractPresentationPptxModel(title?: string): Promise<Pptx
   const slides = convertElementAttributesToPptxSlides(slidesAttributes);
   return { slides, name: title };
 }
+
+export async function extractElementPptxModel(
+  slideContentEl: Element,
+  title?: string
+): Promise<PptxPresentationModel> {
+  const attrs = await extractSlideAttributes(slideContentEl);
+  const slides = convertElementAttributesToPptxSlides([attrs]);
+  return { slides, name: title };
+}

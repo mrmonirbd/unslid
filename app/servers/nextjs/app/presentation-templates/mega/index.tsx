@@ -93,6 +93,15 @@ function makeSchema(title: string, imageUrl: string, subtitle: string, quote: st
 
 const textStyle = { letterSpacing: 0 };
 
+const getImageVariant = (imageUrl: string, variant: string | number, width = 900, height = 700) => {
+  const picsumSeedMatch = imageUrl.match(/\/seed\/([^/]+)\/\d+\/\d+/);
+  if (picsumSeedMatch) {
+    return `https://picsum.photos/seed/${picsumSeedMatch[1]}-${variant}/${width}/${height}`;
+  }
+  const separator = imageUrl.includes("?") ? "&" : "?";
+  return `${imageUrl}${separator}variant=${variant}`;
+};
+
 const Shell = ({ cfg, children }: { cfg: MegaConfig; children: React.ReactNode }) => (
   <div
     className="relative mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] overflow-hidden rounded-xl border shadow-2xl"
@@ -911,7 +920,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               {items.slice(0, 4).map((item, index) => (
                 <div key={item.label} className="overflow-hidden rounded-xl" style={{ background: cfg.soft }}>
                   <img
-                    src={`${data.imageUrl}?tile=${index}`}
+                    src={getImageVariant(data.imageUrl, index, 700, 420)}
                     alt=""
                     className="h-36 w-full object-cover"
                     style={{ filter: index % 2 ? "saturate(1.3)" : "contrast(1.08)" }}
@@ -1411,7 +1420,7 @@ const closingVariants: PagePlan[] = [
   { suffix: "close-clean", name: "Clean Close", kind: "thankYou", description: "Minimal final statement slide." },
 ];
 
-const getPagePlans = (index: number) => {
+const getPagePlans = (index: number): PagePlan[] => {
   if (index === 0) {
     return [
       { suffix: "cover", name: "Portfolio Cover", kind: "personalPortfolio", description: "Personal portfolio cover with split editorial image panel." },
@@ -1451,6 +1460,17 @@ const getPagePlans = (index: number) => {
       { suffix: "close", name: "Final Direction", kind: "thankYou", description: "Clean closing slide with final direction." },
     ];
   }
+  if (index === 5) {
+    return [
+      { suffix: "visual-cover", name: "Visual Cover", kind: "split", description: "Image-led opener with a strong narrative panel." },
+      { suffix: "gallery", name: "Image Gallery", kind: "portfolio", description: "Four-image portfolio page with separate visual references." },
+      { suffix: "proof", name: "Proof Story", kind: "caseStudy", description: "Outcome slide with image proof and metric cards." },
+      { suffix: "capabilities", name: "Capabilities", kind: "featureGrid", description: "Capability grid with compact visual hierarchy." },
+      { suffix: "team", name: "Team Showcase", kind: "team", description: "People and role cards with separate image crops." },
+      { suffix: "roadmap", name: "Delivery Roadmap", kind: "roadmap", description: "Timeline slide for the delivery sequence." },
+      { suffix: "closing", name: "Closing Visual", kind: "quote", description: "Closing quote slide with a distinct hero image." },
+    ];
+  }
   if (index < featuredConfigs.length + first20KindSequences.length) {
     return makeFirst20Plan(index - featuredConfigs.length);
   }
@@ -1485,8 +1505,8 @@ const createMegaTemplate = (
   pageIndex: number,
   groupIndex: number
 ) => {
-  const imageUrl = cfg.id === "mega-featured-vision-mission"
-    ? `https://picsum.photos/seed/msgr-vision-${page.suffix}-${pageIndex}/900/700`
+  const imageUrl = cfg.id === "mega-featured-vision-mission" || groupIndex === 5
+    ? getImageVariant(cfg.imageUrl, `${page.suffix}-${pageIndex}`, 900, 700)
     : cfg.imageUrl;
   const pageConfig: MegaConfig = {
     ...cfg,
