@@ -108,36 +108,21 @@ export function ConfigurationInitializer({ children }: { children: React.ReactNo
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#E9E8F8] via-[#F5F4FF] to-[#E0DFF7] flex items-center justify-center p-4">
-        <div className="max-w-md w-full">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 text-center">
-            {/* Logo/Branding */}
-            <div className="mb-6">
-              <img
-                src="/Logo.png"
-                alt="PresentOn"
-                className="h-12 mx-auto mb-4 opacity-90"
-              />
-              <div className="w-16 h-1 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto rounded-full"></div>
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-6">
+        <div className="w-full max-w-sm">
+          <div className="flex flex-col items-center gap-6">
+            <div className="relative h-14 w-14">
+              <div className="absolute inset-0 rounded-full border-4 border-slate-200"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#7A5AF8] border-r-[#7A5AF8] animate-spin"></div>
+              <div className="absolute inset-3 rounded-full bg-white shadow-sm"></div>
             </div>
 
-            {/* Loading Text */}
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-gray-800 font-inter">
-                Initializing Application
-              </h3>
-              <p className="text-sm text-gray-600 font-inter">
-                Loading configuration and checking model availability...
-              </p>
-            </div>
-
-            {/* Progress Indicator */}
-            <div className="mt-6">
-              <div className="flex space-x-1 justify-center">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+            <div className="w-full space-y-3">
+              <div className="mx-auto h-3 w-40 overflow-hidden rounded-full bg-slate-200">
+                <div className="h-full w-1/2 animate-pulse rounded-full bg-[#7A5AF8]"></div>
               </div>
+              <div className="mx-auto h-2 w-56 rounded-full bg-slate-200 animate-pulse"></div>
+              <div className="mx-auto h-2 w-36 rounded-full bg-slate-100 animate-pulse"></div>
             </div>
           </div>
         </div>

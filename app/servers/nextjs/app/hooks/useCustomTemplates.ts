@@ -386,7 +386,7 @@ export function useCustomTemplateDetails(templateDetail: { id: string, name: str
 /**
  * Hook to fetch and compile preview layouts for a single template (first 4 layouts)
  */
-export function useCustomTemplatePreview(presentationId: string) {
+export function useCustomTemplatePreview(presentationId: string, enabled = true) {
     const [previewLayouts, setPreviewLayouts] = useState<CompiledLayout[]>([]);
     const [loading, setLoading] = useState(true);
     const [totalLayouts, setTotalLayouts] = useState(0);
@@ -394,7 +394,10 @@ export function useCustomTemplatePreview(presentationId: string) {
 
 
     useEffect(() => {
-        if (!presentationId) return;
+        if (!presentationId || !enabled) {
+            setLoading(false);
+            return;
+        }
 
         const fetchPreviews = async () => {
             try {
@@ -425,7 +428,7 @@ export function useCustomTemplatePreview(presentationId: string) {
         };
 
         fetchPreviews();
-    }, [presentationId]);
+    }, [enabled, presentationId]);
 
     return { previewLayouts, loading: loading, totalLayouts: totalLayouts };
 }

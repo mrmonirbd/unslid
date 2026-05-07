@@ -72,9 +72,11 @@ const DashboardSidebar = () => {
 
   const mainNav = [
     { href: "/dashboard", label: "Home", icon: Home },
-    { href: "/templates", label: "Templates", icon: LayoutPanelLeft },
+    { href: "/templates", label: "My Templates", icon: LayoutPanelLeft },
     { href: "/theme", label: "Themes", icon: Palette },
     { href: "/settings/account", label: "Account", icon: User },
+    
+
   ];
 
   return (
@@ -87,7 +89,8 @@ const DashboardSidebar = () => {
         className="mb-5 flex h-9 w-9 items-center justify-center rounded-xl text-violet-700 transition hover:bg-violet-50"
         aria-label="Go to dashboard"
       >
-        <LayoutPanelLeft className="h-5 w-5" />
+        {/* <LayoutPanelLeft className="h-5 w-5" /> */}
+        Unislid
       </button>
 
       <nav className="flex w-full flex-col items-center gap-1 px-2" aria-label="Main navigation">
@@ -137,6 +140,7 @@ const DashboardSidebar = () => {
         <div className="mt-2 flex h-9 w-9 items-center justify-center rounded-full bg-amber-300 text-xs font-bold text-slate-900 ring-2 ring-white">
           {loading ? "..." : initials}
         </div>
+        
       </div>
     </aside>
   );
