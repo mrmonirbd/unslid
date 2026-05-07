@@ -21,7 +21,6 @@ export interface CompiledLayout {
  * Compiles a layout code string into a usable React component
  */
 export function compileCustomLayout(layoutCode: string): CompiledLayout | null {
-    console.log('compileCustomLayout called');
     try {
         // Clean up imports that we'll provide ourselves
         const cleanCode = layoutCode
@@ -126,7 +125,6 @@ export function compileCustomLayout(layoutCode: string): CompiledLayout | null {
         return null;
     }
 }
-
 
 
 

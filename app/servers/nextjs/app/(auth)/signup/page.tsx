@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/auth/client";
 import { trackEvent } from "@/components/GoogleAnalytics";
 
 // Geo region detection and mapping
@@ -34,9 +34,7 @@ export default function SignupPage() {
   const LEGAL_DOMAIN = process.env.NEXT_PUBLIC_LEGAL_DOMAIN ?? "https://yourcompany.com";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-
-  const supabase = createClient();
+  const authClient = createClient();
 
   const handleDetailsSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +68,7 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signUp({
+    const { error } = await authClient.auth.signUp({
       email,
       password,
       options: {
@@ -81,7 +79,6 @@ export default function SignupPage() {
           utm_medium: utmMedium,
           utm_campaign: utmCampaign,
         },
-        emailRedirectTo: `${window.location.origin}/api/auth/callback`,
       },
     });
 
@@ -92,33 +89,10 @@ export default function SignupPage() {
     }
 
     trackEvent("sign_up", { method: "email", utm_source: utmSource, utm_medium: utmMedium, utm_campaign: utmCampaign });
-    router.push("/dashboard");
+    router.push("/login?message=account_created");
     router.refresh();
     setLoading(false);
   };
-
-  if (success) {
-    return (
-      <div className="bg-slate-800/50 backdrop-blur border border-slate-700/50 rounded-2xl p-8 shadow-2xl text-center">
-        <div className="w-14 h-14 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5">
-            <path d="M20 6L9 17l-5-5" />
-          </svg>
-        </div>
-        <h2 className="text-xl font-bold text-white mb-2">Check your email</h2>
-        <p className="text-slate-400 text-sm">
-          We&apos;ve sent a confirmation link to <span className="text-white font-medium">{email}</span>.
-          Click the link to activate your account.
-        </p>
-        <Link
-          href="/login"
-          className="inline-block mt-6 text-indigo-400 hover:text-indigo-300 text-sm font-medium transition"
-        >
-          Back to login
-        </Link>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-slate-800/50 backdrop-blur border border-slate-700/50 rounded-2xl p-8 shadow-2xl">

@@ -1,5 +1,3 @@
-import asyncio
-import base64
 import hashlib
 import hmac
 import os
@@ -7,7 +5,6 @@ import secrets
 from typing import Optional
 from datetime import datetime, timedelta, timezone
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
@@ -20,21 +17,9 @@ from models.sql.user import UserModel
 security = HTTPBearer(auto_error=False)
 AUTH_ROUTER = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 JWT_SECRET = os.getenv("SECRET_KEY") or os.getenv("JWT_SECRET") or "change-me-in-production"
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_HOURS = int(os.getenv("JWT_EXPIRE_HOURS", "168"))
-
-# HS256 fallback key (older Supabase projects) — base64-decoded if possible
-_raw_secret = os.getenv("SUPABASE_JWT_SECRET", "")
-try:
-    _hs256_key: bytes | str = base64.b64decode(_raw_secret)
-except Exception:
-    _hs256_key = _raw_secret
-
-# ES256 JWKS cache (newer Supabase projects use asymmetric EC signing)
-_jwks_keys: list[dict] = []
-_jwks_lock = asyncio.Lock()
 
 
 class SignupRequest(BaseModel):
@@ -102,24 +87,6 @@ def _user_payload(user: UserModel) -> dict:
     }
 
 
-async def _get_jwks() -> list[dict]:
-    """Fetch and cache Supabase's JWKS public keys (used for ES256 verification)."""
-    global _jwks_keys
-    if _jwks_keys:
-        return _jwks_keys
-    async with _jwks_lock:
-        if _jwks_keys:
-            return _jwks_keys
-        try:
-            url = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
-            async with httpx.AsyncClient(timeout=5) as client:
-                r = await client.get(url)
-                _jwks_keys = r.json().get("keys", [])
-        except Exception:
-            pass
-    return _jwks_keys
-
-
 def _try_decode(token: str, key, algorithms: list[str]) -> Optional[dict]:
     try:
         return jwt.decode(
@@ -130,22 +97,10 @@ def _try_decode(token: str, key, algorithms: list[str]) -> Optional[dict]:
 
 
 async def _decode_token(token: str) -> dict:
-    """Decode local JWT first; keep Supabase JWT fallback for old sessions during migration."""
+    """Decode the app's local JWT."""
     local_result = _try_decode(token, JWT_SECRET, [JWT_ALGORITHM])
     if local_result is not None:
         return local_result
-
-    """Try ES256 (JWKS) first, then HS256 fallback."""
-    # 1. ES256 — fetch public keys from Supabase JWKS endpoint
-    for key in await _get_jwks():
-        result = _try_decode(token, key, ["ES256"])
-        if result is not None:
-            return result
-
-    # 2. HS256 — older Supabase or self-hosted
-    result = _try_decode(token, _hs256_key, ["HS256"])
-    if result is not None:
-        return result
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -166,19 +121,15 @@ async def get_current_user(
         )
 
     payload = await _decode_token(credentials.credentials)
-    supabase_user_id: str = payload.get("sub", "")
+    user_subject: str = payload.get("sub", "")
 
-    if not supabase_user_id:
+    if not user_subject:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token: missing user ID",
         )
 
-    # Enforce email verification — Supabase sets email_confirmed_at when confirmed
-    email_confirmed = (
-        payload.get("email_confirmed_at")
-        or payload.get("user_metadata", {}).get("email_verified")
-    )
+    email_confirmed = payload.get("user_metadata", {}).get("email_verified")
     environment = os.getenv("ENVIRONMENT", "development")
     if environment == "production" and not email_confirmed:
         raise HTTPException(
@@ -186,14 +137,14 @@ async def get_current_user(
             detail="Please verify your email address before continuing. Check your inbox for a confirmation link.",
         )
 
-    user = await UserModel.get_by_supabase_id(session, supabase_user_id)
+    user = await UserModel.get_by_supabase_id(session, user_subject)
 
     if not user:
         # First time — auto-provision user record from JWT claims
         user_meta = payload.get("user_metadata", {})
         app_meta = payload.get("app_metadata", {})
         user = UserModel(
-            supabase_id=supabase_user_id,
+            supabase_id=user_subject,
             email=payload.get("email", ""),
             full_name=user_meta.get("full_name", ""),
             storage_region=user_meta.get("storage_region", "eu"),

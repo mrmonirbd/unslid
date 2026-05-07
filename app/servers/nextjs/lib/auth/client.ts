@@ -28,7 +28,7 @@ function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
 
-async function authRequest(path: string, body: unknown) {
+async function authRequest(path: string, body: unknown, storeSession = true) {
   const res = await fetch(`/api/v1/auth/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -38,7 +38,7 @@ async function authRequest(path: string, body: unknown) {
   if (!res.ok) {
     return { data: null, error: { message: data.detail ?? "Authentication failed" } };
   }
-  if (data.access_token) setToken(data.access_token);
+  if (storeSession && data.access_token) setToken(data.access_token);
   return { data, error: null };
 }
 
@@ -100,15 +100,19 @@ export function createClient() {
         options?: { data?: Record<string, unknown>; emailRedirectTo?: string };
       }) {
         const metadata = options?.data ?? {};
-        return authRequest("signup", {
-          email,
-          password,
-          full_name: metadata.full_name ?? "",
-          storage_region: metadata.storage_region ?? "eu",
-          utm_source: metadata.utm_source,
-          utm_medium: metadata.utm_medium,
-          utm_campaign: metadata.utm_campaign,
-        });
+        return authRequest(
+          "signup",
+          {
+            email,
+            password,
+            full_name: metadata.full_name ?? "",
+            storage_region: metadata.storage_region ?? "eu",
+            utm_source: metadata.utm_source,
+            utm_medium: metadata.utm_medium,
+            utm_campaign: metadata.utm_campaign,
+          },
+          false
+        );
       },
       async signOut(): AuthResponse<null> {
         clearToken();

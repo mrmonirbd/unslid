@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { useUser } from "@/app/hooks/useUser";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/auth/client";
 import { Eye, EyeOff, Upload, Palette, Bell } from "lucide-react";
 
 const GOOGLE_FONTS = [
@@ -88,8 +88,8 @@ export default function AccountSettingsPage() {
     }
 
     setPwSaving(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    const authClient = createClient();
+    const { error } = await authClient.auth.updateUser({ password: newPassword });
     setPwSaving(false);
 
     if (error) {
@@ -128,7 +128,7 @@ export default function AccountSettingsPage() {
       const res = await fetch("/api/v1/account/brand-kit/logo", {
         method: "POST",
         body: formData,
-        headers: { Authorization: `Bearer ${(await (await import("@/lib/supabase/client")).createClient().auth.getSession()).data.session?.access_token}` },
+        headers: { Authorization: `Bearer ${(await (await import("@/lib/auth/client")).createClient().auth.getSession()).data.session?.access_token}` },
       });
       const data = await res.json();
       if (data.logo_url) setBrandKit((prev) => ({ ...prev, logo_url: data.logo_url }));

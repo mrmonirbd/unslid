@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Real-time collaboration hook using Supabase Realtime.
+ * Real-time collaboration hook using local realtime adapter.
  *
  * - Broadcasts slide edits to other users on the same presentation channel.
  * - Receives remote edits and applies them via Redux `updateSlide`.
@@ -12,7 +12,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { updateSlide } from "@/store/slices/presentationGeneration";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/auth/client";
 
 export interface PresenceEntry {
   user_id: string;
@@ -50,10 +50,10 @@ export function useCollaboration(
 
   useEffect(() => {
     isMounted.current = true;
-    const supabase = createClient();
+    const authClient = createClient();
     const channelName = `presentation:${presentationId}`;
 
-    const channel = supabase.channel(channelName, {
+    const channel = authClient.channel(channelName, {
       config: { presence: { key: "users" }, broadcast: { self: false } },
     });
     channelRef.current = channel as any;
@@ -76,7 +76,7 @@ export function useCollaboration(
       .subscribe(async (status) => {
         if (status !== "SUBSCRIBED") return;
         // Track our own presence
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await authClient.auth.getUser();
         if (user && isMounted.current) {
           setMyUserId(user.id);
           await channel.track({
@@ -91,7 +91,7 @@ export function useCollaboration(
 
     return () => {
       isMounted.current = false;
-      supabase.removeChannel(channel);
+      authClient.removeChannel(channel);
     };
   }, [presentationId]);
 

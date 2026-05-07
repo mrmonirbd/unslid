@@ -1,16 +1,16 @@
 /**
  * Authenticated API client.
- * Reads the Supabase session token and adds it as Bearer auth to every request.
+ * Reads the local auth session token and adds it as Bearer auth to every request.
  */
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/auth/client";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function getToken(): Promise<string | null> {
-  const supabase = createClient();
+  const authClient = createClient();
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await authClient.auth.getSession();
   return session?.access_token ?? null;
 }
 

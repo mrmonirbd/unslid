@@ -226,7 +226,7 @@ export default function AdminTemplatesPage() {
   const handleUpload = async () => {
     if (!uploadName.trim() || !uploadFile) { alert("Name and file are required."); return; }
     setUploading(true);
-    setUploadStatus("Uploading PPTX file...");
+    setUploadStatus("Uploading PowerPoint file...");
     try {
       const fd = new FormData();
       fd.append("name", uploadName.trim());
@@ -246,7 +246,7 @@ export default function AdminTemplatesPage() {
     if (!bulkZipFile) { alert("ZIP file is required."); return; }
     setBulkUploading(true);
     setBulkResult(null);
-    setBulkStatus("Uploading ZIP and importing PPTX files...");
+    setBulkStatus("Uploading ZIP and importing PowerPoint files...");
     try {
       const fd = new FormData();
       fd.append("description", bulkDesc.trim());
@@ -286,7 +286,7 @@ export default function AdminTemplatesPage() {
         <LayoutTemplate className="w-5 h-5 text-indigo-500" />
         <div>
           <h1 className="font-bold text-slate-800 text-lg leading-none">Imported Templates</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Upload PPTX files, generate thumbnails, and convert them into HTML layouts</p>
+          <p className="text-xs text-slate-400 mt-0.5">Upload PowerPoint files, generate thumbnails, and convert them into HTML layouts</p>
         </div>
       </div>
 
@@ -341,10 +341,10 @@ export default function AdminTemplatesPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">.pptx file *</label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">.ppt or .pptx file *</label>
                     <input
                       type="file"
-                      accept=".pptx"
+                      accept=".ppt,.pptx"
                       onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
                       className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700"
                     />
@@ -415,7 +415,7 @@ export default function AdminTemplatesPage() {
                       onChange={(e) => setBulkZipFile(e.target.files?.[0] ?? null)}
                       className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700"
                     />
-                    <p className="text-[10px] text-slate-400 mt-1">Max 250 MB ZIP · up to 100 PPTX files · names come from filenames</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Max 250 MB ZIP · up to 100 PowerPoint files · names come from filenames</p>
                   </div>
                   <button
                     onClick={handleBulkImport}
@@ -436,7 +436,7 @@ export default function AdminTemplatesPage() {
                   {bulkResult && (
                     <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
                       <p className="font-semibold text-slate-700">
-                        Imported {bulkResult.summary.imported} of {bulkResult.summary.total_pptx} PPTX files
+                        Imported {bulkResult.summary.imported} of {bulkResult.summary.total_pptx} PowerPoint files
                       </p>
                       {(bulkResult.summary.skipped > 0 || bulkResult.summary.failed > 0) && (
                         <p className="mt-1">
@@ -454,7 +454,7 @@ export default function AdminTemplatesPage() {
               <div className="bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center py-20 text-slate-400">
                 <FileDown className="w-12 h-12 mb-3 text-slate-300" />
                 <p className="text-sm font-medium">No designer templates yet</p>
-                <p className="text-xs mt-1">Upload a .pptx file above to get started</p>
+                <p className="text-xs mt-1">Upload a .ppt or .pptx file above to get started</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

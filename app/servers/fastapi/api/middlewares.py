@@ -1,13 +1,11 @@
 import logging
 
 from fastapi import Request
-from jose import JWTError, jwt
 from sqlmodel import select
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from models.sql.user import UserModel
 from models.sql.user_ai_preferences import UserAIPreferences
-from models.sql.plan_ai_config import PlanAIConfig
 from services.database import async_session_maker
 from services.plan_ai_config_service import build_plan_context_dict, get_plan_ai_config
 from utils.get_env import get_can_change_keys_env
@@ -23,13 +21,13 @@ logger = logging.getLogger(__name__)
 
 
 async def _extract_user_subject(request: Request) -> str | None:
-    """Extract local/Supabase-compatible user subject from JWT.
+    """Extract local user subject from JWT.
 
     Reads the token from (in priority order):
       1. Authorization: Bearer <token>  header  (normal fetch / XHR)
       2. ?token=<token>                 query param (EventSource — can't send headers)
     """
-    from api.auth import _decode_token, _get_jwks  # noqa: avoid circular at module level
+    from api.auth import _decode_token  # noqa: avoid circular at module level
 
     token: str | None = None
 
@@ -44,7 +42,6 @@ async def _extract_user_subject(request: Request) -> str | None:
         return None
 
     try:
-        await _get_jwks()
         payload = await _decode_token(token)
         return payload.get("sub")
     except Exception:
@@ -54,7 +51,7 @@ async def _extract_user_subject(request: Request) -> str | None:
 class PlanAIConfigMiddleware(BaseHTTPMiddleware):
     """
     Per-request middleware that:
-    1. Reads the caller's Supabase JWT (if present)
+    1. Reads the caller's local auth token (if present)
     2. Looks up their plan in the DB
     3. Loads the admin-configured AI model for that plan
     4. Sets it in a context variable so get_model() / get_llm_provider()

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, UserProfile } from "@/lib/api";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/auth/client";
 
 export function useUser() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -23,7 +23,7 @@ export function useUser() {
 }
 
 export async function signOut() {
-  const supabase = createClient();
-  await supabase.auth.signOut();
+  const authClient = createClient();
+  await authClient.auth.signOut();
   window.location.href = "/login";
 }
