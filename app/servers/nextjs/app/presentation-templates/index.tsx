@@ -366,7 +366,7 @@ export const templates: TemplateLayoutsWithSettings[] = [
     ...megaTemplateGroups,
     {
         id: "mega",
-        name: "Mega 202",
+        name: "Mega 203",
         description: megaSettings.description,
         settings: megaSettings as TemplateGroupSettings,
         layouts: megaTemplates,
