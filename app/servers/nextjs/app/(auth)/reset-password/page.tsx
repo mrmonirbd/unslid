@@ -40,19 +40,19 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="bg-slate-800/50 backdrop-blur border border-slate-700/50 rounded-2xl p-8 shadow-2xl">
+    <div className="rounded-2xl border border-violet-100 bg-white/95 p-8 shadow-[0_18px_50px_rgba(124,58,237,0.12)] backdrop-blur">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white mb-1">Set new password</h1>
-        <p className="text-slate-400 text-sm">Choose a strong password for your account.</p>
+        <h1 className="text-2xl font-bold text-slate-950 mb-1">Set new password</h1>
+        <p className="text-slate-600 text-sm">Choose a strong password for your account.</p>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">{error}</div>
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">New password</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">New password</label>
           <input
             type="password"
             value={password}
@@ -60,31 +60,31 @@ export default function ResetPasswordPage() {
             required
             placeholder="Minimum 8 characters"
             minLength={8}
-            className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+            className="w-full px-4 py-2.5 bg-white border border-violet-200 rounded-xl text-slate-950 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-violet-100 focus:border-violet-300 transition"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">Confirm password</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Confirm password</label>
           <input
             type="password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required
             placeholder="Repeat your password"
-            className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+            className="w-full px-4 py-2.5 bg-white border border-violet-200 rounded-xl text-slate-950 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-violet-100 focus:border-violet-300 transition"
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition"
+          className="w-full py-2.5 bg-slate-950 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition"
         >
           {loading ? "Updating..." : "Update password"}
         </button>
       </form>
 
-      <p className="text-center text-slate-400 text-sm mt-6">
-        <Link href="/login" className="text-indigo-400 hover:text-indigo-300 font-medium transition">Back to login</Link>
+      <p className="text-center text-slate-600 text-sm mt-6">
+        <Link href="/login" className="text-violet-700 hover:text-violet-600 font-medium transition">Back to login</Link>
       </p>
     </div>
   );
