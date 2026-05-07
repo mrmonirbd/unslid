@@ -55,11 +55,55 @@ interface BillingStatusExtended extends BillingStatus {
   subscription_ends_at?: string | null;
 }
 
+type PlanPricing = NonNullable<BillingStatusExtended["plan_pricing"]>;
+
 const PLAN_LABELS: Record<string, string> = { free: "Free", pro: "Pro", team: "Team" };
 const PLAN_COLORS: Record<string, { border: string; button: string; badge: string }> = {
   free: { border: "border-slate-200", button: "bg-slate-700 hover:bg-slate-600", badge: "bg-slate-100 text-slate-700" },
   pro:  { border: "border-indigo-300", button: "bg-indigo-600 hover:bg-indigo-500", badge: "bg-indigo-100 text-indigo-700" },
   team: { border: "border-purple-300", button: "bg-purple-600 hover:bg-purple-500", badge: "bg-purple-100 text-purple-700" },
+};
+
+const DEFAULT_PLAN_PRICING: PlanPricing = {
+  free: {
+    price_monthly: 0,
+    price_annual: 0,
+    currency: "USD",
+    stripe_price_id_monthly: "",
+    stripe_price_id_annual: "",
+    features: ["5 presentations / month", "1 concurrent generation", "PDF & PPTX export", "Community support"],
+  },
+  pro: {
+    price_monthly: 19,
+    price_annual: 190,
+    currency: "USD",
+    stripe_price_id_monthly: "",
+    stripe_price_id_annual: "",
+    features: ["Unlimited presentations", "Premium templates", "PDF & PPTX export", "Priority support"],
+  },
+  team: {
+    price_monthly: 49,
+    price_annual: 490,
+    currency: "USD",
+    stripe_price_id_monthly: "",
+    stripe_price_id_annual: "",
+    features: ["Everything in Pro", "Team workspace", "Shared template access", "Dedicated support"],
+  },
+};
+
+const FALLBACK_BILLING_STATUS: BillingStatusExtended = {
+  plan: "free",
+  storage_region: "",
+  storage_used_bytes: 0,
+  usage: {
+    active_jobs: 0,
+    concurrency_limit: 1,
+    presentations_this_month: 0,
+    monthly_limit: 5,
+  },
+  prices: {},
+  has_billing: false,
+  plan_pricing: DEFAULT_PLAN_PRICING,
 };
 
 export default function BillingPage() {
@@ -75,17 +119,36 @@ export default function BillingPage() {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [billingError, setBillingError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.get<BillingStatusExtended>("/api/v1/billing/status").then((s) => {
-      setStatus(s);
-      if (s.has_billing) {
-        api.get<Invoice[]>("/api/v1/billing/invoices").then(setInvoices).catch(() => {});
-        api.get<PaymentMethod | null>("/api/v1/billing/payment-method").then((pm) => {
-          if (pm) setPaymentMethod(pm);
-        }).catch(() => {});
-      }
-    }).finally(() => setLoading(false));
+    let mounted = true;
+
+    api.get<BillingStatusExtended>("/api/v1/billing/status")
+      .then((s) => {
+        if (!mounted) return;
+        setStatus({ ...s, plan_pricing: s.plan_pricing ?? DEFAULT_PLAN_PRICING });
+        if (s.has_billing) {
+          api.get<Invoice[]>("/api/v1/billing/invoices").then((rows) => {
+            if (mounted) setInvoices(rows);
+          }).catch(() => {});
+          api.get<PaymentMethod | null>("/api/v1/billing/payment-method").then((pm) => {
+            if (mounted && pm) setPaymentMethod(pm);
+          }).catch(() => {});
+        }
+      })
+      .catch((error: any) => {
+        if (!mounted) return;
+        setBillingError(error?.message ?? "Billing is unavailable right now.");
+        setStatus(FALLBACK_BILLING_STATUS);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const handleTrialCheckout = async () => {
@@ -147,12 +210,18 @@ export default function BillingPage() {
 
   if (loading) return <div className="p-8 text-slate-500 text-sm">Loading…</div>;
 
-  const pricing = status?.plan_pricing;
+  const pricing = status?.plan_pricing ?? DEFAULT_PLAN_PRICING;
   const currentPlan = status?.plan ?? "free";
 
   return (
     <div className="max-w-3xl mx-auto px-8 py-10 space-y-8">
       <h1 className="text-2xl font-bold text-slate-900">Billing</h1>
+
+      {billingError && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
+          Billing details could not be loaded. You can still review the available plans, but checkout may need billing setup first.
+        </div>
+      )}
 
       {trialSuccess && status?.trial_days_remaining != null && (
         <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl text-amber-800 text-sm font-medium flex items-center gap-3">

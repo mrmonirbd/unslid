@@ -17,7 +17,7 @@ import {
   getCustomTemplateDetails,
   useCustomTemplateDetails,
 } from "@/app/hooks/useCustomTemplates";
-import { templates as templateGroups, getTemplatesByTemplateName } from "@/app/presentation-templates";
+import { getTemplateGroupByRouteId, getTemplatesByTemplateName } from "@/app/presentation-templates";
 import { api } from "@/lib/api";
 import { useUser } from "@/app/hooks/useUser";
 import { extractElementPptxModel } from "@/utils/pptx-extractor-client";
@@ -1090,6 +1090,8 @@ const GroupLayoutPreview = () => {
   // Check if this is a custom template
   const isCustom = templateParams.startsWith("custom-");
   const isDesigner = templateParams.startsWith("designer-");
+  const resolvedStaticGroup = !isCustom && !isDesigner ? getTemplateGroupByRouteId(templateParams) : undefined;
+  const resolvedStaticTemplateId = resolvedStaticGroup?.id ?? templateParams;
   const customTemplateId = isCustom ? templateParams.split("custom-")[1] : null;
   const designerTemplateId = isDesigner ? Number(templateParams.split("designer-")[1]) : null;
   const shouldShowExcelPreview = designerTemplateId === 18;
@@ -1106,7 +1108,7 @@ const GroupLayoutPreview = () => {
   // Fetch static templates if not custom
   const staticTemplates = !isCustom && !isDesigner ? getTemplatesByTemplateName(templateParams) : [];
 
-  const staticGroup = !isCustom && !isDesigner ? templateGroups.find((g: { id: string }) => g.id === templateParams) : null;
+  const staticGroup = !isCustom && !isDesigner ? resolvedStaticGroup ?? null : null;
 
   // Fetch custom template details if custom
   const {
@@ -1126,6 +1128,12 @@ const GroupLayoutPreview = () => {
       document.head.appendChild(script);
     }
   }, [templateParams]);
+
+  useEffect(() => {
+    if (!isCustom && !isDesigner && staticGroup?.slug && templateParams === staticGroup.id) {
+      router.replace(`/template-preview/${staticGroup.slug}`);
+    }
+  }, [isCustom, isDesigner, router, staticGroup?.id, staticGroup?.slug, templateParams]);
 
   useEffect(() => {
     if (!isDesigner || !designerTemplateId) return;
@@ -1374,11 +1382,11 @@ const GroupLayoutPreview = () => {
           <div className="mx-auto w-full max-w-[1440px] space-y-12">
             {staticTemplates.map((template: any, index: number) => {
               const LayoutComponent = template.component;
-              const previewTargetId = `${templateParams}-static-preview-${index}`;
+              const previewTargetId = `${resolvedStaticTemplateId}-static-preview-${index}`;
 
               return (
                 <Card
-                  key={`${templateParams}-${template.layoutId}-${index}`}
+                  key={`${resolvedStaticTemplateId}-${template.layoutId}-${index}`}
                   id={template.layoutId}
                   className="overflow-hidden shadow-md"
                 >
@@ -1408,14 +1416,14 @@ const GroupLayoutPreview = () => {
                       storageKey={[
                         "static-template-edits",
                         user?.id || user?.email || "guest",
-                        templateParams,
+                        resolvedStaticTemplateId,
                         template.layoutId,
                       ].join(":")}
-                      editorId={`${templateParams}-${template.layoutId}-${index}`}
+                      editorId={`${resolvedStaticTemplateId}-${template.layoutId}-${index}`}
                       onPanelStateChange={setStaticEditorPanelState}
                       savedTemplateMeta={{
                         userKey: String(user?.id || user?.email || "guest"),
-                        templateId: templateParams,
+                        templateId: resolvedStaticTemplateId,
                         name: resolvedTemplateName,
                         description: templateDescription,
                         layoutCount,

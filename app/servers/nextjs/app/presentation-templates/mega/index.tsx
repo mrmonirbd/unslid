@@ -1264,6 +1264,18 @@ const configs: MegaConfig[] = [...featuredConfigs, ...baseConfigs, ...expansionC
 
 type PagePlan = { suffix: string; name: string; kind: MegaKind; description: string };
 
+const slugifyTemplateName = (name: string, index: number) => {
+  const slug = name
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 72)
+    .replace(/-+$/g, "");
+
+  return `${slug || "template"}-t${String(index + 1).padStart(3, "0")}`;
+};
+
 const pagePlanPresets: PagePlan[][] = [
   [
     { suffix: "cover", name: "Cover", kind: "hero", description: "Opening title slide with a strong visual promise." },
@@ -1536,6 +1548,7 @@ export const megaTemplateGroups: TemplateLayoutsWithSettings[] = configs.map((cf
   const pagePlans = getPagePlans(index);
   return {
     id: `mega-${String(index + 1).padStart(3, "0")}`,
+    slug: slugifyTemplateName(cfg.name, index),
     name: cfg.name,
     description: `${cfg.description} Includes ${pagePlans.length} ready-made pages.`,
     settings: {

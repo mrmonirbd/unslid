@@ -6,7 +6,7 @@ import { ExternalLink, Loader2, Plus } from "lucide-react";
 
 import { templates } from "@/app/presentation-templates";
 import type { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
-import { TemplateWithData } from "@/app/presentation-templates/utils";
+import { getTemplateRouteId, TemplateWithData } from "@/app/presentation-templates/utils";
 import {
   useCustomTemplateSummaries,
   useCustomTemplatePreview,
@@ -138,7 +138,7 @@ const LayoutPreview = () => {
                 <Card
                   key={template.id}
                   className="cursor-pointer hover:shadow-lg transition-all duration-200 group overflow-hidden"
-                  onClick={() => router.push(`/template-preview/${template.id}`)}
+                  onClick={() => router.push(`/template-preview/${getTemplateRouteId(template)}`)}
                 >
                   <div className="p-5">
                     <div className="flex items-center justify-between mb-2">

@@ -433,12 +433,16 @@ export const templates: TemplateLayoutsWithSettings[] = [
 
 // Helper to get templates by group ID
 export function getTemplatesByTemplateName(templateId: string): TemplateWithData[] {
-    const template = templates.find((t) => t.id === templateId);
+    const template = getTemplateGroupByRouteId(templateId);
     return template?.layouts || [];
 }
 
+export function getTemplateGroupByRouteId(templateId: string): TemplateLayoutsWithSettings | undefined {
+    return templates.find((t) => t.id === templateId || t.slug === templateId);
+}
+
 export function getSchemaByTemplateId(templateId: string): any {
-    const template = templates.find((t) => t.id === templateId);
+    const template = getTemplateGroupByRouteId(templateId);
     return template?.layouts.map(t => {
         return {
             id: t.layoutId,
@@ -449,7 +453,7 @@ export function getSchemaByTemplateId(templateId: string): any {
     }) || {};
 }
 export function getSettingsByTemplateId(templateId: string): TemplateGroupSettings | undefined {
-    const template = templates.find((t) => t.id === templateId);
+    const template = getTemplateGroupByRouteId(templateId);
     return template?.settings || undefined;
 }
 // Helper to get template by layout ID

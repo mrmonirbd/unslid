@@ -84,8 +84,13 @@ export interface TemplateGroupSettings {
 // Template with settings
 export interface TemplateLayoutsWithSettings {
     id: string;
+    slug?: string;
     name: string;
     description: string;
     settings: TemplateGroupSettings;
     layouts: TemplateWithData[];
+}
+
+export function getTemplateRouteId(template: TemplateLayoutsWithSettings): string {
+    return template.slug || template.id;
 }
