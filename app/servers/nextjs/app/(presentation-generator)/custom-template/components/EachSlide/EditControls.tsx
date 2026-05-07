@@ -3,7 +3,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, Eraser, RotateCcw, SendHorizontal, X } from "lucide-react";
+import { Check, Pencil, Eraser, RotateCcw, SendHorizontal, X } from "lucide-react";
 import { EditControlsProps } from "../../types";
 
 export const EditControls: React.FC<EditControlsProps> = ({
@@ -20,6 +20,7 @@ export const EditControls: React.FC<EditControlsProps> = ({
   onStrokeColorChange,
   onEraserModeChange,
   onClearCanvas,
+  onDoneTextEdit,
 }) => {
   const colors = [
     "#000000",
@@ -116,15 +117,27 @@ export const EditControls: React.FC<EditControlsProps> = ({
           </Button>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          className="flex items-center gap-1"
-        >
-          <X size={14} />
-          Cancel
-        </Button>
+        <div className="flex items-center gap-2">
+          {onDoneTextEdit && (
+            <Button
+              size="sm"
+              onClick={onDoneTextEdit}
+              className="flex items-center gap-1 bg-green-600 hover:bg-green-700"
+            >
+              <Check size={14} />
+              Done
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onCancel}
+            className="flex items-center gap-1"
+          >
+            <X size={14} />
+            Cancel
+          </Button>
+        </div>
       </div>
 
       {/* Prompt Section */}

@@ -176,7 +176,7 @@ def _abs_app_data_path(relative_path: str) -> Path:
 
 def _editable_slide_html(slide: dict) -> str:
     slide_number = slide.get("slide_number") or 1
-    background_url = slide.get("background_thumbnail_url") or slide.get("thumbnail_url") or ""
+    background_url = slide.get("thumbnail_url") or slide.get("background_thumbnail_url") or ""
     text_nodes = []
     for idx, box in enumerate(slide.get("text_boxes") or [], 1):
         text = html.escape(box.get("text") or "").replace("\n", "<br />")
@@ -194,8 +194,8 @@ def _editable_slide_html(slide: dict) -> str:
 
     return f'''
 <div class="imported-slide-canvas relative h-full w-full overflow-hidden bg-white" style="position:relative;width:100%;height:100%;aspect-ratio:16/9;background:#fff;container-type:size;">
-  <img src="{html.escape(background_url, quote=True)}" alt="Imported slide {slide_number} background" class="absolute inset-0 h-full w-full object-contain" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;" draggable="false" />
-  <div class="imported-editable-layer" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:auto;">
+  <img src="{html.escape(background_url, quote=True)}" alt="Imported slide {slide_number} background" class="absolute inset-0 h-full w-full object-fill" style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill;" draggable="false" />
+  <div class="imported-editable-layer" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0;">
 {''.join(text_nodes)}
   </div>
 </div>

@@ -11,7 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, func
 from utils.asset_directory_utils import get_images_directory, resolve_image_path_to_filesystem
 from services.database import get_async_session
+from api.auth import get_current_user
 from models.sql.presentation_layout_code import PresentationLayoutCodeModel
+from models.sql.user import UserModel
 from utils.get_env import get_openai_api_key_env
 from utils.plan_context import get_plan_config_value
 from .prompts import (
@@ -120,6 +122,20 @@ class TemplateCreateResponse(BaseModel):
     success: bool
     template: dict
     message: Optional[str] = None
+
+
+def _can_access_template(template: TemplateModel, user: UserModel) -> bool:
+    return bool(user.is_admin or template.user_id == user.id)
+
+
+def _template_payload(template: TemplateModel) -> dict:
+    return {
+        "id": template.id,
+        "name": template.name,
+        "description": template.description,
+        "created_at": template.created_at,
+        "user_id": template.user_id,
+    }
 
 
 class TemplateInfo(BaseModel):
@@ -673,7 +689,9 @@ async def edit_html_with_images_endpoint(
     },
 )
 async def save_layouts(
-    request: SaveLayoutsRequest, session: AsyncSession = Depends(get_async_session)
+    request: SaveLayoutsRequest,
+    current_user: UserModel = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
     Save multiple layouts for presentations.
@@ -725,6 +743,15 @@ async def save_layouts(
                 raise HTTPException(
                     status_code=400, detail=f"Layout {i+1}: layout_code cannot be empty"
                 )
+
+            template_meta = await session.get(TemplateModel, layout_data.presentation)
+            if not template_meta:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Layout {i+1}: template metadata not found",
+                )
+            if not _can_access_template(template_meta, current_user):
+                raise HTTPException(status_code=403, detail="Template access denied")
 
             # Check if layout already exists for this presentation and layout_id
             stmt = select(PresentationLayoutCodeModel).where(
@@ -788,7 +815,9 @@ async def save_layouts(
     },
 )
 async def get_layouts(
-    presentation: UUID, session: AsyncSession = Depends(get_async_session)
+    presentation: UUID,
+    current_user: UserModel = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
     Retrieve all layouts for a specific presentation.
@@ -809,6 +838,15 @@ async def get_layouts(
             raise HTTPException(
                 status_code=400, detail="Presentation ID cannot be empty"
             )
+
+        template_meta = await session.get(TemplateModel, presentation)
+        if not template_meta:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Template not found for presentation ID: {presentation}",
+            )
+        if not _can_access_template(template_meta, current_user):
+            raise HTTPException(status_code=403, detail="Template access denied")
 
         # Query layouts for the given presentation_id
         stmt = select(PresentationLayoutCodeModel).where(
@@ -843,22 +881,11 @@ async def get_layouts(
                 aggregated_fonts.update([f for f in layout.fonts if isinstance(f, str)])
         fonts_list = sorted(list(aggregated_fonts)) if aggregated_fonts else None
 
-        # Fetch template meta
-        template_meta = await session.get(TemplateModel, presentation)
-        template = None
-        if template_meta:
-            template = {
-                "id": template_meta.id,
-                "name": template_meta.name,
-                "description": template_meta.description,
-                "created_at": template_meta.created_at,
-            }
-
         return GetLayoutsResponse(
             success=True,
             layouts=layouts,
             message=f"Retrieved {len(layouts)} layout(s) for presentation {presentation}",
-            template=template,
+            template=_template_payload(template_meta),
             fonts=fonts_list,
         )
 
@@ -888,6 +915,7 @@ async def get_layouts(
     },
 )
 async def get_presentations_summary(
+    current_user: UserModel = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
@@ -908,20 +936,14 @@ async def get_presentations_summary(
         presentations = []
         for row in presentation_data:
             template_meta = await session.get(TemplateModel, row.presentation)
-            template = None
-            if template_meta:
-                template = {
-                    "id": template_meta.id,
-                    "name": template_meta.name,
-                    "description": template_meta.description,
-                    "created_at": template_meta.created_at,
-                }
+            if not template_meta or not _can_access_template(template_meta, current_user):
+                continue
             presentations.append(
                 PresentationSummary(
                     presentation_id=row.presentation,
                     layout_count=row.layout_count,
                     last_updated_at=row.last_updated_at,
-                    template=template,
+                    template=_template_payload(template_meta),
                 )
             )
 
@@ -955,6 +977,7 @@ async def get_presentations_summary(
 )
 async def create_template(
     request: TemplateCreateRequest,
+    current_user: UserModel = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ):
     try:
@@ -964,12 +987,19 @@ async def create_template(
         # Upsert template by id
         existing = await session.get(TemplateModel, request.id)
         if existing:
+            if not _can_access_template(existing, current_user):
+                raise HTTPException(status_code=403, detail="Template access denied")
             existing.name = request.name
             existing.description = request.description
+            if existing.user_id is None:
+                existing.user_id = current_user.id
         else:
             session.add(
                 TemplateModel(
-                    id=request.id, name=request.name, description=request.description
+                    id=request.id,
+                    name=request.name,
+                    description=request.description,
+                    user_id=current_user.id,
                 )
             )
         await session.commit()
@@ -978,12 +1008,7 @@ async def create_template(
         template = await session.get(TemplateModel, request.id)
         return TemplateCreateResponse(
             success=True,
-            template={
-                "id": template.id,
-                "name": template.name,
-                "description": template.description,
-                "created_at": template.created_at,
-            },
+            template=_template_payload(template),
             message="Template saved",
         )
     except HTTPException:
@@ -999,9 +1024,16 @@ async def create_template(
 @LAYOUT_MANAGEMENT_ROUTER.delete("/delete-templates/{template_id}", status_code=204)
 async def delete_template(
     template_id: UUID,
+    current_user: UserModel = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ):
     try:
+        template = await session.get(TemplateModel, template_id)
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+        if not _can_access_template(template, current_user):
+            raise HTTPException(status_code=403, detail="Template access denied")
+
         await session.execute(
             delete(TemplateModel).where(TemplateModel.id == template_id)
         )
@@ -1011,5 +1043,8 @@ async def delete_template(
             )
         )
         await session.commit()
+    except HTTPException:
+        await session.rollback()
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete template")

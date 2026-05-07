@@ -57,18 +57,6 @@ export interface CustomTemplates {
     isCustom: true;
 }
 
-// GLOBAL CACHE
-const customTemplateDetailsCache = new Map<string, CustomTemplateDetail>();
-
-// GLOBAL IN-FLIGHT PROMISE TRACKER - prevents duplicate API calls for same ID
-const inFlightRequests = new Map<string, Promise<CustomTemplateDetail | null>>();
-
-// GLOBAL CACHE: compiled first-slide previews (we only compile the first layout)
-const customTemplateFirstSlideCache = new Map<string, CompiledLayout | null>();
-
-// GLOBAL IN-FLIGHT PROMISE TRACKER - prevents duplicate preview calls for same ID
-const inFlightFirstSlideRequests = new Map<string, Promise<CompiledLayout | null>>();
-
 function normalizeCustomTemplateId(id: string): string {
     if (!id) return id;
     return id.startsWith("custom-") ? id.slice("custom-".length) : id;
@@ -85,45 +73,23 @@ export async function getCustomTemplateFirstSlidePreview(
     const presentationId = normalizeCustomTemplateId(presentationIdOrCustomId);
     if (!presentationId) return null;
 
-    // Cache first
-    if (customTemplateFirstSlideCache.has(presentationId)) {
-        return customTemplateFirstSlideCache.get(presentationId) ?? null;
-    }
-
-    // In-flight dedupe
-    const existing = inFlightFirstSlideRequests.get(presentationId);
-    if (existing) return existing;
-
-    const fetchPromise = (async (): Promise<CompiledLayout | null> => {
-        try {
-            const data: CustomTemplateDetailResponse = await TemplateService.getCustomTemplateDetails(presentationId);
-            const firstLayout = data?.layouts?.[0];
-            if (!firstLayout?.layout_code) {
-                customTemplateFirstSlideCache.set(presentationId, null);
-                return null;
-            }
-
-            const compiled = compileCustomLayout(firstLayout.layout_code);
-            customTemplateFirstSlideCache.set(presentationId, compiled);
-            return compiled;
-        } catch (err) {
-            console.error("Error fetching first-slide preview:", err);
-            // Don't cache errors; allow retry next time.
+    try {
+        const data: CustomTemplateDetailResponse = await TemplateService.getCustomTemplateDetails(presentationId);
+        const firstLayout = data?.layouts?.[0];
+        if (!firstLayout?.layout_code) {
             return null;
-        } finally {
-            inFlightFirstSlideRequests.delete(presentationId);
         }
-    })();
-
-    inFlightFirstSlideRequests.set(presentationId, fetchPromise);
-    return fetchPromise;
+        return compileCustomLayout(firstLayout.layout_code);
+    } catch (err) {
+        console.error("Error fetching first-slide preview:", err);
+        return null;
+    }
 }
 
 
 /**
  * Standalone async function to fetch and compile custom template details
  * Can be called from hooks or regular async functions (like handleSubmit)
- * Uses global cache and in-flight request deduplication
  */
 export async function getCustomTemplateDetails(
     templateId: string,
@@ -134,72 +100,45 @@ export async function getCustomTemplateDetails(
         return null;
     }
 
-    // Check cache first
-    const cachedTemplate = customTemplateDetailsCache.get(templateId);
-    if (cachedTemplate) {
-        return cachedTemplate;
-    }
+    try {
+        const data: CustomTemplateDetailResponse = await TemplateService.getCustomTemplateDetails(templateId);
 
-    // Check if there's already an in-flight request for this ID
-    const existingRequest = inFlightRequests.get(templateId);
-    if (existingRequest) {
-        return existingRequest;
-    }
+        // Compile each layout
+        const compiledLayouts: CustomTemplateLayout[] = [];
 
-    // Create new request and track it
-    const fetchPromise = (async (): Promise<CustomTemplateDetail | null> => {
-        try {
-            const data: CustomTemplateDetailResponse = await TemplateService.getCustomTemplateDetails(templateId);
+        for (const layout of data.layouts) {
+            try {
+                const compiled = compileCustomLayout(layout.layout_code);
 
-            // Compile each layout
-            const compiledLayouts: CustomTemplateLayout[] = [];
-
-            for (const layout of data.layouts) {
-                try {
-                    const compiled = compileCustomLayout(layout.layout_code);
-
-                    if (compiled) {
-                        compiledLayouts.push({
-                            ...compiled,
-                            templateId: layout.template,
-                            rawLayoutId: layout.layout_id,
-                            rawLayoutName: layout.layout_name,
-                            layoutCode: layout.layout_code,
-                            fonts: layout.fonts,
-                        });
-                    } else {
-                        console.warn(`Failed to compile layout: ${layout.layout_name}`);
-                    }
-                } catch (compileError) {
-                    console.error(`Error compiling ${layout.layout_name}:`, compileError);
+                if (compiled) {
+                    compiledLayouts.push({
+                        ...compiled,
+                        templateId: layout.template,
+                        rawLayoutId: layout.layout_id,
+                        rawLayoutName: layout.layout_name,
+                        layoutCode: layout.layout_code,
+                        fonts: layout.fonts,
+                    });
+                } else {
+                    console.warn(`Failed to compile layout: ${layout.layout_name}`);
                 }
+            } catch (compileError) {
+                console.error(`Error compiling ${layout.layout_name}:`, compileError);
             }
-
-            const result: CustomTemplateDetail = {
-                layouts: compiledLayouts,
-                name,
-                description,
-                id: templateId,
-                template: data.template ? data.template : null,
-                fonts: data.fonts
-            };
-
-            // Cache the result
-            customTemplateDetailsCache.set(templateId, result);
-            return result;
-        } catch (err) {
-            console.error("Error fetching template details:", err);
-            throw err;
-        } finally {
-            // Clean up in-flight tracker
-            inFlightRequests.delete(templateId);
         }
-    })();
 
-    // Track this request
-    inFlightRequests.set(templateId, fetchPromise);
-
-    return fetchPromise;
+        return {
+            layouts: compiledLayouts,
+            name,
+            description,
+            id: templateId,
+            template: data.template ? data.template : null,
+            fonts: data.fonts
+        };
+    } catch (err) {
+        console.error("Error fetching template details:", err);
+        throw err;
+    }
 }
 
 
@@ -256,17 +195,12 @@ export function useCustomTemplateSummaries() {
 
 /**
  * Hook to fetch and compile custom template layouts
- * Uses global cache and in-flight request deduplication to prevent duplicate API calls
+ * Always fetches from the API because custom templates are user-scoped.
  */
 export function useCustomTemplateDetails(templateDetail: { id: string, name: string, description: string }) {
-    const [template, setTemplate] = useState<CustomTemplateDetail | null>(() => {
-
-        return templateDetail.id ? customTemplateDetailsCache.get(templateDetail.id) ?? null : null;
-    });
+    const [template, setTemplate] = useState<CustomTemplateDetail | null>(null);
     const [fonts, setFonts] = useState<string[]>([]);
-    const [loading, setLoading] = useState<boolean>(() => {
-        return templateDetail.id ? !customTemplateDetailsCache.has(templateDetail.id) : false;
-    });
+    const [loading, setLoading] = useState<boolean>(() => Boolean(templateDetail.id));
     const [error, setError] = useState<string | null>(null);
 
     const fetchTemplateDetails = useCallback(async () => {
@@ -274,93 +208,15 @@ export function useCustomTemplateDetails(templateDetail: { id: string, name: str
             return;
         }
 
-        // Check cache first - instant return if cached
-        const cachedTemplate = customTemplateDetailsCache.get(templateDetail.id);
-        if (cachedTemplate) {
-            setTemplate(cachedTemplate);
-            setFonts(cachedTemplate?.fonts ?? []);
-            setLoading(false);
-            return;
-        }
-
-        // Check if there's already an in-flight request for this ID
-        const existingRequest = inFlightRequests.get(templateDetail.id);
-        if (existingRequest) {
-            // Wait for the existing request instead of making a new one
-            setLoading(true);
-            try {
-                const result = await existingRequest;
-                if (result) {
-                    setTemplate(result);
-                    setFonts(result?.fonts ?? []);
-                }
-            } catch (err) {
-                setError(err instanceof Error ? err.message : "Unknown error");
-            } finally {
-                setLoading(false);
-            }
-            return;
-        }
-
-        // Create new request and track it
         setLoading(true);
         setError(null);
 
-        const fetchPromise = (async (): Promise<CustomTemplateDetail | null> => {
-            try {
-                const data: CustomTemplateDetailResponse = await TemplateService.getCustomTemplateDetails(templateDetail.id);
-
-                // Compile each layout
-                const compiledLayouts: CustomTemplateLayout[] = [];
-
-                for (const layout of data.layouts) {
-                    try {
-                        const compiled = compileCustomLayout(layout.layout_code);
-
-                        if (compiled) {
-                            compiledLayouts.push({
-                                ...compiled,
-                                templateId: layout.template,
-                                rawLayoutId: layout.layout_id,
-                                rawLayoutName: layout.layout_name,
-                                layoutCode: layout.layout_code,
-                                fonts: layout.fonts,
-                                layoutId: compiled?.layoutId ?? "",
-                            });
-                        } else {
-                            console.warn(`Failed to compile layout: ${layout.layout_name}`);
-                        }
-                    } catch (compileError) {
-                        console.error(`Error compiling ${layout.layout_name}:`, compileError);
-                    }
-                }
-
-                const result: CustomTemplateDetail = {
-                    layouts: compiledLayouts,
-                    name: templateDetail.name,
-                    description: templateDetail.description,
-                    id: templateDetail.id,
-                    template: data.template,
-                    fonts: data.fonts
-                };
-
-                // Cache the result
-                customTemplateDetailsCache.set(templateDetail.id, result);
-                return result;
-            } catch (err) {
-                console.error("Error fetching template details:", err);
-                throw err;
-            } finally {
-                // Clean up in-flight tracker
-                inFlightRequests.delete(templateDetail.id);
-            }
-        })();
-
-        // Track this request
-        inFlightRequests.set(templateDetail.id, fetchPromise);
-
         try {
-            const result = await fetchPromise;
+            const result = await getCustomTemplateDetails(
+                templateDetail.id,
+                templateDetail.name,
+                templateDetail.description
+            );
             if (result) {
                 setTemplate(result);
                 setFonts(result?.fonts ?? []);

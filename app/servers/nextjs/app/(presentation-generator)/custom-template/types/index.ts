@@ -6,6 +6,10 @@ export interface SlideData {
   textless_screenshot_url?: string | null;
   xml_content?: string;
   normalized_fonts?: string[];
+  slide_width_emu?: number;
+  slide_height_emu?: number;
+  slide_width_px?: number;
+  slide_height_px?: number;
 }
 
 export interface UploadedFont {
@@ -39,6 +43,7 @@ export interface EachSlideProps {
   setSlides: React.Dispatch<React.SetStateAction<ProcessedSlide[]>>;
   onSlideUpdate?: (updatedSlideData: any) => void;
   isProcessing: boolean;
+  canEditHtml?: boolean;
 }
 
 export interface DrawingCanvasProps {
@@ -69,6 +74,7 @@ export interface EditControlsProps {
   onStrokeColorChange: (color: string) => void;
   onEraserModeChange: (isEraser: boolean) => void;
   onClearCanvas: () => void;
+  onDoneTextEdit?: () => void;
 }
 
 export interface SlideActionsProps {
@@ -77,6 +83,7 @@ export interface SlideActionsProps {
   isProcessing: boolean;
   isEditMode: boolean;
   isHtmlEditMode: boolean;
+  canEditHtml?: boolean;
   onEditClick: () => void;
   onHtmlEditClick: () => void;
   onRetry: () => void;
@@ -87,6 +94,7 @@ export interface SlideContentDisplayProps {
   slide: ProcessedSlide;
   isEditMode: boolean;
   isHtmlEditMode: boolean;
+  onHtmlChange?: (html: string) => void;
   slideContentRef: React.RefObject<HTMLDivElement>;
   slideDisplayRef: React.RefObject<HTMLDivElement>;
   canvasRef: React.RefObject<HTMLCanvasElement>;

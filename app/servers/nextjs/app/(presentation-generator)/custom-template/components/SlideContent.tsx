@@ -2,7 +2,13 @@
 
 import React, { memo } from "react";
 
-const SlideContent = memo(({ slide }: { slide: any }) => {
+const SlideContent = memo(({
+  slide,
+  onHtmlChange,
+}: {
+  slide: any;
+  onHtmlChange?: (html: string) => void;
+}) => {
   const cleanHtml = slide.html
     .replace(/```html/g, "")
     .replace(/```/g, "")
@@ -11,6 +17,9 @@ const SlideContent = memo(({ slide }: { slide: any }) => {
     .replace(/html/g, "");
   return (
     <div
+      onBlur={(event) => {
+        onHtmlChange?.(event.currentTarget.innerHTML);
+      }}
       dangerouslySetInnerHTML={{
         __html: cleanHtml,
       }}

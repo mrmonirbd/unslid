@@ -39,6 +39,15 @@
     ".next-codex/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next",
+    ".next-build",
+    ".next-codex",
+    "dist",
+    "build",
+    "coverage",
+    "cypress",
+    "playwright-report",
+    "test-results"
   ]
 }

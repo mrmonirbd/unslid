@@ -3,22 +3,25 @@
 import React, { useEffect } from "react";
 import FontManager from "./components/FontManager";
 import Header from "../(dashboard)/dashboard/components/Header";
+import DashboardSidebar from "../(dashboard)/Components/DashboardSidebar";
 
 import { useCustomLayout } from "./hooks/useCustomLayout";
 import { useFontManagement } from "./hooks/useFontManagement";
 import { useFileUpload } from "./hooks/useFileUpload";
 import { useSlideProcessing } from "./hooks/useSlideProcessing";
 import { useLayoutSaving } from "./hooks/useLayoutSaving";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { FileUploadSection } from "./components/FileUploadSection";
 import { SaveLayoutButton } from "./components/SaveLayoutButton";
 import { SaveLayoutModal } from "./components/SaveLayoutModal";
 import EachSlide from "./components/EachSlide/NewEachSlide";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
+import { useUser } from "@/app/hooks/useUser";
 
 const CustomTemplatePage = () => {
   const router = useRouter();
-  const pathname = usePathname();
+  const { user } = useUser();
+  const isAdmin = !!user?.is_admin;
 
 
   // Custom hooks for different concerns
@@ -79,9 +82,11 @@ const CustomTemplatePage = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <Header />
-      <div className="max-w-[1440px] aspect-video mx-auto px-6">
+    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100">
+      <DashboardSidebar />
+      <div className="flex-1 h-screen overflow-y-auto">
+        {/* <Header /> */}
+        <div className="max-w-[1440px] aspect-video mx-auto px-6">
         {/* Header */}
         <div className="text-center space-y-2 my-6">
           <h1 className="text-4xl font-bold text-gray-900">
@@ -127,6 +132,7 @@ const CustomTemplatePage = () => {
                 isProcessing={slides.some((s) => s.processing)}
                 retrySlide={retrySlide}
                 setSlides={setSlides}
+                canEditHtml={isAdmin}
                 onSlideUpdate={(updatedSlideData) =>
                   handleSlideUpdate(index, updatedSlideData)
                 }
@@ -151,6 +157,7 @@ const CustomTemplatePage = () => {
           onSave={handleSaveTemplate}
           isSaving={isSavingLayout}
         />
+        </div>
       </div>
     </div>
   );

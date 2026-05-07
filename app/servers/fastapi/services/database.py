@@ -171,6 +171,11 @@ async def _run_safe_migrations(conn, db_url: str):
             await conn.execute(text("ALTER TABLE pptx_designer_templates ADD COLUMN html_conversion_status VARCHAR DEFAULT 'pending'"))
         if "html_conversion_error" not in pptx_cols:
             await conn.execute(text("ALTER TABLE pptx_designer_templates ADD COLUMN html_conversion_error TEXT"))
+        cols = await conn.execute(text("PRAGMA table_info(templates)"))
+        template_cols = {row[1] for row in cols.fetchall()}
+        if "user_id" not in template_cols:
+            await conn.execute(text("ALTER TABLE templates ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE SET NULL"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_templates_user_id ON templates(user_id)"))
     elif is_mysql:
         # ── presentations ────────────────────────────────────────────────────
         cols = await db_cols("presentations")
@@ -230,6 +235,12 @@ async def _run_safe_migrations(conn, db_url: str):
             await conn.execute(text("ALTER TABLE pptx_designer_templates ADD COLUMN html_conversion_status VARCHAR(32) NOT NULL DEFAULT 'pending'"))
         if "html_conversion_error" not in cols:
             await conn.execute(text("ALTER TABLE pptx_designer_templates ADD COLUMN html_conversion_error TEXT NULL"))
+
+        # ── templates ────────────────────────────────────────────────────────
+        cols = await db_cols("templates")
+        if "user_id" not in cols:
+            await conn.execute(text("ALTER TABLE templates ADD COLUMN user_id INTEGER NULL"))
+            await conn.execute(text("CREATE INDEX ix_templates_user_id ON templates(user_id)"))
     else:
         # ── presentations ────────────────────────────────────────────────────
         cols = await db_cols("presentations")
@@ -273,6 +284,14 @@ async def _run_safe_migrations(conn, db_url: str):
             await conn.execute(text(
                 "ALTER TABLE pptx_designer_templates ADD COLUMN IF NOT EXISTS html_conversion_error TEXT"
             ))
+
+        cols = await db_cols("templates")
+        if "user_id" not in cols:
+            await conn.execute(text(
+                "ALTER TABLE templates ADD COLUMN IF NOT EXISTS user_id INTEGER "
+                "REFERENCES users(id) ON DELETE SET NULL"
+            ))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_templates_user_id ON templates(user_id)"))
 
         # ── users ────────────────────────────────────────────────────────────
         cols = await db_cols("users")

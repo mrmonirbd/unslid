@@ -1,11 +1,10 @@
-import { ApiResponseHandler } from "./api-error-handler";
+import { api } from "@/lib/api";
 
 class TemplateService {
 
     static async getCustomTemplateSummaries() {
         try {
-            const response = await fetch(`/api/v1/ppt/template-management/summary`,);
-            return await ApiResponseHandler.handleResponse(response, "Failed to get custom template summaries");
+            return await api.get<any>(`/api/v1/ppt/template-management/summary`);
         } catch (error) {
             console.error("Failed to get custom template summaries", error);
             throw error;
@@ -14,8 +13,7 @@ class TemplateService {
 
     static async getCustomTemplateDetails(templateId: string) {
         try {
-            const response = await fetch(`/api/v1/ppt/template-management/get-templates/${templateId}`,);
-            return await ApiResponseHandler.handleResponse(response, "Failed to get custom template details");
+            return await api.get<any>(`/api/v1/ppt/template-management/get-templates/${templateId}`);
         } catch (error) {
             console.error("Failed to get custom template details", error);
             throw error;
@@ -24,8 +22,7 @@ class TemplateService {
 
     static async deleteCustomTemplate(presentationId: string) {
         try {
-            const response = await fetch(`/api/v1/ppt/template-management/delete-templates/${presentationId}`, { method: "DELETE" });
-            return await ApiResponseHandler.handleResponseWithResult(response, "Failed to delete custom template");
+            return await api.delete<any>(`/api/v1/ppt/template-management/delete-templates/${presentationId}`);
         } catch (error) {
             console.error("Failed to delete custom template", error);
             throw error;
