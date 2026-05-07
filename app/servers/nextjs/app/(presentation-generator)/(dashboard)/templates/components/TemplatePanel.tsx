@@ -13,11 +13,21 @@ import {
 import { CompiledLayout } from "@/app/hooks/compileLayout";
 import CreateCustomTemplate from "./CreateCustomTemplate";
 import { api, UserProfile } from "@/lib/api";
+import { useUser } from "@/app/hooks/useUser";
 
 interface TemplateTierEntry {
     template_id: string;
     name: string;
     tier: "free" | "premium";
+}
+
+interface EditedStaticTemplateSummary {
+    id: string;
+    templateId: string;
+    name: string;
+    description: string;
+    layoutCount: number;
+    updatedAt: string;
 }
 
 const CARD_CLASS =
@@ -27,6 +37,7 @@ const PREVIEW_TILE_CLASS = "relative aspect-video overflow-hidden rounded border
 const PREVIEW_SCALE_STYLE = { width: "833.33%", height: "833.33%" };
 const PREVIEW_PLACEHOLDERS = [0, 1, 2, 3];
 const TEMPLATE_SKELETONS = [0, 1, 2, 3, 4, 5, 6, 7];
+const STATIC_TEMPLATE_EDIT_INDEX_PREFIX = "static-template-edits:index:";
 const STOP_WORDS = new Set([
     "template",
     "templates",
@@ -164,6 +175,34 @@ function useTemplateTiers() {
     );
 
     return { isLocked, plan, loaded };
+}
+
+function useEditedStaticTemplates(userKey: string) {
+    const [editedTemplates, setEditedTemplates] = useState<EditedStaticTemplateSummary[]>([]);
+
+    const loadEditedTemplates = useCallback(() => {
+        if (typeof window === "undefined") return;
+        const saved = window.localStorage.getItem(`${STATIC_TEMPLATE_EDIT_INDEX_PREFIX}${userKey}`);
+        if (!saved) {
+            setEditedTemplates([]);
+            return;
+        }
+
+        try {
+            const parsed = JSON.parse(saved) as EditedStaticTemplateSummary[];
+            setEditedTemplates(Array.isArray(parsed) ? parsed : []);
+        } catch {
+            setEditedTemplates([]);
+        }
+    }, [userKey]);
+
+    useEffect(() => {
+        loadEditedTemplates();
+        window.addEventListener("focus", loadEditedTemplates);
+        return () => window.removeEventListener("focus", loadEditedTemplates);
+    }, [loadEditedTemplates]);
+
+    return editedTemplates;
 }
 
 // Component for rendering custom template card with lazy-loaded previews
