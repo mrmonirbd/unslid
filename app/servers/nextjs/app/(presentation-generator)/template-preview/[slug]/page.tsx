@@ -291,6 +291,14 @@ type StaticEditorPanelState = {
   } | null;
 };
 
+type StaticEditorSavedTemplateMeta = {
+  userKey: string;
+  templateId: string;
+  name: string;
+  description: string;
+  layoutCount: number;
+};
+
 const STATIC_EDITOR_ANIMATIONS: Record<string, string> = {
   none: "",
   fade: "staticEditorFade 800ms ease both",
@@ -298,6 +306,18 @@ const STATIC_EDITOR_ANIMATIONS: Record<string, string> = {
   zoom: "staticEditorZoom 700ms ease both",
   pulse: "staticEditorPulse 1200ms ease-in-out infinite",
 };
+
+const STATIC_TEMPLATE_EDIT_INDEX_PREFIX = "static-template-edits:index:";
+
+function saveStaticTemplateEditIndex(meta: StaticEditorSavedTemplateMeta) {
+  const indexKey = `${STATIC_TEMPLATE_EDIT_INDEX_PREFIX}${meta.userKey}`;
+  const saved = window.localStorage.getItem(indexKey);
+  const entries = saved ? JSON.parse(saved) as Array<StaticEditorSavedTemplateMeta & { id: string; updatedAt: string }> : [];
+  const id = `edited-${meta.templateId}`;
+  const nextEntry = { ...meta, id, updatedAt: new Date().toISOString() };
+  const nextEntries = [nextEntry, ...entries.filter((entry) => entry.id !== id)];
+  window.localStorage.setItem(indexKey, JSON.stringify(nextEntries));
+}
 
 const EMPTY_STATIC_EDITOR_PANEL_STATE: StaticEditorPanelState = {
   selection: null,
@@ -436,11 +456,13 @@ function StaticTemplateEditor({
   storageKey,
   editorId,
   onPanelStateChange,
+  savedTemplateMeta,
 }: {
   children: React.ReactNode;
   storageKey: string;
   editorId: string;
   onPanelStateChange: (state: StaticEditorPanelState) => void;
+  savedTemplateMeta: StaticEditorSavedTemplateMeta;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef<StaticEditableSelection | null>(null);
@@ -537,6 +559,7 @@ function StaticTemplateEditor({
     const root = rootRef.current;
     if (!root) return;
     window.localStorage.setItem(storageKey, cleanStaticEditorHtml(root));
+    saveStaticTemplateEditIndex(savedTemplateMeta);
     setSaveState("saved");
     setTimeout(() => setSaveState("idle"), 1400);
   };
@@ -1104,6 +1127,13 @@ const GroupLayoutPreview = () => {
                       ].join(":")}
                       editorId={`${templateParams}-${template.layoutId}-${index}`}
                       onPanelStateChange={setStaticEditorPanelState}
+                      savedTemplateMeta={{
+                        userKey: String(user?.id || user?.email || "guest"),
+                        templateId: templateParams,
+                        name: resolvedTemplateName,
+                        description: templateDescription,
+                        layoutCount,
+                      }}
                     >
                       <div
                         className="flex-shrink-0"
