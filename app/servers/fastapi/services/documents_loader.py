@@ -1,7 +1,7 @@
 import mimetypes
 from fastapi import HTTPException
 import os, asyncio
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, TYPE_CHECKING
 import pdfplumber
 
 from constants.documents import (
@@ -10,13 +10,16 @@ from constants.documents import (
     TEXT_MIME_TYPES,
     WORD_TYPES,
 )
-from services.docling_service import DoclingService
+if TYPE_CHECKING:
+    from services.docling_service import DoclingService
 
 
 class DocumentsLoader:
 
     def __init__(self, file_paths: List[str]):
         self._file_paths = file_paths
+
+        from services.docling_service import DoclingService
 
         self.docling_service = DoclingService()
 

@@ -90,7 +90,7 @@ const DashboardSidebar = () => {
         aria-label="Go to dashboard"
       >
         {/* <LayoutPanelLeft className="h-5 w-5" /> */}
-        Unislid
+        Unslid
       </button>
 
       <nav className="flex w-full flex-col items-center gap-1 px-2" aria-label="Main navigation">
