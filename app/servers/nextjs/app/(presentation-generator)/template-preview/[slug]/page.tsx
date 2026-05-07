@@ -4,6 +4,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, FileSpreadsheet, Home, Loader2, Minus, MoveDiagonal, Plus, Save, Trash2, Type } from "lucide-react";
+import html2canvas from "html2canvas";
 
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import TemplateService from "../../services/api/template";
@@ -86,25 +87,141 @@ function downloadBlob(blob: Blob, fileName: string) {
   URL.revokeObjectURL(blobUrl);
 }
 
-function PreviewDownloadButtons({
-  targetId,
+async function blobToUint8Array(blob: Blob) {
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+const crcTable = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i += 1) {
+    let c = i;
+    for (let k = 0; k < 8; k += 1) {
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    table[i] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32(bytes: Uint8Array) {
+  let crc = 0xffffffff;
+  for (let i = 0; i < bytes.length; i += 1) {
+    crc = crcTable[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function dosDateTime(date = new Date()) {
+  const time = (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2);
+  const dosDate = ((date.getFullYear() - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
+  return { time, date: dosDate };
+}
+
+function writeUint16(target: number[], value: number) {
+  target.push(value & 0xff, (value >>> 8) & 0xff);
+}
+
+function writeUint32(target: number[], value: number) {
+  target.push(value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff);
+}
+
+async function createZipBlob(files: Array<{ name: string; blob: Blob }>) {
+  const encoder = new TextEncoder();
+  const localParts: Uint8Array[] = [];
+  const centralParts: Uint8Array[] = [];
+  let offset = 0;
+  const { time, date } = dosDateTime();
+
+  for (const file of files) {
+    const nameBytes = encoder.encode(file.name);
+    const data = await blobToUint8Array(file.blob);
+    const crc = crc32(data);
+
+    const local: number[] = [];
+    writeUint32(local, 0x04034b50);
+    writeUint16(local, 20);
+    writeUint16(local, 0);
+    writeUint16(local, 0);
+    writeUint16(local, time);
+    writeUint16(local, date);
+    writeUint32(local, crc);
+    writeUint32(local, data.length);
+    writeUint32(local, data.length);
+    writeUint16(local, nameBytes.length);
+    writeUint16(local, 0);
+    localParts.push(new Uint8Array(local), nameBytes, data);
+
+    const central: number[] = [];
+    writeUint32(central, 0x02014b50);
+    writeUint16(central, 20);
+    writeUint16(central, 20);
+    writeUint16(central, 0);
+    writeUint16(central, 0);
+    writeUint16(central, time);
+    writeUint16(central, date);
+    writeUint32(central, crc);
+    writeUint32(central, data.length);
+    writeUint32(central, data.length);
+    writeUint16(central, nameBytes.length);
+    writeUint16(central, 0);
+    writeUint16(central, 0);
+    writeUint16(central, 0);
+    writeUint16(central, 0);
+    writeUint32(central, 0);
+    writeUint32(central, offset);
+    centralParts.push(new Uint8Array(central), nameBytes);
+
+    offset += local.length + nameBytes.length + data.length;
+  }
+
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+  const end: number[] = [];
+  writeUint32(end, 0x06054b50);
+  writeUint16(end, 0);
+  writeUint16(end, 0);
+  writeUint16(end, files.length);
+  writeUint16(end, files.length);
+  writeUint32(end, centralSize);
+  writeUint32(end, offset);
+  writeUint16(end, 0);
+
+  const zipParts: BlobPart[] = [...localParts, ...centralParts, new Uint8Array(end)].map((part) => {
+    const copy = new Uint8Array(part.byteLength);
+    copy.set(part);
+    return copy.buffer;
+  });
+  return new Blob(zipParts, { type: "application/zip" });
+}
+
+function getPreviewSlideElements() {
+  return Array.from(document.querySelectorAll<HTMLElement>("[data-template-preview-slide='true']"));
+}
+
+function FullPreviewDownloadDropdown({
   title,
 }: {
-  targetId: string;
   title: string;
 }) {
-  const [downloading, setDownloading] = useState<"pptx" | "pdf" | null>(null);
+  const [open, setOpen] = useState(false);
+  const [downloading, setDownloading] = useState<"pptx" | "pdf" | "images" | null>(null);
 
   const handleDownload = async (format: "pptx" | "pdf") => {
-    const target = document.getElementById(targetId);
-    if (!target) {
-      toast.error("Preview is not ready yet");
+    const targets = getPreviewSlideElements();
+    if (!targets.length) {
+      toast.error("Previews are not ready yet");
       return;
     }
 
     try {
+      setOpen(false);
       setDownloading(format);
-      const model = await extractElementPptxModel(target, title);
+      const models = await Promise.all(targets.map((target, index) => (
+        extractElementPptxModel(target, `${title} - Slide ${index + 1}`)
+      )));
+      const model = {
+        name: title,
+        slides: models.flatMap((item) => item.slides),
+      };
       const blob = format === "pptx"
         ? await PresentationGenerationApi.exportAsPPTX(model)
         : await PresentationGenerationApi.exportAsPDFFromModel(model);
@@ -118,30 +235,70 @@ function PreviewDownloadButtons({
     }
   };
 
+  const handleImageZipDownload = async () => {
+    const targets = getPreviewSlideElements();
+    if (!targets.length) {
+      toast.error("Previews are not ready yet");
+      return;
+    }
+
+    try {
+      setOpen(false);
+      setDownloading("images");
+      const files = await Promise.all(targets.map(async (target, index) => {
+        const canvas = await html2canvas(target, {
+          backgroundColor: "#ffffff",
+          scale: 2,
+          useCORS: true,
+        });
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob((nextBlob) => {
+            if (nextBlob) resolve(nextBlob);
+            else reject(new Error("Could not create image"));
+          }, "image/png");
+        });
+        return {
+          name: `slide-${String(index + 1).padStart(2, "0")}.png`,
+          blob,
+        };
+      }));
+      const zipBlob = await createZipBlob(files);
+      downloadBlob(zipBlob, `${slugifyFileName(title)}-images.zip`);
+      toast.success("Images ZIP download ready");
+    } catch (error) {
+      console.error("Failed to download images ZIP", error);
+      toast.error("Failed to download images ZIP");
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   return (
-    <div className="flex items-center gap-2">
+    <div className="relative">
       <Button
         type="button"
         variant="outline"
         size="sm"
         className="gap-2"
         disabled={!!downloading}
-        onClick={() => handleDownload("pdf")}
+        onClick={() => setOpen((value) => !value)}
       >
-        {downloading === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-        PDF
+        {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+        Download
       </Button>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="gap-2"
-        disabled={!!downloading}
-        onClick={() => handleDownload("pptx")}
-      >
-        {downloading === "pptx" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-        PPTX
-      </Button>
+      {open && (
+        <div className="absolute right-0 top-11 z-50 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-sm shadow-xl">
+          <button type="button" className="block w-full px-4 py-2 text-left hover:bg-slate-50" onClick={() => handleDownload("pdf")}>
+            PDF
+          </button>
+          <button type="button" className="block w-full px-4 py-2 text-left hover:bg-slate-50" onClick={() => handleDownload("pptx")}>
+            PPTX
+          </button>
+          <button type="button" className="block w-full px-4 py-2 text-left hover:bg-slate-50" onClick={handleImageZipDownload}>
+            Images ZIP
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1179,6 +1336,7 @@ const GroupLayoutPreview = () => {
                 Open PPTX
               </a>
             )}
+            <FullPreviewDownloadDropdown title={resolvedTemplateName} />
           </div>
 
           <div className="text-center">
@@ -1217,7 +1375,6 @@ const GroupLayoutPreview = () => {
             {staticTemplates.map((template: any, index: number) => {
               const LayoutComponent = template.component;
               const previewTargetId = `${templateParams}-static-preview-${index}`;
-              const downloadTitle = `${resolvedTemplateName} - ${template.layoutName || `Slide ${index + 1}`}`;
 
               return (
                 <Card
@@ -1236,7 +1393,6 @@ const GroupLayoutPreview = () => {
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <PreviewDownloadButtons targetId={previewTargetId} title={downloadTitle} />
                         <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
                           {template.layoutId}
                         </span>
@@ -1267,6 +1423,7 @@ const GroupLayoutPreview = () => {
                     >
                       <div
                         id={previewTargetId}
+                        data-template-preview-slide="true"
                         className="flex-shrink-0"
                         style={{ width: "1280px", height: "720px" }}
                       >
@@ -1290,7 +1447,6 @@ const GroupLayoutPreview = () => {
             {designerHtmlTemplate.layouts.map((layout: CustomTemplateLayout, index: number) => {
               const LayoutComponent = layout.component;
               const previewTargetId = `${templateParams}-designer-html-preview-${index}`;
-              const downloadTitle = `${designerTemplate.name} - ${layout.rawLayoutName || `Slide ${index + 1}`}`;
               return (
                 <Card
                   key={`${templateParams}-html-${layout.rawLayoutId}-${index}`}
@@ -1308,7 +1464,6 @@ const GroupLayoutPreview = () => {
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <PreviewDownloadButtons targetId={previewTargetId} title={downloadTitle} />
                         {isAdmin && (
                           <>
                           <span className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium">
@@ -1332,6 +1487,7 @@ const GroupLayoutPreview = () => {
                       >
                         <div
                           id={previewTargetId}
+                          data-template-preview-slide="true"
                           className="flex-shrink-0"
                           style={{ width: "1280px", height: "720px" }}
                         >
@@ -1341,6 +1497,7 @@ const GroupLayoutPreview = () => {
                     ) : (
                       <div
                         id={previewTargetId}
+                        data-template-preview-slide="true"
                         className="flex-shrink-0"
                         style={{ width: "1280px", height: "720px" }}
                       >
@@ -1368,7 +1525,6 @@ const GroupLayoutPreview = () => {
                 text_boxes: [],
               }))).map((slide, index) => {
                 const previewTargetId = `${templateParams}-designer-slide-preview-${index}`;
-                const downloadTitle = `${designerTemplate.name} - Slide ${slide.slide_number}`;
                 return (
                 <Card
                   key={`${templateParams}-designer-slide-${index}`}
@@ -1386,7 +1542,6 @@ const GroupLayoutPreview = () => {
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <PreviewDownloadButtons targetId={previewTargetId} title={downloadTitle} />
                         {isAdmin && (
                           <>
                           <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
@@ -1404,6 +1559,7 @@ const GroupLayoutPreview = () => {
                   <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
                     <div
                       id={previewTargetId}
+                      data-template-preview-slide="true"
                       className="relative flex-shrink-0 bg-white"
                       style={{ width: "1280px", height: "720px" }}
                     >
@@ -1462,7 +1618,6 @@ const GroupLayoutPreview = () => {
             {customTemplate && customTemplate.layouts.map((layout: CustomTemplateLayout, index: number) => {
               const LayoutComponent = layout.component;
               const previewTargetId = `${templateParams}-custom-preview-${index}`;
-              const downloadTitle = `${resolvedTemplateName} - ${layout.rawLayoutName || layout.layoutName || `Slide ${index + 1}`}`;
               return (
                 <Card
                   key={`${templateParams}-${layout.layoutId}-${index}`}
@@ -1479,7 +1634,6 @@ const GroupLayoutPreview = () => {
                           {layout.layoutDescription}
                         </p>
                       </div>
-                      <PreviewDownloadButtons targetId={previewTargetId} title={downloadTitle} />
                     </div>
                     <div className="flex items-end justify-end ">
                       <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
@@ -1492,6 +1646,7 @@ const GroupLayoutPreview = () => {
                   <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
                     <div
                       id={previewTargetId}
+                      data-template-preview-slide="true"
                       className="flex-shrink-0"
                       style={{ width: "1280px", height: "720px" }}
                     >

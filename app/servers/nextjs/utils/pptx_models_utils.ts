@@ -187,7 +187,7 @@ function convertToAutoShapeBox(element: ElementAttributes): PptxAutoShapeBoxMode
   let borderRadius = undefined;
   for (const eachCornerRadius of element.borderRadius ?? []) {
     if (eachCornerRadius > 0) {
-      borderRadius = Math.max(borderRadius ?? 0, eachCornerRadius);
+      borderRadius = Math.max(borderRadius ?? 0, Math.round(eachCornerRadius));
     }
   }
 
