@@ -615,7 +615,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
             <div className="rounded-b-[28px] bg-[linear-gradient(115deg,#b7f3ee_0%,#f9fbff_44%,#d7b6ff_100%)] px-6 pb-12 pt-14 md:px-10">
                 <div className="mx-auto flex max-w-5xl flex-col items-center">
                     <h1 className="font-unbounded text-[34px] font-semibold tracking-[-0.02em] md:text-[42px]">
-                        My Templates
+                        Templates
                     </h1>
                     <div className="relative mt-7 w-full max-w-3xl">
                         <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-700" />
