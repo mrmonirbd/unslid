@@ -14,6 +14,7 @@ type MegaKind =
   | "team"
   | "table"
   | "chart"
+  | "pieChart"
   | "roadmap"
   | "swot"
   | "pyramid"
@@ -64,11 +65,11 @@ const baseRows = [
   { label: "Risk", value: "Managed", note: "Mitigations in place" },
 ];
 
-function makeSchema(title: string, imageUrl: string) {
+function makeSchema(title: string, imageUrl: string, subtitle: string, quote: string) {
   return z.object({
-    title: z.string().max(80).default(title),
-    subtitle: z.string().max(180).default("A concise narrative slide for business, product, strategy, and data storytelling."),
-    quote: z.string().max(180).default("The best slide makes the next decision feel obvious."),
+    title: z.string().max(120).default(title),
+    subtitle: z.string().max(220).default(subtitle),
+    quote: z.string().max(220).default(quote),
     imageUrl: z.string().default(imageUrl),
     items: z.array(z.object({
       label: z.string().max(40),
@@ -91,8 +92,13 @@ const textStyle = { letterSpacing: 0 };
 
 const Shell = ({ cfg, children }: { cfg: MegaConfig; children: React.ReactNode }) => (
   <div
-    className="relative mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] overflow-hidden rounded-sm shadow-lg"
-    style={{ background: cfg.bg, color: cfg.fg, fontFamily: "Inter, Arial, sans-serif" }}
+    className="relative mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] overflow-hidden rounded-xl border shadow-2xl"
+    style={{
+      background: `radial-gradient(circle at ${cfg.curve % 2 ? "86% 12%" : "12% 86%"}, ${cfg.soft} 0, transparent 34%), ${cfg.bg}`,
+      borderColor: cfg.soft,
+      color: cfg.fg,
+      fontFamily: "Inter, Arial, sans-serif",
+    }}
   >
     <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-80" viewBox="0 0 1280 720" preserveAspectRatio="none">
       {cfg.curve % 4 === 0 && <path d="M0 560 C220 450 360 690 610 555 C830 435 970 545 1280 410 L1280 720 L0 720 Z" fill={cfg.soft} />}
@@ -101,8 +107,7 @@ const Shell = ({ cfg, children }: { cfg: MegaConfig; children: React.ReactNode }
       {cfg.curve % 4 === 3 && <path d="M360 720 C490 520 780 670 940 420 C1040 260 1160 220 1280 240 L1280 720 Z" fill={cfg.soft} />}
       <circle cx={cfg.curve % 2 ? 1060 : 180} cy={cfg.curve % 3 ? 140 : 560} r="86" fill={cfg.accent} opacity="0.12" />
     </svg>
-    <div className="absolute left-0 top-0 h-full w-2" style={{ background: cfg.accent }} />
-    <div className="absolute right-8 top-8 rounded-full px-3 py-1 text-xs font-semibold" style={{ background: cfg.soft, color: cfg.fg }}>
+    <div className="absolute right-8 top-8 rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur" style={{ background: `${cfg.soft}cc`, borderColor: cfg.soft, color: cfg.fg }}>
       {cfg.name}
     </div>
     {children}
@@ -110,7 +115,7 @@ const Shell = ({ cfg, children }: { cfg: MegaConfig; children: React.ReactNode }
 );
 
 const MetricCard = ({ metric, cfg }: { metric: { label: string; value: string; note: string }; cfg: MegaConfig }) => (
-  <div className="rounded-lg p-5" style={{ background: cfg.soft }}>
+  <div className="rounded-2xl border p-5 shadow-sm backdrop-blur" style={{ background: `${cfg.soft}dd`, borderColor: cfg.soft }}>
     <div className="text-sm font-semibold opacity-75">{metric.label}</div>
     <div className="mt-2 text-5xl font-black" style={{ color: cfg.accent, ...textStyle }}>{metric.value}</div>
     <div className="mt-2 text-sm opacity-80">{metric.note}</div>
@@ -127,6 +132,18 @@ const MiniBars = ({ cfg }: { cfg: MegaConfig }) => (
     ))}
   </div>
 );
+
+const MiniPie = ({ cfg }: { cfg: MegaConfig }) => {
+  const darkSlice = cfg.fg === "#f9fafb" ? "#f8fafc" : "#0f172a";
+  return (
+    <div className="relative mx-auto flex h-72 w-72 items-center justify-center rounded-full" style={{ background: `conic-gradient(${cfg.accent} 0 42%, ${cfg.soft} 42% 68%, ${darkSlice} 68% 84%, rgba(255,255,255,.72) 84% 100%)` }}>
+      <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full text-center shadow-sm" style={{ background: cfg.bg, color: cfg.fg }}>
+        <span className="text-4xl font-black">42%</span>
+        <span className="text-xs font-bold uppercase opacity-65">Primary</span>
+      </div>
+    </div>
+  );
+};
 
 function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchema>>) {
   const title = data.title;
@@ -230,6 +247,52 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
         </Shell>
       );
     case "chart":
+      return (
+        <Shell cfg={cfg}>
+          <div className="grid h-full w-full grid-cols-[0.9fr_1.1fr] gap-10 p-16">
+            <div>
+              <h1 className="text-5xl font-black" style={textStyle}>{title}</h1>
+              <p className="mt-5 text-xl leading-relaxed opacity-75">{subtitle}</p>
+              <div className="mt-10 grid grid-cols-2 gap-4">
+                {metrics.slice(0, 4).map((metric, index) => <MetricCard key={index} metric={metric} cfg={cfg} />)}
+              </div>
+            </div>
+            <div className="rounded-xl p-8" style={{ background: cfg.soft }}>
+              <MiniBars cfg={cfg} />
+              <svg className="mt-6 h-20 w-full" viewBox="0 0 520 100" preserveAspectRatio="none">
+                <path d="M0 78 C90 12 145 84 225 38 C310 -10 360 72 430 28 C470 4 500 15 520 8" fill="none" stroke={cfg.accent} strokeWidth="8" strokeLinecap="round" />
+              </svg>
+            </div>
+          </div>
+        </Shell>
+      );
+    case "pieChart":
+      return (
+        <Shell cfg={cfg}>
+          <div className="grid h-full w-full grid-cols-[0.85fr_1.15fr] gap-10 p-16">
+            <div className="flex flex-col justify-center">
+              <h1 className="text-5xl font-black" style={textStyle}>{title}</h1>
+              <p className="mt-5 text-xl leading-relaxed opacity-75">{subtitle}</p>
+              <div className="mt-10 grid grid-cols-2 gap-4">
+                {rows.slice(0, 4).map((row, index) => (
+                  <div key={row.label} className="rounded-xl p-4" style={{ background: index % 2 ? cfg.soft : "rgba(255,255,255,.52)" }}>
+                    <div className="text-sm font-bold opacity-65">{row.label}</div>
+                    <div className="mt-2 text-2xl font-black">{["42%", "26%", "16%", "16%"][index]}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col justify-center rounded-[36px] p-10" style={{ background: cfg.soft }}>
+              <MiniPie cfg={cfg} />
+              <div className="mt-8 grid grid-cols-4 gap-3 text-center text-xs font-bold">
+                {["Core", "Upsell", "Retain", "New"].map((label, index) => (
+                  <div key={label} className="rounded-full px-3 py-2" style={{ background: index === 0 ? cfg.accent : cfg.bg, color: index === 0 ? "#fff" : cfg.fg }}>{label}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Shell>
+      );
     case "dashboard":
       return (
         <Shell cfg={cfg}>
@@ -511,7 +574,7 @@ function createMegaComponent(cfg: MegaConfig, Schema: ReturnType<typeof makeSche
 
 const kinds: MegaKind[] = [
   "hero", "split", "metrics", "timeline", "comparison", "process", "quote", "team", "table", "chart",
-  "roadmap", "swot", "pyramid", "funnel", "matrix", "agenda", "caseStudy", "pricing", "risk", "dashboard",
+  "pieChart", "roadmap", "swot", "pyramid", "funnel", "matrix", "agenda", "caseStudy", "pricing", "risk", "dashboard",
   "map", "featureGrid", "beforeAfter", "thankYou", "portfolio",
 ];
 
@@ -520,6 +583,52 @@ const styles = [
   { suffix: "Ember", accent: "#dc2626", bg: "#fff7ed", fg: "#111827", soft: "#fed7aa" },
   { suffix: "Mint", accent: "#059669", bg: "#f8fafc", fg: "#0f172a", soft: "#d1fae5" },
   { suffix: "Ink", accent: "#7c3aed", bg: "#111827", fg: "#f9fafb", soft: "#312e81" },
+  { suffix: "Citrus", accent: "#ca8a04", bg: "#fefce8", fg: "#1f2937", soft: "#fde68a" },
+  { suffix: "Coral", accent: "#f97316", bg: "#fff7ed", fg: "#1e293b", soft: "#ffedd5" },
+  { suffix: "Rose", accent: "#e11d48", bg: "#fff1f2", fg: "#111827", soft: "#fecdd3" },
+  { suffix: "Berry", accent: "#c026d3", bg: "#fdf4ff", fg: "#18181b", soft: "#f5d0fe" },
+  { suffix: "Ocean", accent: "#0891b2", bg: "#ecfeff", fg: "#0f172a", soft: "#a5f3fc" },
+  { suffix: "Teal", accent: "#0f766e", bg: "#f0fdfa", fg: "#102a2a", soft: "#99f6e4" },
+  { suffix: "Lime", accent: "#65a30d", bg: "#f7fee7", fg: "#172554", soft: "#d9f99d" },
+  { suffix: "Sky", accent: "#0284c7", bg: "#f0f9ff", fg: "#082f49", soft: "#bae6fd" },
+  { suffix: "Violet", accent: "#6d28d9", bg: "#f5f3ff", fg: "#111827", soft: "#ddd6fe" },
+  { suffix: "Graphite", accent: "#14b8a6", bg: "#0f172a", fg: "#f8fafc", soft: "#164e63" },
+  { suffix: "Midnight", accent: "#f59e0b", bg: "#111827", fg: "#f9fafb", soft: "#374151" },
+  { suffix: "Wine", accent: "#be123c", bg: "#1f1020", fg: "#fff7ed", soft: "#4c1d33" },
+  { suffix: "Forest", accent: "#22c55e", bg: "#052e16", fg: "#f0fdf4", soft: "#14532d" },
+  { suffix: "Electric", accent: "#38bdf8", bg: "#0c1222", fg: "#f8fafc", soft: "#1e3a8a" },
+  { suffix: "Slate", accent: "#64748b", bg: "#f8fafc", fg: "#0f172a", soft: "#e2e8f0" },
+  { suffix: "Copper", accent: "#b45309", bg: "#fffbeb", fg: "#1c1917", soft: "#fed7aa" },
+  { suffix: "Aqua", accent: "#06b6d4", bg: "#ffffff", fg: "#111827", soft: "#cffafe" },
+  { suffix: "Punch", accent: "#db2777", bg: "#fdf2f8", fg: "#111827", soft: "#fbcfe8" },
+  { suffix: "Indigo", accent: "#4f46e5", bg: "#eef2ff", fg: "#111827", soft: "#c7d2fe" },
+  { suffix: "Moss", accent: "#15803d", bg: "#fafaf9", fg: "#1c1917", soft: "#bbf7d0" },
+  { suffix: "RubyDark", accent: "#fb7185", bg: "#18181b", fg: "#fafafa", soft: "#3f1d2b" },
+  { suffix: "BlueDark", accent: "#60a5fa", bg: "#0b1120", fg: "#f8fafc", soft: "#1e293b" },
+  { suffix: "Pearl", accent: "#0ea5e9", bg: "#f8fafc", fg: "#0f172a", soft: "#e0f2fe" },
+  { suffix: "Sandstone", accent: "#d97706", bg: "#fffaf0", fg: "#292524", soft: "#fde68a" },
+  { suffix: "Lavender", accent: "#8b5cf6", bg: "#faf5ff", fg: "#1f2937", soft: "#e9d5ff" },
+  { suffix: "Flamingo", accent: "#f43f5e", bg: "#fff5f7", fg: "#172033", soft: "#ffe4e6" },
+  { suffix: "Lagoon", accent: "#0891b2", bg: "#f0fdfa", fg: "#164e63", soft: "#ccfbf1" },
+  { suffix: "Pistachio", accent: "#84cc16", bg: "#fcfff4", fg: "#1f2937", soft: "#ecfccb" },
+  { suffix: "Royal", accent: "#4338ca", bg: "#f8fafc", fg: "#111827", soft: "#e0e7ff" },
+  { suffix: "Signal", accent: "#ef4444", bg: "#ffffff", fg: "#111827", soft: "#fee2e2" },
+  { suffix: "NeonDark", accent: "#a3e635", bg: "#09090b", fg: "#fafafa", soft: "#1a2e05" },
+  { suffix: "CyanDark", accent: "#22d3ee", bg: "#082f49", fg: "#ecfeff", soft: "#155e75" },
+  { suffix: "PlumDark", accent: "#d946ef", bg: "#1e102a", fg: "#faf5ff", soft: "#581c87" },
+  { suffix: "AmberDark", accent: "#fbbf24", bg: "#1c1917", fg: "#fffbeb", soft: "#451a03" },
+  { suffix: "GreenDark", accent: "#4ade80", bg: "#0b1f17", fg: "#f0fdf4", soft: "#166534" },
+  { suffix: "PinkDark", accent: "#f472b6", bg: "#1f1020", fg: "#fdf2f8", soft: "#831843" },
+  { suffix: "Steel", accent: "#475569", bg: "#f1f5f9", fg: "#0f172a", soft: "#cbd5e1" },
+  { suffix: "Apricot", accent: "#ea580c", bg: "#fff7ed", fg: "#1c1917", soft: "#fed7aa" },
+  { suffix: "Jade", accent: "#10b981", bg: "#f7fffb", fg: "#052e2b", soft: "#a7f3d0" },
+  { suffix: "Cobalt", accent: "#1d4ed8", bg: "#eff6ff", fg: "#111827", soft: "#bfdbfe" },
+  { suffix: "Orchid", accent: "#a21caf", bg: "#fdf4ff", fg: "#27272a", soft: "#f0abfc" },
+  { suffix: "Sunrise", accent: "#f59e0b", bg: "#fff7ed", fg: "#111827", soft: "#fde68a" },
+  { suffix: "Crimson", accent: "#b91c1c", bg: "#fff1f2", fg: "#1f2937", soft: "#fecaca" },
+  { suffix: "Marine", accent: "#0369a1", bg: "#f0f9ff", fg: "#082f49", soft: "#bae6fd" },
+  { suffix: "Olive", accent: "#4d7c0f", bg: "#fefce8", fg: "#1c1917", soft: "#d9f99d" },
+  { suffix: "MonoPop", accent: "#111827", bg: "#ffffff", fg: "#111827", soft: "#e5e7eb" },
 ];
 
 const kindLabels: Record<MegaKind, string> = {
@@ -533,6 +642,7 @@ const kindLabels: Record<MegaKind, string> = {
   team: "Team Cards",
   table: "Table Summary",
   chart: "Chart Insight",
+  pieChart: "Pie Chart",
   roadmap: "Roadmap",
   swot: "SWOT Matrix",
   pyramid: "Pyramid",
@@ -596,7 +706,7 @@ const categoryKindMap: Record<string, MegaKind> = {
   Corporate: "table",
   Community: "team",
   Web3: "beforeAfter",
-  Gaming: "chart",
+  Gaming: "pieChart",
   Entertainment: "portfolio",
   Publishing: "timeline",
   Speaking: "hero",
@@ -609,13 +719,14 @@ const categoryKindMap: Record<string, MegaKind> = {
 
 const configs: MegaConfig[] = onlinePresentationServiceDecks.map((deck, index) => {
   const style = styles[index % styles.length];
+  const accent = index % 3 === 0 ? style.accent : deck.accent || style.accent;
   const fallbackKind = kinds[index % kinds.length];
   return {
     id: `mega-${String(index + 1).padStart(3, "0")}-${deck.id}`,
     name: deck.title,
     description: `${deck.category} presentation template for ${deck.audience}. ${deck.summary}`,
     kind: categoryKindMap[deck.category] || fallbackKind,
-    accent: deck.accent || style.accent,
+    accent,
     bg: style.bg,
     fg: style.fg,
     soft: style.soft,
@@ -631,7 +742,7 @@ const pagePlanPresets: PagePlan[][] = [
     { suffix: "cover", name: "Cover", kind: "hero", description: "Opening title slide with a strong visual promise." },
     { suffix: "funnel", name: "Funnel", kind: "funnel", description: "Conversion or decision funnel slide." },
     { suffix: "pricing", name: "Pricing", kind: "pricing", description: "Offer and package comparison slide." },
-    { suffix: "proof", name: "Proof", kind: "chart", description: "Chart-backed proof and momentum slide." },
+    { suffix: "proof", name: "Proof", kind: "chart", description: "Bar and line chart proof slide with momentum signals." },
     { suffix: "case", name: "Case Study", kind: "caseStudy", description: "Customer result or transformation proof slide." },
     { suffix: "process", name: "Process", kind: "timeline", description: "Step-by-step process or delivery timeline slide." },
     { suffix: "closing", name: "Closing", kind: "thankYou", description: "Final call-to-action and closing statement slide." },
@@ -639,7 +750,7 @@ const pagePlanPresets: PagePlan[][] = [
   [
     { suffix: "visual", name: "Visual Lead", kind: "split", description: "Image-led value proposition slide." },
     { suffix: "market", name: "Market Map", kind: "map", description: "Market, audience, or territory mapping slide." },
-    { suffix: "metrics", name: "Metrics", kind: "metrics", description: "Key numbers and performance proof slide." },
+    { suffix: "segments", name: "Segments", kind: "pieChart", description: "Pie chart slide for audience, revenue, or market mix." },
     { suffix: "roadmap", name: "Roadmap", kind: "roadmap", description: "Milestone and rollout slide." },
     { suffix: "matrix", name: "Decision Matrix", kind: "matrix", description: "Prioritization and tradeoff slide." },
     { suffix: "team", name: "Team", kind: "team", description: "People, roles, or partner capability slide." },
@@ -657,7 +768,7 @@ const pagePlanPresets: PagePlan[][] = [
   [
     { suffix: "dark-cover", name: "Dark Cover", kind: "hero", description: "High contrast opening statement slide." },
     { suffix: "risk", name: "Risk Map", kind: "risk", description: "Risk heatmap and mitigation slide." },
-    { suffix: "swot", name: "SWOT", kind: "swot", description: "Strategy matrix slide." },
+    { suffix: "mix", name: "Mix Chart", kind: "pieChart", description: "Pie chart breakdown for channel, product, or budget mix." },
     { suffix: "pyramid", name: "Pyramid", kind: "pyramid", description: "Hierarchy or maturity model slide." },
     { suffix: "process", name: "Process", kind: "process", description: "Operational workflow slide." },
     { suffix: "comparison", name: "Comparison", kind: "comparison", description: "Two-column alternative comparison slide." },
@@ -674,7 +785,7 @@ const pagePlanPresets: PagePlan[][] = [
   ],
   [
     { suffix: "agenda", name: "Agenda Cover", kind: "agenda", description: "Structured session opening slide." },
-    { suffix: "chart", name: "Insight Chart", kind: "chart", description: "Analytical trend slide." },
+    { suffix: "chart", name: "Insight Chart", kind: "chart", description: "Analytical bar and curved line trend slide." },
     { suffix: "table", name: "Details Table", kind: "table", description: "Operational data table slide." },
     { suffix: "risk", name: "Risk Register", kind: "risk", description: "Issue tracking heatmap slide." },
     { suffix: "feature-grid", name: "Feature Grid", kind: "featureGrid", description: "Capability grid slide." },
@@ -683,7 +794,43 @@ const pagePlanPresets: PagePlan[][] = [
   ],
 ];
 
-const getPagePlans = (index: number) => pagePlanPresets[index % pagePlanPresets.length];
+const closingVariants: PagePlan[] = [
+  { suffix: "close-quote", name: "Closing Quote", kind: "quote", description: "Final emotional statement with image-led emphasis." },
+  { suffix: "close-metrics", name: "Closing Metrics", kind: "metrics", description: "Final slide with the strongest proof numbers." },
+  { suffix: "close-chart", name: "Closing Chart", kind: "chart", description: "Final trend slide with a bar chart and curved line." },
+  { suffix: "close-pie", name: "Closing Mix", kind: "pieChart", description: "Final pie chart slide for offer, budget, or audience mix." },
+  { suffix: "close-roadmap", name: "Next Roadmap", kind: "roadmap", description: "Final next-step roadmap slide." },
+  { suffix: "close-pricing", name: "Final Offer", kind: "pricing", description: "Final package and call-to-action slide." },
+  { suffix: "close-map", name: "Expansion Close", kind: "map", description: "Final market or service area slide." },
+  { suffix: "close-gallery", name: "Showcase Close", kind: "portfolio", description: "Final visual showcase slide." },
+  { suffix: "close-features", name: "Benefit Close", kind: "featureGrid", description: "Final benefit grid slide." },
+  { suffix: "close-dashboard", name: "Signal Close", kind: "dashboard", description: "Final dashboard slide with business signals." },
+  { suffix: "close-case", name: "Result Close", kind: "caseStudy", description: "Final outcome and proof slide." },
+  { suffix: "close-clean", name: "Clean Close", kind: "thankYou", description: "Minimal final statement slide." },
+];
+
+const getPagePlans = (index: number) => {
+  const plans = [...pagePlanPresets[index % pagePlanPresets.length]];
+  plans[plans.length - 1] = closingVariants[index % closingVariants.length];
+  return plans;
+};
+
+const subtitleTemplates = [
+  (cfg: MegaConfig, page: PagePlan) => `${page.description} Built for ${cfg.name} with a focused story arc and clear visual hierarchy.`,
+  (cfg: MegaConfig, page: PagePlan) => `A ${page.name.toLowerCase()} slide for ${cfg.name}, shaped around audience pain, proof, and action.`,
+  (cfg: MegaConfig, page: PagePlan) => `${cfg.name} uses this page to turn scattered details into a clean, presentation-ready narrative.`,
+  (cfg: MegaConfig, page: PagePlan) => `Designed for ${cfg.name}, with editable sections and a clean structure for fast client delivery.`,
+  (cfg: MegaConfig, page: PagePlan) => `A sharp ${page.kind.replace(/([A-Z])/g, " $1").toLowerCase()} layout that keeps the message visual and easy to scan.`,
+];
+
+const quoteTemplates = [
+  (cfg: MegaConfig) => `${cfg.name} should make the buyer understand the offer before the presenter finishes speaking.`,
+  (cfg: MegaConfig) => `Strong presentations do not explain everything; they guide the room toward the next confident move.`,
+  (cfg: MegaConfig) => `${cfg.name} works best when the story is specific, visual, and easy to edit for each client.`,
+  (cfg: MegaConfig) => `A memorable deck turns raw business ideas into a sequence people can believe and act on.`,
+  (cfg: MegaConfig) => `Every slide earns its place by making the audience see the value faster.`,
+  (cfg: MegaConfig) => `${cfg.name} is built to feel polished, practical, and ready for real sales conversations.`,
+];
 
 const createMegaTemplate = (
   cfg: MegaConfig,
@@ -699,7 +846,9 @@ const createMegaTemplate = (
     kind: page.kind,
     curve: cfg.curve + pageIndex,
   };
-  const Schema = makeSchema(pageConfig.name, pageConfig.imageUrl);
+  const subtitle = subtitleTemplates[(groupIndex + pageIndex) % subtitleTemplates.length](cfg, page);
+  const quote = quoteTemplates[(groupIndex + pageIndex) % quoteTemplates.length](cfg);
+  const Schema = makeSchema(pageConfig.name, pageConfig.imageUrl, subtitle, quote);
   const groupId = `mega-${String(groupIndex + 1).padStart(3, "0")}`;
   return createTemplateEntry(
     createMegaComponent(pageConfig, Schema),
