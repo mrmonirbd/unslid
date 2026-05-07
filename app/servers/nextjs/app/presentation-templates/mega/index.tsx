@@ -4,6 +4,7 @@ import { onlinePresentationServiceDecks } from "../../presentation-decks/onlineP
 import { createTemplateEntry, TemplateLayoutsWithSettings, TemplateWithData } from "../utils";
 
 type MegaKind =
+  | "personalPortfolio"
   | "redEditorial"
   | "visionMission"
   | "hero"
@@ -155,6 +156,173 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
   const rows = data.rows?.length ? data.rows : baseRows;
 
   switch (cfg.kind) {
+    case "personalPortfolio": {
+      const dark = "#2e2e2c";
+      const paper = "#e9e9e9";
+      const ink = "#2b2b2b";
+      const page = cfg.id.split("-").pop() || "cover";
+      const imageFor = (seed: string, width = 900, height = 640) => `https://picsum.photos/seed/personal-portfolio-${seed}/${width}/${height}`;
+      const Blob = ({ className = "" }: { className?: string }) => (
+        <div className={`pointer-events-none absolute h-32 w-32 rounded-full blur-2xl ${className}`} style={{ background: "radial-gradient(circle, rgba(193,95,213,.62), rgba(49,164,220,.45) 45%, transparent 70%)" }} />
+      );
+      const Logo = ({ light = false }: { light?: boolean }) => (
+        <div className="grid h-9 w-9 grid-cols-2 gap-1">
+          {[0, 1, 2, 3].map((dot) => <span key={dot} className="rounded-full" style={{ background: light ? paper : ink }} />)}
+        </div>
+      );
+      const Nav = () => <div className="absolute right-10 top-10 text-4xl font-light tracking-tight" style={{ color: ink }}>‹›</div>;
+
+      if (page === "contents") {
+        const contents = ["About Me", "Education", "Experience", "Creative Strengths", "Projects", "Achievements", "Career Goals"];
+        return (
+          <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.82fr_1fr] overflow-hidden" style={{ background: paper, color: ink, fontFamily: "Inter, Arial, sans-serif" }}>
+            <div className="grid grid-rows-[1fr_140px]" style={{ background: dark }}>
+              <img src={imageFor("contents-studio", 680, 430)} alt="" className="h-full w-full object-cover" />
+              <div className="flex items-center px-[72px] text-sm text-white">Portfolio 2026</div>
+            </div>
+            <div className="relative px-12 py-16">
+              <Nav /><Blob className="right-20 top-44" /><Blob className="bottom-8 left-44" />
+              <h1 className="text-[58px] font-black uppercase leading-none" style={{ fontFamily: "Impact, Arial Black, Inter, sans-serif" }}>Table of Content</h1>
+              <div className="mt-5 max-w-[470px]">
+                {contents.map((item, index) => (
+                  <div key={item} className="grid grid-cols-[1fr_60px] border-b border-neutral-400 py-1 text-[30px] leading-tight">
+                    <span>{item}</span><span className="text-right">{String(index + 1).padStart(2, "0")}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="absolute bottom-14 left-12 text-sm">Overview</div>
+              <div className="absolute bottom-12 right-12"><Logo /></div>
+            </div>
+          </div>
+        );
+      }
+
+      if (page === "about") {
+        return (
+          <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.43fr_1fr_210px] overflow-hidden" style={{ background: paper, color: ink, fontFamily: "Inter, Arial, sans-serif" }}>
+            <div className="grid grid-rows-[1fr_140px]" style={{ background: dark }}>
+              <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=700&q=80" alt="" className="h-full w-full object-cover" />
+              <div className="flex items-center px-16 text-sm text-white">Portfolio 2026</div>
+            </div>
+            <div className="relative px-[56px] py-[72px]">
+              <Blob className="left-56 top-0" />
+              <h1 className="text-[58px] font-black uppercase" style={{ fontFamily: "Impact, Arial Black, Inter, sans-serif" }}>About Me</h1>
+              <h2 className="mt-6 text-3xl">Personal Introduction</h2>
+              <p className="mt-6 max-w-[560px] text-[15px] leading-snug">A concise profile summary introducing my professional journey, creative process, and selected body of work. This portfolio reflects curiosity, craft, and continuous growth.</p>
+              <p className="mt-7 max-w-[560px] text-[15px] leading-snug">I combine concept development, visual research, and thoughtful execution to build work that feels intentional, polished, and relevant.</p>
+              <div className="absolute bottom-[56px] left-[56px] text-sm">Profile Summary</div>
+            </div>
+            <div className="relative border-l border-neutral-400 px-8 py-20">
+              <Nav />
+              <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=500&q=80" alt="" className="mt-12 h-36 w-full object-cover" />
+              <img src="https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=500&q=80" alt="" className="mt-5 h-36 w-full object-cover" />
+              <div className="absolute bottom-12 right-9"><Logo /></div>
+            </div>
+          </div>
+        );
+      }
+
+      if (page === "education" || page === "strengths") {
+        const isStrength = page === "strengths";
+        return (
+          <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.75fr_1.1fr] overflow-hidden" style={{ background: paper, color: ink, fontFamily: "Inter, Arial, sans-serif" }}>
+            <div className="relative flex flex-col justify-center px-[72px]">
+              <Blob className="left-56 top-20" /><Blob className="bottom-10 left-64" />
+              <h1 className="text-[62px] font-black uppercase leading-none" style={{ fontFamily: "Impact, Arial Black, Inter, sans-serif" }}>{isStrength ? "Creative Strengths" : "Education"}</h1>
+              <h2 className="mt-8 text-3xl">{isStrength ? "What Makes Me Unique" : "Academic Background"}</h2>
+              <p className="mt-6 max-w-[520px] text-[15px] leading-snug">Creative development shaped through research, experimentation, and practical exposure. Each stage builds a stronger foundation for visual thinking and clear communication.</p>
+              {isStrength && <ul className="mt-5 list-disc pl-5 text-[15px] leading-snug"><li>Original ideas and concepts</li><li>Practical creative problem-solving</li><li>Attention to execution and detail</li><li>Adaptability across styles and themes</li></ul>}
+              <div className="absolute bottom-[56px] left-[72px] text-sm">{isStrength ? "Strengths Overview" : "Learning Path"}</div>
+            </div>
+            <div className="grid grid-rows-[80px_1fr_110px]" style={{ background: dark }}>
+              <div className="relative"><Nav /></div>
+              <img
+                src={isStrength ? "https://images.unsplash.com/photo-1556761175-4b46a572b786?auto=format&fit=crop&w=900&q=80" : "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=900&q=80"}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+              <div className="flex items-center justify-between px-8 text-sm text-white"><span>Portfolio 2026</span><Logo light /></div>
+            </div>
+          </div>
+        );
+      }
+
+      if (page === "experience" || page === "goals" || page === "thanks") {
+        const copy = page === "experience"
+          ? ["Experience", "Practical Exposure", "Hands-On Learning", "experience-studio"]
+          : page === "goals"
+            ? ["Career Goals", "Future Vision", "Profile Summary", "career-goals"]
+            : ["Thank You", "Let's Connect", "My Work. My Story.", "thank-you-form"];
+        return (
+          <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.75fr_1fr] overflow-hidden" style={{ background: paper, color: ink, fontFamily: "Inter, Arial, sans-serif" }}>
+            <div className="grid grid-rows-[1fr_140px]" style={{ background: dark }}>
+              <img
+                src={page === "experience" ? "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=900&q=80" : imageFor(copy[3], 600, 430)}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+              <div className="flex items-center px-[72px] text-sm text-white">{copy[2]}</div>
+            </div>
+            <div className="relative border-l border-neutral-400 px-[64px] py-[72px]">
+              <Nav /><Blob className="right-40 top-36" /><Blob className="bottom-12 left-72" />
+              <h1 className="text-[64px] font-black uppercase leading-none" style={{ fontFamily: "Impact, Arial Black, Inter, sans-serif" }}>{copy[0]}</h1>
+              <h2 className="mt-8 text-3xl">{copy[1]}</h2>
+              <p className="mt-6 max-w-[620px] text-[15px] leading-snug">A focused overview of growth, practice, and meaningful creative development. The work combines thoughtful strategy with visual execution and consistent refinement.</p>
+              {page === "experience" && <div className="mt-7 space-y-3 text-sm"><strong>2018 - 2020</strong><p>Foundation building and project practice.</p><strong>2021 - 2023</strong><p>Professional exposure and portfolio growth.</p><strong>2023 - 2026</strong><p>Focused creative direction and delivery.</p></div>}
+              {page === "thanks" && <div className="mt-8 space-y-2 text-sm"><p>+123 456 7890</p><p>hello@reallygreatsite.com</p><p>www.reallygreatsite.com</p></div>}
+              <div className="absolute bottom-12 right-12"><Logo /></div>
+            </div>
+          </div>
+        );
+      }
+
+      if (page === "projects" || page === "achievements") {
+        const isProjects = page === "projects";
+        return (
+          <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.48fr_0.6fr_0.56fr] overflow-hidden" style={{ background: paper, color: ink, fontFamily: "Inter, Arial, sans-serif" }}>
+            <div className="grid grid-rows-[1fr_140px]" style={{ background: dark }}>
+              <img src={imageFor(isProjects ? "projects-left" : "achievements-left", 420, 470)} alt="" className="h-full w-full object-cover" />
+              <div className="flex items-center px-[72px] text-sm text-white">Portfolio 2026</div>
+            </div>
+            <div className="relative px-10 py-28">
+              <Blob className="right-10 top-8" />
+              <h1 className="text-[58px] font-black uppercase leading-none" style={{ fontFamily: "Impact, Arial Black, Inter, sans-serif" }}>{isProjects ? "Projects" : "Achievements"}</h1>
+              <h2 className="mt-8 text-3xl">{isProjects ? "Selected Work" : "Milestones & Accomplishments"}</h2>
+              <p className="mt-6 text-[15px] leading-snug">Selected creative work showing concept, execution, refinement, and results across practical design challenges.</p>
+              <ul className="mt-7 list-disc pl-5 text-sm leading-snug"><li>Completed personal projects on time</li><li>Built cohesive visual systems</li><li>Improved presentation quality</li><li>Developed consistent creative practice</li></ul>
+              <div className="absolute bottom-14 left-10 text-sm">{isProjects ? "Work Samples" : "Achievements"}</div>
+            </div>
+            <div className="relative border-l border-neutral-400 p-8">
+              <Nav />
+              <div className="mt-14 grid h-[460px] grid-rows-3 gap-5">
+                {[0, 1, 2].map((i) => <img key={i} src={imageFor(`${page}-${i}`, 360, 150)} alt="" className="h-full w-full object-cover" />)}
+              </div>
+              <div className="absolute bottom-12 right-9"><Logo /></div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.92fr_1.08fr] overflow-hidden" style={{ background: paper, color: ink, fontFamily: "Inter, Arial, sans-serif" }}>
+          <div className="relative flex flex-col justify-between p-[72px]">
+            <Blob className="right-24 top-4" /><Blob className="bottom-28 right-20" />
+            <div>
+              <p className="text-sm">Portfolio 2026</p>
+              <h1 className="mt-12 text-[78px] font-black uppercase leading-[0.96]" style={{ fontFamily: "Impact, Arial Black, Inter, sans-serif" }}>Personal<br />Portfolio</h1>
+              <p className="mt-8 text-2xl uppercase leading-tight">Showcasing skills,<br />creativity & experience</p>
+              <button className="mt-12 rounded-full px-5 py-2 text-sm text-white" style={{ background: dark }}>See more ›</button>
+            </div>
+            <div className="flex justify-between text-sm"><span>My Work. My Story.</span><span>www.reallygreatsite.com</span></div>
+          </div>
+          <div className="grid grid-rows-[70px_1fr_130px]" style={{ background: dark }}>
+            <div className="relative"><Nav /></div>
+            <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=900&q=80" alt="" className="h-full w-full object-cover" />
+            <div className="grid grid-cols-[54px_1fr] items-center gap-4 px-8 text-white"><Logo light /><p className="text-sm leading-tight">A brief introduction to my professional journey, skills, and selected work. This portfolio reflects dedication, creativity, and continuous growth.</p></div>
+          </div>
+        </div>
+      );
+    }
     case "redEditorial": {
       const red = "#f51f18";
       const cream = "#fbf8f1";
@@ -882,6 +1050,7 @@ const styles = [
 ];
 
 const kindLabels: Record<MegaKind, string> = {
+  personalPortfolio: "Personal Portfolio",
   redEditorial: "Red Editorial",
   visionMission: "Vision Mission",
   hero: "Hero Statement",
@@ -1020,6 +1189,19 @@ const expansionConfigs: MegaConfig[] = onlinePresentationServiceDecks.map((deck,
   };
 });
 
+const featuredPortfolioConfig: MegaConfig = {
+  id: "mega-featured-personal-portfolio",
+  name: "Personal Portfolio 2026",
+  description: "A 10-page personal portfolio deck with soft gradient blur accents, dark charcoal panels, editorial typography, and fashion-studio inspired image layouts.",
+  kind: "personalPortfolio",
+  accent: "#2e2e2c",
+  bg: "#e9e9e9",
+  fg: "#2b2b2b",
+  soft: "#d9d9d9",
+  imageUrl: "https://picsum.photos/seed/personal-portfolio-featured/900/700",
+  curve: 0,
+};
+
 const featuredRedEditorialConfig: MegaConfig = {
   id: "mega-featured-red-editorial",
   name: "Red Editorial Brand Campaign",
@@ -1046,7 +1228,7 @@ const featuredVisionConfig: MegaConfig = {
   curve: 1,
 };
 
-const featuredConfigs: MegaConfig[] = [featuredRedEditorialConfig, featuredVisionConfig];
+const featuredConfigs: MegaConfig[] = [featuredPortfolioConfig, featuredRedEditorialConfig, featuredVisionConfig];
 
 const configs: MegaConfig[] = [...featuredConfigs, ...baseConfigs, ...expansionConfigs];
 
@@ -1110,6 +1292,7 @@ const pagePlanPresets: PagePlan[][] = [
 ];
 
 const planDescriptions: Record<MegaKind, string> = {
+  personalPortfolio: "Personal portfolio page with charcoal panels, soft blur accents, and editorial image layouts.",
   redEditorial: "Cream and red editorial page with oversized condensed typography.",
   visionMission: "Bold neon and violet vision mission cover slide with editorial typography.",
   hero: "Modern cover slide with a bold headline and strong visual anchor.",
@@ -1210,6 +1393,20 @@ const closingVariants: PagePlan[] = [
 const getPagePlans = (index: number) => {
   if (index === 0) {
     return [
+      { suffix: "cover", name: "Portfolio Cover", kind: "personalPortfolio", description: "Personal portfolio cover with split editorial image panel." },
+      { suffix: "contents", name: "Table of Content", kind: "personalPortfolio", description: "Table of content page with left studio image and numbered sections." },
+      { suffix: "about", name: "About Me", kind: "personalPortfolio", description: "Personal introduction page with supporting image stack." },
+      { suffix: "education", name: "Education", kind: "personalPortfolio", description: "Academic background page with dark image block." },
+      { suffix: "experience", name: "Experience", kind: "personalPortfolio", description: "Experience page with date ranges and practical exposure." },
+      { suffix: "strengths", name: "Creative Strengths", kind: "personalPortfolio", description: "Creative strengths page with bullet list and material image." },
+      { suffix: "projects", name: "Projects", kind: "personalPortfolio", description: "Selected work page with project image grid." },
+      { suffix: "achievements", name: "Achievements", kind: "personalPortfolio", description: "Milestones and accomplishments page with mixed images." },
+      { suffix: "goals", name: "Career Goals", kind: "personalPortfolio", description: "Future vision page with profile summary." },
+      { suffix: "thanks", name: "Thank You", kind: "personalPortfolio", description: "Closing contact page with charcoal sidebar." },
+    ];
+  }
+  if (index === 1) {
+    return [
       { suffix: "cover", name: "Brand Messages Cover", kind: "redEditorial", description: "Oversized red typography cover with image-led brand messaging." },
       { suffix: "audience", name: "Target Audience", kind: "redEditorial", description: "Large red title with ruled table rows for audience definition." },
       { suffix: "positioning", name: "Brand Positioning", kind: "redEditorial", description: "Brand positioning table with bold red labels and concise explanations." },
@@ -1222,7 +1419,7 @@ const getPagePlans = (index: number) => {
       { suffix: "summary", name: "Summarize", kind: "redEditorial", description: "Summary slide with large image and red rounded message labels." },
     ];
   }
-  if (index === 1) {
+  if (index === 2) {
     return [
       { suffix: "cover", name: "Vision and Mission Cover", kind: "visionMission", description: "Reference-inspired neon green and violet cover slide." },
       { suffix: "goals", name: "Mission Goals", kind: "featureGrid", description: "Goal grid slide for priorities and focus areas." },
@@ -1267,12 +1464,16 @@ const createMegaTemplate = (
   pageIndex: number,
   groupIndex: number
 ) => {
+  const imageUrl = cfg.id === "mega-featured-vision-mission"
+    ? `https://picsum.photos/seed/msgr-vision-${page.suffix}-${pageIndex}/900/700`
+    : cfg.imageUrl;
   const pageConfig: MegaConfig = {
     ...cfg,
     id: `${cfg.id}-${page.suffix}`,
     name: `${cfg.name} ${page.name}`,
     description: `${cfg.name} ${page.name.toLowerCase()} page. ${page.description}`,
     kind: page.kind,
+    imageUrl,
     curve: cfg.curve + pageIndex,
   };
   const subtitle = subtitleTemplates[(groupIndex + pageIndex) % subtitleTemplates.length](cfg, page);
