@@ -26,6 +26,7 @@ const CARD_BACKGROUND_CLASS = "absolute left-0 top-0 h-full w-full object-cover"
 const PREVIEW_TILE_CLASS = "relative aspect-video overflow-hidden rounded border border-gray-200 bg-gray-100";
 const PREVIEW_SCALE_STYLE = { width: "833.33%", height: "833.33%" };
 const PREVIEW_PLACEHOLDERS = [0, 1, 2, 3];
+const TEMPLATE_SKELETONS = [0, 1, 2, 3, 4, 5, 6, 7];
 const STOP_WORDS = new Set([
     "template",
     "templates",
@@ -60,6 +61,45 @@ const EmptyTemplates = React.memo(function EmptyTemplates({ label }: { label: st
         </div>
     );
 });
+
+const TemplateCardSkeleton = React.memo(function TemplateCardSkeleton() {
+    return (
+        <Card className={`${CARD_CLASS} animate-pulse cursor-default`}>
+            <img src="/card_bg.svg" alt="" className={CARD_BACKGROUND_CLASS} />
+            <div className="p-4">
+                <div className="grid grid-cols-2 gap-2">
+                    {PREVIEW_PLACEHOLDERS.map((index) => (
+                        <div
+                            key={`template-card-skeleton-${index}`}
+                            className="aspect-video rounded border border-slate-200 bg-white/85 shadow-sm"
+                        >
+                            <div className="m-3 h-2 w-1/2 rounded bg-slate-100" />
+                            <div className="mx-3 mt-2 h-1.5 w-3/4 rounded bg-slate-100" />
+                            <div className="mx-3 mt-1.5 h-1.5 w-2/3 rounded bg-slate-100" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <div className="absolute inset-x-0 bottom-0 z-40 border-t border-[#EDEEEF] bg-white px-4 py-3">
+                <div className="h-4 w-32 rounded bg-slate-200" />
+                <div className="mt-2 h-3 w-56 max-w-full rounded bg-slate-100" />
+            </div>
+        </Card>
+    );
+});
+
+const TemplateGridSkeleton = ({ includeCreateCard = false }: { includeCreateCard?: boolean }) => (
+    <div className="grid grid-cols-1 gap-6 pb-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        {includeCreateCard && (
+            <div className="w-full">
+                <CreateCustomTemplate />
+            </div>
+        )}
+        {TEMPLATE_SKELETONS.map((index) => (
+            <TemplateCardSkeleton key={index} />
+        ))}
+    </div>
+);
 
 function useInViewport(ref: React.RefObject<Element>, rootMargin = "240px") {
     const [isVisible, setIsVisible] = useState(false);
@@ -551,10 +591,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                         </div>
 
                         {customLoading ? (
-                            <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white py-12 shadow-sm">
-                                <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
-                                <span className="ml-3 text-gray-600">Loading templates...</span>
-                            </div>
+                            <TemplateGridSkeleton includeCreateCard={!normalizedQuery && !activeTag} />
                         ) : filteredCustomTemplates.length === 0 && (normalizedQuery || activeTag) ? (
                             <EmptyTemplates label="matching" />
                         ) : (
@@ -640,10 +677,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                     </div>
 
                     {customLoading || designerLoading ? (
-                        <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white py-12 shadow-sm">
-                            <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
-                            <span className="ml-3 text-gray-600">Loading templates...</span>
-                        </div>
+                        <TemplateGridSkeleton includeCreateCard={!normalizedQuery && !activeTag} />
                     ) : totalVisible === 0 && (normalizedQuery || activeTag) ? (
                         <EmptyTemplates label="matching" />
                     ) : (
