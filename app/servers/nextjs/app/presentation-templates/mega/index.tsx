@@ -257,7 +257,13 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
           <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.75fr_1fr] overflow-hidden" style={{ background: paper, color: ink, fontFamily: "Inter, Arial, sans-serif" }}>
             <div className="grid grid-rows-[1fr_140px]" style={{ background: dark }}>
               <img
-                src={page === "experience" ? "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=900&q=80" : imageFor(copy[3], 600, 430)}
+                src={
+                  page === "experience"
+                    ? "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=900&q=80"
+                    : page === "goals"
+                      ? "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=80"
+                      : "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80"
+                }
                 alt=""
                 className="h-full w-full object-cover"
               />
@@ -281,7 +287,11 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
         return (
           <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.48fr_0.6fr_0.56fr] overflow-hidden" style={{ background: paper, color: ink, fontFamily: "Inter, Arial, sans-serif" }}>
             <div className="grid grid-rows-[1fr_140px]" style={{ background: dark }}>
-              <img src={imageFor(isProjects ? "projects-left" : "achievements-left", 420, 470)} alt="" className="h-full w-full object-cover" />
+              <img
+                src={isProjects ? "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=700&q=80" : "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=700&q=80"}
+                alt=""
+                className="h-full w-full object-cover"
+              />
               <div className="flex items-center px-[72px] text-sm text-white">Portfolio 2026</div>
             </div>
             <div className="relative px-10 py-28">
@@ -295,7 +305,18 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             <div className="relative border-l border-neutral-400 p-8">
               <Nav />
               <div className="mt-14 grid h-[460px] grid-rows-3 gap-5">
-                {[0, 1, 2].map((i) => <img key={i} src={imageFor(`${page}-${i}`, 360, 150)} alt="" className="h-full w-full object-cover" />)}
+                {(isProjects
+                  ? [
+                    "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=500&q=80",
+                    "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=500&q=80",
+                    "https://images.unsplash.com/photo-1556761175-4b46a572b786?auto=format&fit=crop&w=500&q=80",
+                  ]
+                  : [
+                    "https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=500&q=80",
+                    "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=500&q=80",
+                    "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=500&q=80",
+                  ]
+                ).map((src) => <img key={src} src={src} alt="" className="h-full w-full object-cover" />)}
               </div>
               <div className="absolute bottom-12 right-9"><Logo /></div>
             </div>
