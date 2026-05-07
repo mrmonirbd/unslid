@@ -95,7 +95,7 @@ const CustomTemplatePage = () => {
   }
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <Header />
+      {/* <Header /> */}
       <div className="max-w-[1440px] aspect-video mx-auto px-6">
         {/* Header */}
         <div className="text-center space-y-2 my-6">

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev -H 0.0.0.0",
+    "dev:lowmem": "NODE_OPTIONS=--max-old-space-size=384 NEXT_TELEMETRY_DISABLED=1 next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

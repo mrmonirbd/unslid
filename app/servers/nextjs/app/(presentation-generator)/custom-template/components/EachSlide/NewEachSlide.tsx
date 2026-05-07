@@ -19,6 +19,7 @@ const EachSlide: React.FC<EachSlideProps> = ({
   setSlides,
   onSlideUpdate,
   isProcessing,
+  canEditHtml = false,
 }) => {
   // Custom hooks
   const {
@@ -77,6 +78,25 @@ const EachSlide: React.FC<EachSlideProps> = ({
     handleSave(slideDisplayRef!, didYourDraw);
   };
 
+  const handleInlineHtmlChange = (html: string) => {
+    if (html !== (slide.html || "")) {
+      onSlideUpdate?.({
+        html,
+        processed: true,
+        processing: false,
+        error: undefined,
+        modified: true,
+      });
+    }
+  };
+
+  const handleDoneTextEdit = () => {
+    if (slideContentRef.current) {
+      handleInlineHtmlChange(slideContentRef.current.innerHTML);
+    }
+    handleCancelEdit();
+  };
+
   // Handle delete slide
   const handleDeleteSlide = () => {
     setSlides((prevSlides) => prevSlides.filter((_, i) => i !== index));
@@ -100,6 +120,7 @@ const EachSlide: React.FC<EachSlideProps> = ({
             isProcessing={isProcessing}
             isEditMode={isEditMode}
             isHtmlEditMode={isHtmlEditMode}
+            canEditHtml={canEditHtml}
             onEditClick={handleEditClick}
             onHtmlEditClick={handleHtmlEditClick}
             onRetry={handleRetrySlide}
@@ -132,12 +153,14 @@ const EachSlide: React.FC<EachSlideProps> = ({
           onStrokeColorChange={handleStrokeColorChange}
           onEraserModeChange={handleEraserModeChange}
           onClearCanvas={handleClearCanvas}
+          onDoneTextEdit={handleDoneTextEdit}
         />
         {/* Slide Content Display */}
         <SlideContentDisplay
           slide={slide}
           isEditMode={isEditMode}
           isHtmlEditMode={isHtmlEditMode}
+          onHtmlChange={handleInlineHtmlChange}
           slideContentRef={slideContentRef}
           slideDisplayRef={slideDisplayRef}
           canvasRef={canvasRef}

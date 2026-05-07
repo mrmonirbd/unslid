@@ -11,6 +11,7 @@ export const SlideContentDisplay: React.FC<SlideContentDisplayProps> = ({
   slide,
   isEditMode,
   isHtmlEditMode,
+  onHtmlChange,
   slideContentRef,
   slideDisplayRef,
   canvasRef,
@@ -58,9 +59,18 @@ export const SlideContentDisplay: React.FC<SlideContentDisplayProps> = ({
             <Timer duration={90} />
           </div>
         )}
-        <div ref={slideDisplayRef} className="relative mx-auto w-full">
+        <div
+          ref={slideDisplayRef}
+          className={[
+            "relative mx-auto w-full",
+            "[&_.imported-editable-text]:cursor-text [&_.imported-editable-text]:rounded-sm [&_.imported-editable-text]:transition-shadow [&_.imported-editable-text:focus]:bg-white/95 [&_.imported-editable-text:focus]:outline [&_.imported-editable-text:focus]:outline-2 [&_.imported-editable-text:focus]:outline-blue-500 [&_.imported-editable-text:focus]:outline-offset-1",
+            isEditMode
+              ? "[&_.imported-editable-layer]:z-40 [&_.imported-editable-text]:bg-white/95 [&_.imported-editable-text]:outline [&_.imported-editable-text]:outline-1 [&_.imported-editable-text]:outline-blue-400 [&_.imported-editable-text]:outline-offset-1"
+              : "",
+          ].join(" ")}
+        >
           <div ref={slideContentRef}>
-            <SlideContent slide={slide} />
+            <SlideContent slide={slide} onHtmlChange={onHtmlChange} />
           </div>
           {isEditMode && (
             <canvas

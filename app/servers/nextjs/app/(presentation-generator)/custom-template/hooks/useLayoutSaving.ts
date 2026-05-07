@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
-import { ApiResponseHandler } from "@/app/(presentation-generator)/services/api/api-error-handler";
+import { api } from "@/lib/api";
 import { ProcessedSlide, UploadedFont, FontData } from "../types";
 
 export const useLayoutSaving = (
@@ -41,7 +41,7 @@ const importedHtml = ${importedHtml};
 
 const dynamicSlideLayout = () => (
   <div
-    className="relative h-full w-full overflow-hidden bg-white [&_.imported-slide-canvas]:h-full [&_.imported-slide-canvas]:w-full [&_.imported-slide-canvas]:max-w-none"
+    className="relative h-full w-full overflow-hidden bg-white [&_.imported-slide-canvas]:h-full [&_.imported-slide-canvas]:w-full [&_.imported-slide-canvas]:max-w-none [&_.imported-editable-layer]:pointer-events-none [&_.imported-editable-layer]:opacity-0"
     dangerouslySetInnerHTML={{ __html: importedHtml }}
   />
 );
@@ -113,28 +113,15 @@ const dynamicSlideLayout = () => (
       }
 
       // First create/update the template metadata
-      await fetch("/api/v1/ppt/template-management/templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: presentationId, name: layoutName, description }),
+      await api.post("/api/v1/ppt/template-management/templates", {
+        id: presentationId,
+        name: layoutName,
+        description,
       });
 
-      const saveResponse = await fetch(
+      const data = await api.post<any>(
         "/api/v1/ppt/template-management/save-templates",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            layouts: reactComponents,
-          }),
-        }
-      );
-
-      const data = await ApiResponseHandler.handleResponse(
-        saveResponse,
-        "Failed to save layout components"
+        { layouts: reactComponents }
       );
 
       if (!data.success) {

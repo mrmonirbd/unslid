@@ -29,11 +29,15 @@ export const useSlideEdit = (
     if (isEditMode && slideContentRef.current && slideHtml) {
       const slideContent = slideContentRef.current;
 
-      slideContent.style.pointerEvents = "none";
-      slideContent.style.userSelect = "none";
       slideContent.style.transform = "translateZ(0)";
       slideContent.style.willChange = "auto";
       slideContent.style.backfaceVisibility = "hidden";
+      const isImportedSlide = !!slideContent.querySelector(".imported-slide-canvas");
+
+      if (!isImportedSlide) {
+        slideContent.style.pointerEvents = "none";
+        slideContent.style.userSelect = "none";
+      }
 
       const interactiveElements = slideContent.querySelectorAll(
         "img, video, iframe, a, button, input, textarea, select"

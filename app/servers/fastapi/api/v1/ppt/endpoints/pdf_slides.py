@@ -26,6 +26,10 @@ class PdfSlideData(BaseModel):
     slide_number: int
     screenshot_url: str
     xml_content: str = ""
+    slide_width_emu: int
+    slide_height_emu: int
+    slide_width_px: float
+    slide_height_px: float
 
 
 class PdfSlidesResponse(BaseModel):
@@ -79,7 +83,7 @@ async def process_pdf_slides(
             screenshot_paths = await DocumentsLoader.get_page_images_from_pdf_async(
                 pdf_path, temp_dir
             )
-            text_xmls = _extract_pdf_text_as_synthetic_xml(pdf_path)
+            page_metadata = _extract_pdf_page_metadata(pdf_path)
             print(f"Generated {len(screenshot_paths)} PDF screenshots")
 
             # Move screenshots to images directory and generate URLs
@@ -114,7 +118,31 @@ async def process_pdf_slides(
                     PdfSlideData(
                         slide_number=i,
                         screenshot_url=screenshot_url,
-                        xml_content=text_xmls[i - 1] if i - 1 < len(text_xmls) else "",
+                        xml_content=(
+                            page_metadata[i - 1]["xml_content"]
+                            if i - 1 < len(page_metadata)
+                            else ""
+                        ),
+                        slide_width_emu=(
+                            page_metadata[i - 1]["slide_width_emu"]
+                            if i - 1 < len(page_metadata)
+                            else 12192000
+                        ),
+                        slide_height_emu=(
+                            page_metadata[i - 1]["slide_height_emu"]
+                            if i - 1 < len(page_metadata)
+                            else 6858000
+                        ),
+                        slide_width_px=(
+                            page_metadata[i - 1]["slide_width_px"]
+                            if i - 1 < len(page_metadata)
+                            else 1280
+                        ),
+                        slide_height_px=(
+                            page_metadata[i - 1]["slide_height_px"]
+                            if i - 1 < len(page_metadata)
+                            else 720
+                        ),
                     )
                 )
 
@@ -129,9 +157,9 @@ async def process_pdf_slides(
             )
 
 
-def _extract_pdf_text_as_synthetic_xml(pdf_path: str) -> list[str]:
-    """Return PPTX-like XML fragments so the frontend can create editable text boxes."""
-    slides: list[str] = []
+def _extract_pdf_page_metadata(pdf_path: str) -> list[dict]:
+    """Return PPTX-like XML plus page dimensions so previews keep the PDF ratio."""
+    slides: list[dict] = []
     try:
         with pdfplumber.open(pdf_path) as pdf:
             for page in pdf.pages:
@@ -156,6 +184,8 @@ def _extract_pdf_text_as_synthetic_xml(pdf_path: str) -> list[str]:
 
                 page_width = float(page.width or 1)
                 page_height = float(page.height or 1)
+                slide_width_emu = 12192000
+                slide_height_emu = max(1, int(slide_width_emu * (page_height / page_width)))
                 shape_xml = []
                 for line in lines:
                     line.sort(key=lambda w: float(w.get("x0", 0)))
@@ -167,10 +197,10 @@ def _extract_pdf_text_as_synthetic_xml(pdf_path: str) -> list[str]:
                     top = min(float(w.get("top", 0)) for w in line)
                     bottom = max(float(w.get("bottom", top + 12)) for w in line)
                     height = max(8, bottom - top)
-                    emu_x = int((x0 / page_width) * 12192000)
-                    emu_y = int((top / page_height) * 6858000)
-                    emu_w = int(((x1 - x0) / page_width) * 12192000)
-                    emu_h = int((height / page_height) * 6858000)
+                    emu_x = int((x0 / page_width) * slide_width_emu)
+                    emu_y = int((top / page_height) * slide_height_emu)
+                    emu_w = int(((x1 - x0) / page_width) * slide_width_emu)
+                    emu_h = int((height / page_height) * slide_height_emu)
                     sz = int(max(8, min(72, height)) / 1.333 * 100)
                     shape_xml.append(
                         f"""
@@ -179,7 +209,15 @@ def _extract_pdf_text_as_synthetic_xml(pdf_path: str) -> list[str]:
   <txBody><p><r><rPr sz="{sz}" /><t>{escape(text)}</t></r></p></txBody>
 </sp>"""
                     )
-                slides.append(f"<slide>{''.join(shape_xml)}</slide>")
+                slides.append(
+                    {
+                        "xml_content": f"<slide>{''.join(shape_xml)}</slide>",
+                        "slide_width_emu": slide_width_emu,
+                        "slide_height_emu": slide_height_emu,
+                        "slide_width_px": page_width,
+                        "slide_height_px": page_height,
+                    }
+                )
     except Exception as e:
         print(f"Warning: failed to extract PDF text boxes: {e}")
     return slides

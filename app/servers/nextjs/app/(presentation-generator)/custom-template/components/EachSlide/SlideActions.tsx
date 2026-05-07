@@ -10,6 +10,7 @@ export const SlideActions: React.FC<SlideActionsProps> = ({
   isProcessing,
   isEditMode,
   isHtmlEditMode,
+  canEditHtml = false,
   onEditClick,
   onHtmlEditClick,
   onRetry,
@@ -49,22 +50,24 @@ export const SlideActions: React.FC<SlideActionsProps> = ({
                   </button>
                 </ToolTip>
               </div>
-              <div>
-                <ToolTip content="Edit HTML directly">
-                  <button
-                    onClick={onHtmlEditClick}
-                    disabled={isProcessing || !slide.processed}
-                    className={`px-6 py-2 flex gap-2 text-sm items-center group-hover:scale-105 rounded-lg bg-purple-600 hover:bg-purple-700 hover:shadow-md transition-all duration-300 cursor-pointer shadow-md ${
-                      isProcessing || !slide.processed
-                        ? "opacity-50 cursor-not-allowed"
-                        : ""
-                    }`}
-                  >
-                    <Code className="w-4 sm:w-5 h-4 sm:h-5 text-white" />
-                    <span className="text-white">Edit HTML</span>
-                  </button>
-                </ToolTip>
-              </div>
+              {canEditHtml && (
+                <div>
+                  <ToolTip content="Edit HTML directly">
+                    <button
+                      onClick={onHtmlEditClick}
+                      disabled={isProcessing || !slide.processed}
+                      className={`px-6 py-2 flex gap-2 text-sm items-center group-hover:scale-105 rounded-lg bg-purple-600 hover:bg-purple-700 hover:shadow-md transition-all duration-300 cursor-pointer shadow-md ${
+                        isProcessing || !slide.processed
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
+                    >
+                      <Code className="w-4 sm:w-5 h-4 sm:h-5 text-white" />
+                      <span className="text-white">Edit HTML</span>
+                    </button>
+                  </ToolTip>
+                </div>
+              )}
             </>
           )}
           <div>

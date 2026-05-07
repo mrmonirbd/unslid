@@ -19,6 +19,7 @@ class TemplateModel(SQLModel, table=True):
     description: Optional[str] = Field(
         default=None, description="Optional template description"
     )
+    user_id: Optional[int] = Field(default=None, foreign_key="users.id", index=True)
     created_at: datetime = Field(
         sa_column=Column(
             DateTime(timezone=True), nullable=False, default=get_current_utc_datetime

@@ -33,6 +33,8 @@ class SlideData(BaseModel):
     textless_screenshot_url: Optional[str] = None
     xml_content: str
     normalized_fonts: List[str]
+    slide_width_emu: int
+    slide_height_emu: int
 
 
 class FontAnalysisResult(BaseModel):
@@ -341,6 +343,9 @@ async def process_pptx_slides(
 
             # Extract slide XMLs from PPTX
             slide_xmls = _extract_slide_xmls(pptx_path, temp_dir)
+            presentation = Presentation(pptx_path)
+            slide_width_emu = int(presentation.slide_width)
+            slide_height_emu = int(presentation.slide_height)
 
             # Convert PPTX to PDF
             pdf_path = await _convert_pptx_to_pdf(pptx_path, temp_dir)
@@ -433,6 +438,8 @@ async def process_pptx_slides(
                         textless_screenshot_url=textless_screenshot_url,
                         xml_content=xml_content,
                         normalized_fonts=normalized_fonts,
+                        slide_width_emu=slide_width_emu,
+                        slide_height_emu=slide_height_emu,
                     )
                 )
 

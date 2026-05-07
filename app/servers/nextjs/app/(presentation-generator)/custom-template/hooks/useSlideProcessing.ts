@@ -5,6 +5,8 @@ import { ProcessedSlide, SlideData, FontData } from "../types";
 
 const SLIDE_WIDTH = 1280;
 const SLIDE_HEIGHT = 720;
+const DEFAULT_SLIDE_WIDTH_EMU = 12192000;
+const DEFAULT_SLIDE_HEIGHT_EMU = 6858000;
 
 const escapeHtml = (value: string) =>
   value
@@ -21,13 +23,33 @@ const descendants = (root: Element, name: string) =>
 const firstDescendant = (root: Element, name: string) =>
   descendants(root, name)[0] as Element | undefined;
 
-const emuToPx = (value: string | null, axis: "x" | "y") => {
+const getSlideAspectRatio = (slide: SlideData) => {
+  const width = Number(slide.slide_width_emu || slide.slide_width_px);
+  const height = Number(slide.slide_height_emu || slide.slide_height_px);
+
+  if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+    return `${width} / ${height}`;
+  }
+
+  return "16 / 9";
+};
+
+const emuToPx = (
+  value: string | null,
+  axis: "x" | "y",
+  slideWidthEmu = DEFAULT_SLIDE_WIDTH_EMU,
+  slideHeightEmu = DEFAULT_SLIDE_HEIGHT_EMU
+) => {
   const numeric = Number(value || 0);
-  const base = axis === "x" ? 12192000 : 6858000;
+  const base = axis === "x" ? slideWidthEmu : slideHeightEmu;
   return (numeric / base) * (axis === "x" ? SLIDE_WIDTH : SLIDE_HEIGHT);
 };
 
-const extractEditableTextBoxes = (xmlContent?: string) => {
+const extractEditableTextBoxes = (
+  xmlContent?: string,
+  slideWidthEmu?: number,
+  slideHeightEmu?: number
+) => {
   if (!xmlContent || typeof window === "undefined") {
     return "";
   }
@@ -66,10 +88,10 @@ const extractEditableTextBoxes = (xmlContent?: string) => {
         const xfrm = firstDescendant(shape, "xfrm");
         const off = xfrm ? firstDescendant(xfrm, "off") : undefined;
         const ext = xfrm ? firstDescendant(xfrm, "ext") : undefined;
-        const left = emuToPx(off?.getAttribute("x") || "0", "x");
-        const top = emuToPx(off?.getAttribute("y") || "0", "y");
-        const width = Math.max(20, emuToPx(ext?.getAttribute("cx") || "0", "x"));
-        const height = Math.max(18, emuToPx(ext?.getAttribute("cy") || "0", "y"));
+        const left = emuToPx(off?.getAttribute("x") || "0", "x", slideWidthEmu, slideHeightEmu);
+        const top = emuToPx(off?.getAttribute("y") || "0", "y", slideWidthEmu, slideHeightEmu);
+        const width = Math.max(20, emuToPx(ext?.getAttribute("cx") || "0", "x", slideWidthEmu, slideHeightEmu));
+        const height = Math.max(18, emuToPx(ext?.getAttribute("cy") || "0", "y", slideWidthEmu, slideHeightEmu));
 
         const runProps = firstDescendant(textBody, "rPr") || firstDescendant(textBody, "defRPr");
         const fontSize = runProps?.getAttribute("sz")
@@ -106,14 +128,25 @@ const extractEditableTextBoxes = (xmlContent?: string) => {
   }
 };
 
-const buildImportedSlideHtml = (slide: SlideData) => `
-<div class="imported-slide-canvas relative mx-auto aspect-video w-full max-w-[1280px] overflow-hidden bg-white" style="position:relative;width:100%;max-width:1280px;aspect-ratio:16/9;background:#fff;container-type:size;">
-  <img src="${slide.textless_screenshot_url || slide.screenshot_url}" alt="Imported slide ${slide.slide_number} background" class="absolute inset-0 h-full w-full object-contain" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;" draggable="false" />
-  <div class="imported-editable-layer" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:auto;">
-${extractEditableTextBoxes(slide.xml_content)}
+const buildImportedSlideHtml = (slide: SlideData) => {
+  const editableTextBoxes = extractEditableTextBoxes(
+    slide.xml_content,
+    slide.slide_width_emu,
+    slide.slide_height_emu
+  );
+  const hasEditableText = editableTextBoxes.trim().length > 0;
+  const editableBackground = slide.textless_screenshot_url || slide.screenshot_url;
+
+  return `
+<div class="imported-slide-canvas relative mx-auto w-full max-w-[1280px] overflow-hidden bg-white" data-editable-text="${hasEditableText ? "true" : "false"}" style="position:relative;width:100%;max-width:1280px;aspect-ratio:${getSlideAspectRatio(slide)};background:#fff;container-type:size;">
+  <img src="${slide.screenshot_url}" alt="Imported slide ${slide.slide_number} background" class="imported-original-bg absolute inset-0 h-full w-full object-fill" style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill;opacity:${hasEditableText ? 0 : 1};pointer-events:none;" draggable="false" />
+  <img src="${editableBackground}" alt="" class="imported-edit-bg absolute inset-0 h-full w-full object-fill" style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill;opacity:${hasEditableText ? 1 : 0};pointer-events:none;" draggable="false" />
+  <div class="imported-editable-layer" style="position:absolute;inset:0;width:100%;height:100%;z-index:20;pointer-events:${hasEditableText ? "auto" : "none"};">
+${editableTextBoxes}
   </div>
 </div>
 `;
+};
 
 export const useSlideProcessing = (
   selectedFile: File | null,
@@ -263,6 +296,10 @@ export const useSlideProcessing = (
           textless_screenshot_url: slide.textless_screenshot_url ?? null,
           xml_content: slide.xml_content ?? "",
           normalized_fonts: slide.normalized_fonts ?? [],
+          slide_width_emu: slide.slide_width_emu,
+          slide_height_emu: slide.slide_height_emu,
+          slide_width_px: slide.slide_width_px,
+          slide_height_px: slide.slide_height_px,
           processing: false,
           processed: true,
           html: buildImportedSlideHtml({
@@ -271,6 +308,10 @@ export const useSlideProcessing = (
             textless_screenshot_url: slide.textless_screenshot_url ?? null,
             xml_content: slide.xml_content ?? "",
             normalized_fonts: slide.normalized_fonts ?? [],
+            slide_width_emu: slide.slide_width_emu,
+            slide_height_emu: slide.slide_height_emu,
+            slide_width_px: slide.slide_width_px,
+            slide_height_px: slide.slide_height_px,
           }),
         })
       );
