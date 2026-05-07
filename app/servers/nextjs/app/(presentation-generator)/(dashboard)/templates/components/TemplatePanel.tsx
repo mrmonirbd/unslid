@@ -378,7 +378,7 @@ const DesignerTemplateCard = React.memo(function DesignerTemplateCard({
     );
 });
 
-type TemplatePanelLayout = "shelf" | "grid";
+type TemplatePanelLayout = "shelf" | "grid" | "user-grid" | "user-vertical";
 
 const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) => {
     const [query, setQuery] = useState("");
@@ -388,14 +388,16 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
     const { templates: customTemplates, loading: customLoading } = useCustomTemplateSummaries();
     const [designerTemplates, setDesignerTemplates] = useState<PptxDesignerTemplate[]>([]);
     const [designerLoading, setDesignerLoading] = useState(false);
+    const isUserGeneratedOnly = layout === "user-grid" || layout === "user-vertical";
 
     useEffect(() => {
+        if (isUserGeneratedOnly) return;
         setDesignerLoading(true);
         api.get<PptxDesignerTemplate[]>("/api/v1/account/pptx-templates")
             .then(setDesignerTemplates)
             .catch(() => {})
             .finally(() => setDesignerLoading(false));
-    }, []);
+    }, [isUserGeneratedOnly]);
 
     const normalizedQuery = query.trim().toLowerCase();
 
@@ -421,15 +423,17 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
         const tags = new Map<string, number>();
         const addTag = (tag: string) => tags.set(tag, (tags.get(tag) ?? 0) + 1);
 
-        templates.forEach((template) => getInbuiltTags(template).forEach(addTag));
         customTemplates.forEach((template) => getCustomTags(template).forEach(addTag));
-        designerTemplates.forEach((template) => getDesignerTags(template).forEach(addTag));
+        if (!isUserGeneratedOnly) {
+            templates.forEach((template) => getInbuiltTags(template).forEach(addTag));
+            designerTemplates.forEach((template) => getDesignerTags(template).forEach(addTag));
+        }
 
         return Array.from(tags.entries())
             .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
             .slice(0, 12)
             .map(([tag, count]) => ({ tag, count }));
-    }, [customTemplates, designerTemplates, getCustomTags, getDesignerTags, getInbuiltTags]);
+    }, [customTemplates, designerTemplates, getCustomTags, getDesignerTags, getInbuiltTags, isUserGeneratedOnly]);
 
     const filteredInbuiltTemplates = useMemo(
         () =>
@@ -465,9 +469,8 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
     );
 
     const totalVisible =
-        filteredInbuiltTemplates.length +
         filteredCustomTemplates.length +
-        filteredDesignerTemplates.length;
+        (isUserGeneratedOnly ? 0 : filteredInbuiltTemplates.length + filteredDesignerTemplates.length);
 
     const handleOpenPreview = useCallback((id: string) => router.push(`/template-preview/${id}`), [router]);
 
@@ -489,7 +492,97 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
         [filteredCustomTemplates],
     );
 
-    const isGridLayout = layout === "grid";
+    const isGridLayout = layout === "grid" || layout === "user-grid";
+
+    if (isUserGeneratedOnly) {
+        return (
+            <div className="min-h-screen bg-white font-syne text-slate-950">
+                <div className="rounded-b-[28px] bg-[linear-gradient(115deg,#b7f3ee_0%,#f9fbff_44%,#d7b6ff_100%)] px-6 pb-12 pt-14 md:px-10">
+                    <div className="mx-auto flex max-w-5xl flex-col items-center">
+                        <h1 className="font-unbounded text-[34px] font-semibold tracking-[-0.02em] md:text-[42px]">
+                            Templates
+                        </h1>
+                        <div className="relative mt-7 w-full max-w-3xl">
+                            <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-700" />
+                            <input
+                                value={query}
+                                onChange={(event) => setQuery(event.target.value)}
+                                placeholder="Search your templates"
+                                className="h-16 w-full rounded-2xl border border-violet-200 bg-white/95 pl-14 pr-5 text-sm text-slate-900 shadow-[0_18px_50px_rgba(124,58,237,0.12)] outline-none transition placeholder:text-slate-500 focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <main className="px-6 py-8 md:px-10">
+                    <section>
+                        <div className="mb-4 flex items-center justify-between gap-4">
+                            <h2 className="text-2xl font-bold tracking-[-0.01em]">Explore templates</h2>
+                            <span className="text-xs font-semibold text-slate-500">
+                                {filteredCustomTemplates.length} available
+                            </span>
+                        </div>
+                    </section>
+
+                    <div className="mt-8 flex flex-wrap items-center gap-2">
+                        <button
+                            className={`inline-flex h-9 items-center rounded-full px-4 text-xs font-semibold transition ${
+                                activeTag === null
+                                    ? "bg-slate-950 text-white shadow-sm"
+                                    : "border border-violet-200 bg-white text-slate-700 hover:bg-violet-50"
+                            }`}
+                            onClick={() => setActiveTag(null)}
+                        >
+                            All
+                        </button>
+                        {tagOptions.map(({ tag, count }) => (
+                            <button
+                                key={tag}
+                                className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-xs font-semibold capitalize transition ${
+                                    activeTag === tag
+                                        ? "bg-slate-950 text-white shadow-sm"
+                                        : "border border-violet-200 bg-white text-slate-700 hover:bg-violet-50"
+                                }`}
+                                onClick={() => setActiveTag(tag)}
+                            >
+                                {tag}
+                                <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${activeTag === tag ? "bg-white/15 text-white" : "bg-violet-50 text-violet-700"}`}>
+                                    {count}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <section className="mt-8">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h2 className="text-2xl font-bold tracking-[-0.01em]">Create your custom designs</h2>
+                            <a href="/custom-template" className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50" aria-label="Create template">
+                                <ArrowRight className="h-4 w-4" />
+                            </a>
+                        </div>
+
+                        {customLoading ? (
+                            <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white py-12 shadow-sm">
+                                <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+                                <span className="ml-3 text-gray-600">Loading templates...</span>
+                            </div>
+                        ) : filteredCustomTemplates.length === 0 && (normalizedQuery || activeTag) ? (
+                            <EmptyTemplates label="matching" />
+                        ) : (
+                            <div className="grid grid-cols-1 gap-6 pb-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                                {!normalizedQuery && !activeTag && (
+                                    <div className="w-full">
+                                        <CreateCustomTemplate />
+                                    </div>
+                                )}
+                                {customTemplateCards}
+                            </div>
+                        )}
+                    </section>
+                </main>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-white font-syne text-slate-950">
