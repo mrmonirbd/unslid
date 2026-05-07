@@ -18,7 +18,7 @@ import { signOut, useUser } from "@/app/hooks/useUser";
 
 export const defaultNavItems = [
   { key: "dashboard" as const, label: "Dashboard" },
-  { key: "templates" as const, label: "Templates" },
+  { key: "templates" as const, label: "My Templates" },
   { key: "theme" as const, label: "Themes" },
 ];
 

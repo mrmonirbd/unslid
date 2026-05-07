@@ -38,6 +38,7 @@ const PREVIEW_SCALE_STYLE = { width: "833.33%", height: "833.33%" };
 const PREVIEW_PLACEHOLDERS = [0, 1, 2, 3];
 const TEMPLATE_SKELETONS = [0, 1, 2, 3, 4, 5, 6, 7];
 const STATIC_TEMPLATE_EDIT_INDEX_PREFIX = "static-template-edits:index:";
+const FREE_BUILT_IN_TEMPLATE_LIMIT = 10;
 const STOP_WORDS = new Set([
     "template",
     "templates",
@@ -165,10 +166,13 @@ function useTemplateTiers() {
     }, [tiers]);
 
     const isLocked = useCallback(
-        (templateId: string): boolean => {
+        (templateId: string, templateIndex?: number): boolean => {
             // Only lock if tiers are loaded, template is premium, and user is free
             if (!loaded) return false;
             if (plan === "pro" || plan === "team") return false;
+            if (typeof templateIndex === "number") {
+                return templateIndex >= FREE_BUILT_IN_TEMPLATE_LIMIT;
+            }
             return tierMap[templateId] === "premium";
         },
         [loaded, plan, tierMap],
@@ -299,9 +303,14 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
     const previewLayouts = useMemo(() => template.layouts.slice(0, 4), [template.layouts]);
     const cardRef = useRef<HTMLDivElement>(null);
     const shouldRenderPreview = useInViewport(cardRef);
+    const router = useRouter();
     const handleOpen = useCallback(() => {
+        if (locked) {
+            router.push("/settings/billing");
+            return;
+        }
         onOpen(template.id);
-    }, [onOpen, template.id]);
+    }, [locked, onOpen, router, template.id]);
 
     return (
         <Card
@@ -316,7 +325,7 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
                         <Lock className="w-5 h-5 text-amber-600" />
                     </div>
                     <span className="text-xs font-semibold text-white bg-amber-600/90 px-3 py-1 rounded-full shadow">
-                        Premium — Upgrade to unlock
+                        Paid — Upgrade to unlock
                     </span>
                 </div>
             )}
@@ -356,6 +365,11 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
                     <p className="mt-1 line-clamp-1 text-xs text-gray-600">
                         {template.description}
                     </p>
+                    {locked && (
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-amber-600">
+                            Paid member only
+                        </p>
+                    )}
                 </div>
                 <div className="flex items-center gap-2">
                     <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
@@ -630,7 +644,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                     key={template.id}
                     template={template}
                     onOpen={handleOpenPreview}
-                    locked={isLocked(template.id)}
+                    locked={isLocked(template.id, templates.findIndex((source) => source.id === template.id))}
                 />
             )),
         [filteredInbuiltTemplates, handleOpenPreview, isLocked],
@@ -747,7 +761,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
             <div className="rounded-b-[28px] bg-[linear-gradient(115deg,#b7f3ee_0%,#f9fbff_44%,#d7b6ff_100%)] px-6 pb-12 pt-14 md:px-10">
                 <div className="mx-auto flex max-w-5xl flex-col items-center">
                     <h1 className="font-unbounded text-[34px] font-semibold tracking-[-0.02em] md:text-[42px]">
-                        Templates
+                        My Templates
                     </h1>
                     <div className="relative mt-7 w-full max-w-3xl">
                         <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-700" />
