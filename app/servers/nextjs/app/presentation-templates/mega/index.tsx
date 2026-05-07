@@ -4,6 +4,8 @@ import { onlinePresentationServiceDecks } from "../../presentation-decks/onlineP
 import { createTemplateEntry, TemplateLayoutsWithSettings, TemplateWithData } from "../utils";
 
 type MegaKind =
+  | "redEditorial"
+  | "visionMission"
   | "hero"
   | "split"
   | "metrics"
@@ -153,6 +155,254 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
   const rows = data.rows?.length ? data.rows : baseRows;
 
   switch (cfg.kind) {
+    case "redEditorial": {
+      const red = "#f51f18";
+      const cream = "#fbf8f1";
+      const black = "#050505";
+      const page = cfg.id.split("-").pop() || "cover";
+      const imageFor = (seed: string, width = 1200, height = 900) => `https://picsum.photos/seed/red-editorial-${seed}/${width}/${height}`;
+      const redImageStyle = { filter: "saturate(1.18) contrast(1.08)" };
+      const Arrow = ({ className = "" }: { className?: string }) => (
+        <svg className={className} width="92" height="92" viewBox="0 0 92 92" fill="none">
+          <path d="M16 18H74V76" stroke="currentColor" strokeWidth="10" />
+          <path d="M74 18L18 74" stroke="currentColor" strokeWidth="10" />
+        </svg>
+      );
+      const Rule = () => <div className="h-[3px] w-full" style={{ background: "#b8b8b8" }} />;
+
+      if (page === "audience") {
+        const audienceRows = [
+          ["(AGE)", "FROM YOUNG STUDENT TO MORE\nSEASONED PROFESSIONALS"],
+          ["(CLIENT)", "MEDIUM TO HIGH PEOPLE,\nMARKETING AGENCIES, MODELS"],
+          ["(LOCATION)", "CLEAN MODERN, GLOBAL SITE,\nLOW MAINTENANCE"],
+        ];
+        return (
+          <div className="mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] flex-col overflow-hidden px-10 py-9" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
+            <h1 className="text-[150px] font-black uppercase leading-none" style={{ color: red, letterSpacing: "-0.04em" }}>Target Audience</h1>
+            <div className="mt-28 flex flex-1 flex-col justify-between">
+              {audienceRows.map(([label, value]) => (
+                <div key={label}>
+                  <Rule />
+                  <div className="grid grid-cols-[1fr_0.9fr] py-8">
+                    <div className="text-2xl font-black" style={{ color: red }}>{label}</div>
+                    <div className="whitespace-pre-line text-2xl font-medium leading-tight">{value}</div>
+                  </div>
+                </div>
+              ))}
+              <Rule />
+            </div>
+          </div>
+        );
+      }
+
+      if (page === "positioning") {
+        const brandRows = [
+          ["Target Audience Focus", "Aligning the brand with the needs, expectations,\nand preferences of its intended audience"],
+          ["Distinct Identity", "Establishing a unique position that differentiates\nthe brand from competitors in the market"],
+          ["Competitive Advantage", "Highlighting the brand's unique qualities to\nstrengthen its presence within the industry"],
+          ["Market Relevance", "Ensuring the brand remains meaningful,\nrecognizable, and competitive in a dynamic market"],
+        ];
+        return (
+          <div className="mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] flex-col overflow-hidden px-10 py-9" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
+            <h1 className="text-[150px] font-black uppercase leading-none" style={{ color: red, letterSpacing: "-0.04em" }}>Brand Positioning</h1>
+            <div className="mt-20 flex flex-1 flex-col justify-between">
+              {brandRows.map(([label, value]) => (
+                <div key={label}>
+                  <Rule />
+                  <div className="grid grid-cols-[1.35fr_1fr] py-7">
+                    <div className="text-2xl font-black uppercase" style={{ color: red }}>{label}</div>
+                    <div className="whitespace-pre-line text-2xl font-medium leading-tight">{value}</div>
+                  </div>
+                </div>
+              ))}
+              <Rule />
+            </div>
+          </div>
+        );
+      }
+
+      if (page === "timeline") {
+        const phases = [
+          ["Phase 1", "Strategy & Direction", "Initial planning and\ncreative alignment"],
+          ["Phase 2", "Concept Development", "Draft visuals, exploration\nand references"],
+          ["Phase 3", "Production & Refinement", "Final asset creation\nand revisions"],
+          ["Phase 4", "Product Delivery", "Export, approval, and\nimplementation"],
+        ];
+        return (
+          <div className="mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] flex-col overflow-hidden px-10 py-9" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
+            <h1 className="text-[150px] font-black uppercase leading-none" style={{ color: red, letterSpacing: "-0.04em" }}>Project Timeline</h1>
+            <div className="mt-28 flex flex-1 flex-col justify-between">
+              {phases.map(([phase, name, detail]) => (
+                <div key={phase}>
+                  <Rule />
+                  <div className="grid grid-cols-[130px_150px_1fr_0.55fr] items-center py-5">
+                    <div className="text-2xl font-black uppercase">{phase}</div>
+                    <div className="h-[3px] bg-black" />
+                    <div className="pl-8 text-2xl font-black uppercase" style={{ color: red }}>{name}</div>
+                    <div className="whitespace-pre-line text-xl leading-tight">{detail}</div>
+                  </div>
+                </div>
+              ))}
+              <Rule />
+            </div>
+          </div>
+        );
+      }
+
+      if (page === "campaign") {
+        const links = ["The Campaign", "Target Audience", "Social Media", "Deliverables", "Visual Style"];
+        return (
+          <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.62fr_1fr] gap-14 overflow-hidden px-10 py-10" style={{ background: cream, color: red, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
+            <img src={imageFor("campaign-reader", 720, 980)} alt="" className="h-full w-full object-cover" style={redImageStyle} />
+            <div className="flex flex-col justify-between">
+              {links.map((label, index) => (
+                <div key={label}>
+                  <div className="grid grid-cols-[60px_1fr_82px] items-center gap-6">
+                    <div className="text-xl font-medium">({String(index + 1).padStart(2, "0")})</div>
+                    <div className="text-[72px] font-black uppercase leading-none" style={{ letterSpacing: "-0.04em" }}>{label}</div>
+                    <Arrow className="text-red-600" />
+                  </div>
+                  <div className="mt-6 h-[3px]" style={{ background: red }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      if (page === "thanks") {
+        return (
+          <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[1fr_0.82fr] overflow-hidden p-10 text-white" style={{ background: red, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
+            <div className="flex flex-col justify-between">
+              <h1 className="text-[150px] font-black uppercase leading-none" style={{ letterSpacing: "-0.05em" }}>Thank You</h1>
+              <div className="space-y-10 text-[26px] uppercase">
+                <div><div>Phone Number:</div><strong>+123-456-7890</strong></div>
+                <div><div>Email Address:</div><strong>HELLO@REALLYGREATSITE.COM</strong></div>
+                <div><div>Website:</div><strong>REALLYGREATSITE.COM</strong></div>
+              </div>
+            </div>
+            <div className="flex flex-col justify-between">
+              <Arrow className="ml-auto text-white" />
+              <img src={imageFor("thanks-studio", 780, 320)} alt="" className="h-[270px] w-full object-cover" style={redImageStyle} />
+            </div>
+          </div>
+        );
+      }
+
+      if (page === "brief") {
+        return (
+          <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.92fr_1fr] overflow-hidden" style={{ background: cream, color: red, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
+            <div className="flex flex-col justify-between p-10" style={{ background: red, color: cream }}>
+              <h1 className="text-[128px] font-black uppercase leading-[0.9]" style={{ letterSpacing: "-0.05em" }}>Creative<br />Brief</h1>
+              <Arrow className="mx-auto text-white" />
+              <div className="grid grid-cols-2 text-2xl uppercase">
+                <strong>Shodwe Studio</strong>
+                <strong>@ReallyGreatSite</strong>
+              </div>
+            </div>
+            <img src={imageFor("creative-brief-team", 920, 720)} alt="" className="h-full w-full object-cover" style={redImageStyle} />
+          </div>
+        );
+      }
+
+      if (page === "strategy") {
+        return (
+          <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.85fr_1fr] overflow-hidden" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
+            <img src={imageFor("brand-strategy-workshop", 780, 720)} alt="" className="h-full w-full object-cover" style={redImageStyle} />
+            <div className="flex flex-col justify-between p-16">
+              <h1 className="text-[110px] font-black uppercase leading-[0.92]" style={{ color: red, letterSpacing: "-0.05em" }}>Brand<br />Strategy</h1>
+              <p className="max-w-[580px] text-2xl leading-tight">The brand strategy defines the core direction of the brand. By understanding the market and brand goals</p>
+              <div>
+                <strong className="text-xl uppercase">(Key Focus)</strong>
+                <div className="mt-6 space-y-3 text-3xl uppercase">
+                  <div>Audience Insights</div>
+                  <div>Brand Objectives</div>
+                  <div>Market Understanding</div>
+                </div>
+              </div>
+              <Arrow className="ml-auto text-red-600" />
+            </div>
+          </div>
+        );
+      }
+
+      if (page === "style") {
+        return (
+          <div className="mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] flex-col overflow-hidden px-10 py-10" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
+            <div className="grid grid-cols-[1fr_0.32fr]">
+              <h1 className="text-[130px] font-black uppercase leading-none" style={{ color: red, letterSpacing: "-0.05em" }}>Visual Style</h1>
+              <p className="pt-8 text-2xl leading-tight">The visual style establishes the brand's aesthetic direction, ensuring every design element to create a consistent visual</p>
+            </div>
+            <div className="mt-16 grid flex-1 grid-cols-[1fr_0.46fr] gap-10">
+              <img src={imageFor("visual-style-main", 920, 560)} alt="" className="h-full w-full object-cover" style={redImageStyle} />
+              <div className="grid grid-rows-2 gap-10">
+                <img src={imageFor("visual-style-a", 520, 250)} alt="" className="h-full w-full object-cover" style={redImageStyle} />
+                <img src={imageFor("visual-style-b", 520, 250)} alt="" className="h-full w-full object-cover" style={redImageStyle} />
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (page === "summary") {
+        return (
+          <div className="mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] flex-col overflow-hidden px-10 py-10" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
+            <div className="grid grid-cols-[1fr_0.38fr]">
+              <h1 className="text-[132px] font-black uppercase leading-none" style={{ color: red, letterSpacing: "-0.05em" }}>Summarize</h1>
+              <p className="pt-10 text-2xl leading-tight">The final result delivers a refined visual identity that enhances brand recognition while maintaining clarity, consistency, and strong visual communication</p>
+            </div>
+            <div className="relative mt-12 flex-1">
+              <img src={imageFor("summary-reader", 1180, 460)} alt="" className="h-full w-full object-cover" style={redImageStyle} />
+              <div className="absolute bottom-5 left-6 rounded-full px-8 py-4 text-2xl uppercase text-white" style={{ background: red }}>Inspire meaningful brand connections</div>
+              <div className="absolute bottom-5 right-8 rounded-full px-8 py-4 text-2xl uppercase text-white" style={{ background: red }}>Deliver memorable visual stories</div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[1fr_0.95fr] overflow-hidden" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
+          <div className="relative p-10">
+            <h1 className="text-[122px] font-black uppercase leading-[0.88]" style={{ color: red, letterSpacing: "-0.055em" }}>Brand<br />Messages</h1>
+            <div className="absolute bottom-24 left-10 max-w-[500px]">
+              <h2 className="text-3xl font-black uppercase" style={{ color: red }}>Design for Style & Performance</h2>
+              <p className="mt-4 text-2xl leading-tight">A perfect balance of style and performance designed to stand out and built to deliver</p>
+            </div>
+            <div className="absolute bottom-10 left-10 max-w-[520px]">
+              <h2 className="text-3xl font-black uppercase" style={{ color: red }}>Communicating the Brand's Vision</h2>
+            </div>
+          </div>
+          <img src={imageFor("brand-messages-red", 760, 720)} alt="" className="h-full w-full object-cover" style={redImageStyle} />
+        </div>
+      );
+    }
+    case "visionMission":
+      return (
+        <div className="relative mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[72px_1fr_450px] overflow-hidden bg-white shadow-2xl" style={{ fontFamily: "Inter, Arial, sans-serif" }}>
+          <div className="h-full" style={{ background: "#bfff00" }} />
+          <div className="flex flex-col justify-center px-12 py-14 text-black">
+            <div className="mb-14 inline-flex w-fit rounded-full px-8 py-3 text-4xl font-black" style={{ background: "#bfff00", color: "#5b3ff2", letterSpacing: 0 }}>
+              MSGR
+            </div>
+            <h1 className="max-w-[700px] text-[88px] font-black leading-[0.98]" style={{ letterSpacing: "-0.01em" }}>
+              Vision and<br />Mission
+            </h1>
+            <p className="mt-10 max-w-[620px] text-[24px] font-semibold uppercase leading-snug tracking-[0.16em]">
+              What we want to be and what it takes to achieve our goals
+            </p>
+            <p className="mt-14 text-[21px] font-medium">Presented by Daniel Gallego</p>
+          </div>
+          <div className="relative flex items-center justify-center p-8" style={{ background: "#5638f5" }}>
+            <img src={data.imageUrl} alt="" className="h-[86%] w-full object-cover shadow-xl" />
+            <div className="absolute bottom-14 right-0 flex h-24 w-44 items-center justify-center rounded-l-full" style={{ background: "#bfff00" }}>
+              <svg width="92" height="42" viewBox="0 0 92 42" fill="none">
+                <path d="M8 21H76" stroke="#5638f5" strokeWidth="7" strokeLinecap="round" />
+                <path d="M58 7L78 21L58 35" stroke="#5638f5" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      );
     case "hero":
       return (
         <Shell cfg={cfg}>
@@ -573,7 +823,7 @@ function createMegaComponent(cfg: MegaConfig, Schema: ReturnType<typeof makeSche
 }
 
 const kinds: MegaKind[] = [
-  "hero", "split", "metrics", "timeline", "comparison", "process", "quote", "team", "table", "chart",
+  "redEditorial", "visionMission", "hero", "split", "metrics", "timeline", "comparison", "process", "quote", "team", "table", "chart",
   "pieChart", "roadmap", "swot", "pyramid", "funnel", "matrix", "agenda", "caseStudy", "pricing", "risk", "dashboard",
   "map", "featureGrid", "beforeAfter", "thankYou", "portfolio",
 ];
@@ -632,6 +882,8 @@ const styles = [
 ];
 
 const kindLabels: Record<MegaKind, string> = {
+  redEditorial: "Red Editorial",
+  visionMission: "Vision Mission",
   hero: "Hero Statement",
   split: "Split Narrative",
   metrics: "Metrics Board",
@@ -717,7 +969,7 @@ const categoryKindMap: Record<string, MegaKind> = {
   Business: "funnel",
 };
 
-const configs: MegaConfig[] = onlinePresentationServiceDecks.map((deck, index) => {
+const makeConfig = (deck: (typeof onlinePresentationServiceDecks)[number], index: number, variant = 0): MegaConfig => {
   const style = styles[index % styles.length];
   const accent = index % 3 === 0 ? style.accent : deck.accent || style.accent;
   const fallbackKind = kinds[index % kinds.length];
@@ -730,10 +982,73 @@ const configs: MegaConfig[] = onlinePresentationServiceDecks.map((deck, index) =
     bg: style.bg,
     fg: style.fg,
     soft: style.soft,
-    imageUrl: `https://picsum.photos/seed/${deck.id}/900/700`,
+    imageUrl: `https://picsum.photos/seed/${variant ? `${deck.id}-studio-${variant}` : deck.id}/900/700`,
     curve: index,
   };
+};
+
+const secondCollectionAngles = [
+  "Studio Edition",
+  "Editorial Edition",
+  "Executive Edition",
+  "Investor Remix",
+  "Data Story Edition",
+  "Bold Campaign Edition",
+  "Minimal Pro Edition",
+  "Premium Service Edition",
+  "Launch System Edition",
+  "Visual Strategy Edition",
+];
+
+const baseConfigs: MegaConfig[] = onlinePresentationServiceDecks.map((deck, index) => makeConfig(deck, index));
+
+const expansionConfigs: MegaConfig[] = onlinePresentationServiceDecks.map((deck, index) => {
+  const configIndex = index + onlinePresentationServiceDecks.length;
+  const style = styles[(index * 7 + 11) % styles.length];
+  const angle = secondCollectionAngles[index % secondCollectionAngles.length];
+  const baseKind = kinds[(index * 5 + 3) % kinds.length];
+  return {
+    ...makeConfig(deck, configIndex, 2),
+    name: `${deck.title} ${angle}`,
+    description: `${deck.category} ${angle.toLowerCase()} for ${deck.audience}. A second-generation layout direction with different pacing, visuals, and slide structure.`,
+    kind: baseKind,
+    accent: index % 2 ? style.accent : deck.accent || style.accent,
+    bg: style.bg,
+    fg: style.fg,
+    soft: style.soft,
+    curve: configIndex * 2,
+  };
 });
+
+const featuredRedEditorialConfig: MegaConfig = {
+  id: "mega-featured-red-editorial",
+  name: "Red Editorial Brand Campaign",
+  description: "A bold cream and red editorial brand campaign deck with oversized condensed typography, table-style strategy pages, image-heavy creative sections, and strong arrow motifs.",
+  kind: "redEditorial",
+  accent: "#f51f18",
+  bg: "#fbf8f1",
+  fg: "#000000",
+  soft: "#f3eee5",
+  imageUrl: "https://picsum.photos/seed/red-editorial-brand-campaign/1200/900",
+  curve: 0,
+};
+
+const featuredVisionConfig: MegaConfig = {
+  id: "mega-featured-vision-mission",
+  name: "MSGR Vision and Mission",
+  description: "A bold neon and violet vision mission presentation inspired by modern youth culture, strong editorial typography, and image-led storytelling.",
+  kind: "visionMission",
+  accent: "#bfff00",
+  bg: "#ffffff",
+  fg: "#000000",
+  soft: "#ede9fe",
+  imageUrl: "https://picsum.photos/seed/msgr-vision-mission/900/1200",
+  curve: 1,
+};
+
+const featuredConfigs: MegaConfig[] = [featuredRedEditorialConfig, featuredVisionConfig];
+
+const configs: MegaConfig[] = [...featuredConfigs, ...baseConfigs, ...expansionConfigs];
 
 type PagePlan = { suffix: string; name: string; kind: MegaKind; description: string };
 
@@ -794,6 +1109,89 @@ const pagePlanPresets: PagePlan[][] = [
   ],
 ];
 
+const planDescriptions: Record<MegaKind, string> = {
+  redEditorial: "Cream and red editorial page with oversized condensed typography.",
+  visionMission: "Bold neon and violet vision mission cover slide with editorial typography.",
+  hero: "Modern cover slide with a bold headline and strong visual anchor.",
+  split: "Split image and narrative slide for a clean value proposition.",
+  metrics: "KPI slide with large numbers and proof points.",
+  timeline: "Curved timeline slide for sequence, delivery, or milestones.",
+  comparison: "Two-column comparison slide for alternatives and tradeoffs.",
+  process: "Workflow slide for services, onboarding, or operations.",
+  quote: "Quote-led slide for testimony, brand belief, or final emphasis.",
+  team: "People and role cards slide for trust building.",
+  table: "Structured table slide for facts, scope, or deliverables.",
+  chart: "Bar chart with curved trend line for performance storytelling.",
+  pieChart: "Pie chart slide for market, budget, or segment breakdown.",
+  roadmap: "Roadmap slide for next steps and strategic direction.",
+  swot: "SWOT-style matrix slide for strategic planning.",
+  pyramid: "Layered hierarchy slide for model, maturity, or priority.",
+  funnel: "Funnel slide for sales, conversion, or decision flow.",
+  matrix: "Decision matrix slide for priorities and tradeoffs.",
+  agenda: "Numbered agenda slide for workshops and meetings.",
+  caseStudy: "Case study slide with result metrics and image proof.",
+  pricing: "Pricing and package slide for clear offer presentation.",
+  risk: "Risk heatmap slide for issues, severity, and mitigation.",
+  dashboard: "Dashboard slide with metrics, trend, and business signals.",
+  map: "Market map slide for territories, channels, or audience clusters.",
+  featureGrid: "Feature grid slide for benefits, capabilities, and modules.",
+  beforeAfter: "Before-after slide for transformation and outcomes.",
+  thankYou: "Clean closing slide with final call-to-action.",
+  portfolio: "Visual portfolio slide for work, products, or gallery proof.",
+};
+
+const first20KindSequences: MegaKind[][] = [
+  ["hero", "pieChart", "roadmap", "pricing", "caseStudy", "team", "quote"],
+  ["split", "funnel", "chart", "dashboard", "comparison", "pricing", "thankYou"],
+  ["portfolio", "beforeAfter", "featureGrid", "caseStudy", "pricing", "timeline", "quote"],
+  ["map", "portfolio", "pricing", "metrics", "table", "quote", "thankYou"],
+  ["featureGrid", "hero", "pieChart", "comparison", "roadmap", "pricing", "quote"],
+  ["portfolio", "map", "table", "caseStudy", "metrics", "roadmap", "thankYou"],
+  ["agenda", "metrics", "process", "pricing", "quote", "dashboard", "thankYou"],
+  ["matrix", "swot", "pyramid", "chart", "timeline", "caseStudy", "quote"],
+  ["quote", "metrics", "map", "timeline", "pricing", "featureGrid", "thankYou"],
+  ["roadmap", "portfolio", "pricing", "map", "team", "dashboard", "quote"],
+  ["split", "metrics", "process", "table", "caseStudy", "quote", "thankYou"],
+  ["dashboard", "pieChart", "risk", "chart", "table", "pricing", "quote"],
+  ["process", "timeline", "dashboard", "matrix", "featureGrid", "caseStudy", "thankYou"],
+  ["risk", "dashboard", "table", "matrix", "roadmap", "quote", "thankYou"],
+  ["team", "funnel", "metrics", "pricing", "comparison", "caseStudy", "quote"],
+  ["map", "timeline", "portfolio", "pricing", "featureGrid", "quote", "thankYou"],
+  ["portfolio", "agenda", "pricing", "beforeAfter", "quote", "team", "thankYou"],
+  ["split", "portfolio", "comparison", "pricing", "caseStudy", "roadmap", "quote"],
+  ["portfolio", "map", "pyramid", "table", "dashboard", "caseStudy", "thankYou"],
+  ["dashboard", "featureGrid", "timeline", "pricing", "risk", "chart", "quote"],
+];
+
+const second100KindSequences: MegaKind[][] = [
+  ["pieChart", "hero", "matrix", "caseStudy", "roadmap", "pricing", "quote"],
+  ["risk", "dashboard", "process", "table", "chart", "featureGrid", "thankYou"],
+  ["portfolio", "split", "map", "beforeAfter", "team", "pricing", "quote"],
+  ["agenda", "timeline", "metrics", "funnel", "comparison", "caseStudy", "thankYou"],
+  ["swot", "pyramid", "matrix", "roadmap", "chart", "pricing", "quote"],
+  ["map", "pieChart", "featureGrid", "dashboard", "process", "caseStudy", "thankYou"],
+  ["quote", "portfolio", "metrics", "beforeAfter", "table", "roadmap", "pricing"],
+  ["chart", "dashboard", "risk", "matrix", "featureGrid", "timeline", "quote"],
+  ["team", "process", "pricing", "caseStudy", "map", "metrics", "thankYou"],
+  ["funnel", "comparison", "pieChart", "chart", "roadmap", "pricing", "quote"],
+];
+
+const makeFirst20Plan = (index: number): PagePlan[] =>
+  first20KindSequences[index].map((kind, pageIndex) => ({
+    suffix: `custom-${pageIndex + 1}-${kind.toLowerCase()}`,
+    name: pageIndex === 0 ? `${kindLabels[kind]} Cover` : kindLabels[kind],
+    kind,
+    description: planDescriptions[kind],
+  }));
+
+const makeSecond100Plan = (index: number): PagePlan[] =>
+  second100KindSequences[(index - onlinePresentationServiceDecks.length - featuredConfigs.length) % second100KindSequences.length].map((kind, pageIndex) => ({
+    suffix: `edition-${pageIndex + 1}-${kind.toLowerCase()}`,
+    name: pageIndex === 0 ? `${kindLabels[kind]} Opener` : `${kindLabels[kind]} Slide`,
+    kind,
+    description: `${planDescriptions[kind]} This second collection page uses a different visual rhythm from the first 100 templates.`,
+  }));
+
 const closingVariants: PagePlan[] = [
   { suffix: "close-quote", name: "Closing Quote", kind: "quote", description: "Final emotional statement with image-led emphasis." },
   { suffix: "close-metrics", name: "Closing Metrics", kind: "metrics", description: "Final slide with the strongest proof numbers." },
@@ -810,6 +1208,37 @@ const closingVariants: PagePlan[] = [
 ];
 
 const getPagePlans = (index: number) => {
+  if (index === 0) {
+    return [
+      { suffix: "cover", name: "Brand Messages Cover", kind: "redEditorial", description: "Oversized red typography cover with image-led brand messaging." },
+      { suffix: "audience", name: "Target Audience", kind: "redEditorial", description: "Large red title with ruled table rows for audience definition." },
+      { suffix: "positioning", name: "Brand Positioning", kind: "redEditorial", description: "Brand positioning table with bold red labels and concise explanations." },
+      { suffix: "timeline", name: "Project Timeline", kind: "redEditorial", description: "Four-phase project timeline with horizontal rules and red milestones." },
+      { suffix: "campaign", name: "Campaign Menu", kind: "redEditorial", description: "Photo-led campaign contents slide with large red links and arrow motifs." },
+      { suffix: "thanks", name: "Thank You", kind: "redEditorial", description: "Full red closing slide with contact details and image block." },
+      { suffix: "brief", name: "Creative Brief", kind: "redEditorial", description: "Split red creative brief cover with bold arrow and team image." },
+      { suffix: "strategy", name: "Brand Strategy", kind: "redEditorial", description: "Strategy slide with image split, key focus list, and red typography." },
+      { suffix: "style", name: "Visual Style", kind: "redEditorial", description: "Image collage slide for visual direction and aesthetic principles." },
+      { suffix: "summary", name: "Summarize", kind: "redEditorial", description: "Summary slide with large image and red rounded message labels." },
+    ];
+  }
+  if (index === 1) {
+    return [
+      { suffix: "cover", name: "Vision and Mission Cover", kind: "visionMission", description: "Reference-inspired neon green and violet cover slide." },
+      { suffix: "goals", name: "Mission Goals", kind: "featureGrid", description: "Goal grid slide for priorities and focus areas." },
+      { suffix: "values", name: "Core Values", kind: "quote", description: "Bold value statement slide." },
+      { suffix: "roadmap", name: "Action Roadmap", kind: "roadmap", description: "Roadmap slide for turning vision into execution." },
+      { suffix: "metrics", name: "Success Metrics", kind: "pieChart", description: "Pie chart slide for success signals." },
+      { suffix: "team", name: "Team Alignment", kind: "team", description: "Team role slide for ownership and accountability." },
+      { suffix: "close", name: "Final Direction", kind: "thankYou", description: "Clean closing slide with final direction." },
+    ];
+  }
+  if (index < featuredConfigs.length + first20KindSequences.length) {
+    return makeFirst20Plan(index - featuredConfigs.length);
+  }
+  if (index >= featuredConfigs.length + onlinePresentationServiceDecks.length) {
+    return makeSecond100Plan(index);
+  }
   const plans = [...pagePlanPresets[index % pagePlanPresets.length]];
   plans[plans.length - 1] = closingVariants[index % closingVariants.length];
   return plans;
