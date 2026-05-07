@@ -47,9 +47,9 @@ const page = () => {
     <div className="flex min-h-screen bg-[#fbf9ff]">
       <DashboardSidebar />
       <div className="relative flex-1">
-        <Header />
-        <div className="mb-8 flex flex-col items-center justify-center">
-          <h1 className="font-unbounded text-[64px] font-normal text-[#101323]">Unslid</h1>
+        {/* <Header /> */}
+        <div className="mb-8 mt-8 flex flex-col items-center justify-center">
+          {/* <h1 className="font-unbounded text-[64px] font-normal text-[#101323]">Unslid</h1> */}
           <p className="font-syne text-xl text-[#101323CC]">
             Choose a design, set preferences, and generate polished slides.
           </p>
