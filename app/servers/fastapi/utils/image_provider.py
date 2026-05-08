@@ -42,6 +42,10 @@ def is_comfyui_selected() -> bool:
     return ImageProvider.COMFYUI == get_selected_image_provider()
 
 
+def is_no_image_provider_selected() -> bool:
+    return ImageProvider.NONE == get_selected_image_provider()
+
+
 def get_selected_image_provider() -> ImageProvider | None:
     """
     Get the selected image provider from plan context (DB config) or env fallback.

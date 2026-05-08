@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, FileSpreadsheet, Home, Loader2, Minus, MoveDiagonal, Plus, Save, Trash2, Type } from "lucide-react";
+import { ArrowLeft, ArrowRightFromLine, ArrowUpRight, Download, FileSpreadsheet, Home, Loader2, Minus, MoveDiagonal, Plus, Save, Trash2, Type } from "lucide-react";
 import html2canvas from "html2canvas";
 
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
@@ -82,7 +82,7 @@ function downloadBlob(blob: Blob, fileName: string) {
   anchor.download = fileName;
   document.body.appendChild(anchor);
   anchor.click();
-  document.body.removeChild(anchor);
+  anchor.remove();
   URL.revokeObjectURL(blobUrl);
 }
 
@@ -332,7 +332,9 @@ function FullPreviewDownloadDropdown({
       toast.success(`${format.toUpperCase()} download ready`);
     } catch (error) {
       console.error(`Failed to download ${format}`, error);
-      toast.error(`Failed to download ${format.toUpperCase()}`);
+      toast.error("Having trouble exporting!", {
+        description: `We are having trouble exporting this template as ${format.toUpperCase()}. Please try again.`,
+      });
     } finally {
       setDownloading(null);
     }
@@ -379,28 +381,45 @@ function FullPreviewDownloadDropdown({
 
   return (
     <div className="relative">
-      <Button
+      <button
         type="button"
-        variant="outline"
-        size="sm"
-        className="gap-2"
+        className="flex items-center gap-[7px] rounded-[53px] px-[18px] py-[11px] text-sm font-semibold text-[#101323] disabled:opacity-60"
+        style={{
+          background: "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
+        }}
         disabled={!!downloading}
         onClick={() => setOpen((value) => !value)}
       >
-        {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-        Download
-      </Button>
+        {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Export"}
+        <ArrowRightFromLine className="h-3.5 w-3.5" />
+      </button>
       {open && (
-        <div className="absolute right-0 top-11 z-50 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-sm shadow-xl">
-          <button type="button" className="block w-full px-4 py-2 text-left hover:bg-slate-50" onClick={() => handleDownload("pdf")}>
-            PDF
-          </button>
-          <button type="button" className="block w-full px-4 py-2 text-left hover:bg-slate-50" onClick={() => handleDownload("pptx")}>
-            PPTX
-          </button>
-          <button type="button" className="block w-full px-4 py-2 text-left hover:bg-slate-50" onClick={handleImageZipDownload}>
-            Images ZIP
-          </button>
+        <div className="absolute right-0 top-12 z-50 w-[200px] rounded-[18px] border border-slate-200 bg-white p-5 text-sm shadow-xl">
+          <p className="text-sm font-medium text-[#19001F]">Export as</p>
+          <div className="my-[18px] h-[1px] bg-[#E8E8E8]" />
+          <div className="space-y-3">
+            <button
+              type="button"
+              className="flex w-full items-center justify-start gap-2 px-0 text-xs text-black hover:bg-transparent"
+              onClick={() => handleDownload("pdf")}
+            >
+              PDF <ArrowUpRight className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center justify-start gap-2 px-0 text-xs text-black hover:bg-transparent"
+              onClick={() => handleDownload("pptx")}
+            >
+              PPTX <ArrowUpRight className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center justify-start gap-2 px-0 text-xs text-black hover:bg-transparent"
+              onClick={handleImageZipDownload}
+            >
+              Images ZIP <ArrowUpRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -1287,12 +1306,16 @@ const GroupLayoutPreview = () => {
     );
     if (!confirmed) return;
 
-    const success = await TemplateService.deleteCustomTemplate(customTemplateId);
-    if (success.success) {
-      toast.success("Template deleted successfully");
-      router.push("/template-preview");
-    } else {
-      toast.error("Failed to delete template");
+    try {
+      const result = await TemplateService.deleteCustomTemplate(customTemplateId);
+      if (result?.success) {
+        toast.success("Template deleted successfully");
+        router.push("/template-preview");
+      } else {
+        toast.error("Failed to delete template");
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete template");
     }
   };
 

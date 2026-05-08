@@ -115,6 +115,8 @@ async def check_llm_and_image_provider_api_or_model_availability():
 
         # Check for Image Provider and API keys
         selected_image_provider = get_selected_image_provider()
+        if selected_image_provider == ImageProvider.NONE:
+            return
         if not selected_image_provider:
             raise Exception("IMAGE_PROVIDER must be provided")
 

@@ -595,6 +595,13 @@ async def update_ai_config(
             detail=f"llm_provider must be one of: {', '.join(VALID_LLM_PROVIDERS)}",
         )
 
+    VALID_IMAGE_PROVIDERS = {"pexels", "pixabay", "dall-e-3", "gpt-image-1.5", "gemini_flash", "nanobanana_pro", "comfyui", "none"}
+    if body.image_provider not in VALID_IMAGE_PROVIDERS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"image_provider must be one of: {', '.join(VALID_IMAGE_PROVIDERS)}",
+        )
+
     cfg = await upsert_plan_ai_config(
         plan=plan,
         llm_provider=body.llm_provider,
