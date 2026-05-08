@@ -36,6 +36,18 @@ const EditableLayoutWrapper: React.FC<EditableLayoutWrapperProps> = ({
     const [editableElements, setEditableElements] = useState<EditableElement[]>([]);
     const [activeEditor, setActiveEditor] = useState<EditableElement | null>(null);
 
+    const isMissingImageUrl = (value: unknown) => {
+        if (typeof value !== 'string') return true;
+        const url = value.trim();
+        if (!url) return true;
+        return (
+            url.includes('/static/images/placeholder') ||
+            url.includes('placeholder.jpg') ||
+            url.includes('via.placeholder.com') ||
+            url.includes('replaceable_template_image.png')
+        );
+    };
+
     /**
      * Recursively searches for ALL image/icon data paths in the slide data structure
      */
@@ -47,6 +59,21 @@ const EditableLayoutWrapper: React.FC<EditableLayoutWrapperProps> = ({
         // Check current level for __image_url__ or __icon_url__
         if (data.__image_url__ && targetUrl.includes(data.__image_url__)) {
             matches.push({ path, type: 'image', data });
+        }
+
+        // Legacy mega templates stored the primary image as a flat imageUrl
+        // string. Treat it like the standard image object so the same editor can
+        // create/update a proper `image` field on first edit.
+        const hasStandardImageObject = data.image && typeof data.image === 'object' && !Array.isArray(data.image) && data.image.__image_url__;
+        if (!data.__image_url__ && !hasStandardImageObject && typeof data.imageUrl === 'string' && targetUrl.includes(data.imageUrl)) {
+            matches.push({
+                path: path ? `${path}.image` : 'image',
+                type: 'image',
+                data: {
+                    __image_url__: data.imageUrl,
+                    __image_prompt__: typeof data.title === 'string' ? data.title : ''
+                }
+            });
         }
 
         if (data.__icon_url__ && targetUrl.includes(data.__icon_url__)) {
@@ -77,7 +104,25 @@ const EditableLayoutWrapper: React.FC<EditableLayoutWrapperProps> = ({
     const findBestDataPath = (targetUrl: string, imgElement: HTMLImageElement | SVGElement, data: any): { path: string; type: 'image' | 'icon'; data: any } | null => {
         const allMatches = findAllDataPaths(targetUrl, data);
 
-        if (allMatches.length === 0) return null;
+        if (allMatches.length === 0) {
+            const prompt = typeof data?.image?.__image_prompt__ === 'string'
+                ? data.image.__image_prompt__
+                : typeof data?.title === 'string'
+                    ? data.title
+                    : '';
+            if (data?.image && typeof data.image === 'object' && isMissingImageUrl(data.image.__image_url__)) {
+                return {
+                    path: 'image',
+                    type: 'image',
+                    data: {
+                        ...data.image,
+                        __image_url__: targetUrl,
+                        __image_prompt__: prompt,
+                    },
+                };
+            }
+            return null;
+        }
         if (allMatches.length === 1) return allMatches[0];
 
         // If multiple matches, use DOM position to find the correct one across images and svgs

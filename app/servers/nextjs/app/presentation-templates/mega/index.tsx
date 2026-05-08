@@ -74,6 +74,13 @@ function makeSchema(title: string, imageUrl: string, subtitle: string, quote: st
     subtitle: z.string().max(220).default(subtitle),
     quote: z.string().max(220).default(quote),
     imageUrl: z.string().default(imageUrl),
+    image: z.object({
+      __image_url__: z.string(),
+      __image_prompt__: z.string().max(100),
+    }).default({
+      __image_url__: imageUrl,
+      __image_prompt__: `${title} presentation image`.slice(0, 100),
+    }),
     items: z.array(z.object({
       label: z.string().max(40),
       text: z.string().max(160),
@@ -96,6 +103,23 @@ const clampText = (value: unknown, maxLength: number, fallback = "") => {
   return text.length > maxLength ? text.slice(0, maxLength).trimEnd() : text;
 };
 
+const isMissingImageUrl = (value: unknown) => {
+  if (typeof value !== "string") return true;
+  const url = value.trim();
+  if (!url) return true;
+  return (
+    url.includes("/static/images/placeholder") ||
+    url.includes("placeholder.jpg") ||
+    url.includes("via.placeholder.com") ||
+    url.includes("replaceable_template_image.png")
+  );
+};
+
+const firstUsableImageUrl = (...urls: unknown[]) => {
+  const usable = urls.find((url) => !isMissingImageUrl(url));
+  return typeof usable === "string" ? usable : "";
+};
+
 const normalizeMegaData = (data: unknown) => {
   if (!data || typeof data !== "object" || Array.isArray(data)) return {};
   const source = data as Record<string, unknown>;
@@ -105,6 +129,16 @@ const normalizeMegaData = (data: unknown) => {
     title: clampText(source.title, 120),
     subtitle: clampText(source.subtitle, 220),
     quote: clampText(source.quote, 220),
+    image: source.image && typeof source.image === "object" && !Array.isArray(source.image)
+      ? {
+          ...(source.image as Record<string, unknown>),
+          __image_url__: clampText((source.image as Record<string, unknown>).__image_url__, 1000, clampText(source.imageUrl, 1000)),
+          __image_prompt__: clampText((source.image as Record<string, unknown>).__image_prompt__, 100, clampText(source.title, 100, "Presentation image")),
+        }
+      : {
+          __image_url__: clampText(source.imageUrl, 1000),
+          __image_prompt__: clampText(source.title, 100, "Presentation image"),
+        },
     items: Array.isArray(source.items)
       ? source.items.map((item, index) => {
           const fallback = baseItems[index % baseItems.length];
@@ -219,7 +253,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
   const items = data.items?.length ? data.items : baseItems;
   const metrics = data.metrics?.length ? data.metrics : baseMetrics;
   const rows = data.rows?.length ? data.rows : baseRows;
-  const imageUrl = data.imageUrl || cfg.imageUrl;
+  const imageUrl = firstUsableImageUrl(data.image?.__image_url__, data.imageUrl, cfg.imageUrl);
 
   switch (cfg.kind) {
     case "personalPortfolio": {
@@ -227,7 +261,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
       const paper = "#e9e9e9";
       const ink = "#2b2b2b";
       const page = cfg.id.split("-").pop() || "cover";
-      const imageFor = (seed: string, width = 900, height = 640) => `https://picsum.photos/seed/personal-portfolio-${seed}/${width}/${height}`;
+      const imageFor = (_seed: string, _width = 900, _height = 640) => imageUrl;
       const Blob = ({ className = "" }: { className?: string }) => (
         <div className={`pointer-events-none absolute h-32 w-32 rounded-full blur-2xl ${className}`} style={{ background: "radial-gradient(circle, rgba(193,95,213,.62), rgba(49,164,220,.45) 45%, transparent 70%)" }} />
       );
@@ -271,7 +305,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
         return (
           <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.43fr_1fr_210px] overflow-hidden" style={{ background: paper, color: ink, fontFamily: "Inter, Arial, sans-serif" }}>
             <div className="grid grid-rows-[1fr_140px]" style={{ background: dark }}>
-              <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=700&q=80" alt="" className="h-full w-full object-cover" />
+              <img src={imageUrl} alt="" className="h-full w-full object-cover" />
               <div className="flex items-center px-16 text-sm text-white">Portfolio 2026</div>
             </div>
             <div className="relative px-[56px] py-[72px]">
@@ -284,8 +318,8 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             </div>
             <div className="relative border-l border-neutral-400 px-8 py-20">
               <Nav />
-              <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=500&q=80" alt="" className="mt-12 h-36 w-full object-cover" />
-              <img src="https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=500&q=80" alt="" className="mt-5 h-36 w-full object-cover" />
+              <img src={imageUrl} alt="" className="mt-12 h-36 w-full object-cover" />
+              <img src={imageUrl} alt="" className="mt-5 h-36 w-full object-cover" />
               <div className="absolute bottom-12 right-9"><Logo /></div>
             </div>
           </div>
@@ -307,7 +341,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             <div className="grid grid-rows-[80px_1fr_110px]" style={{ background: dark }}>
               <div className="relative"><Nav /></div>
               <img
-                src={isStrength ? "https://images.unsplash.com/photo-1556761175-4b46a572b786?auto=format&fit=crop&w=900&q=80" : "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=900&q=80"}
+                src={imageUrl}
                 alt=""
                 className="h-full w-full object-cover"
               />
@@ -323,11 +357,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             <div className="grid grid-rows-[1fr_140px]" style={{ background: dark }}>
               <img
                 src={
-                  page === "experience"
-                    ? "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=900&q=80"
-                    : page === "goals"
-                      ? "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=80"
-                      : "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80"
+                  imageUrl
                 }
                 alt=""
                 className="h-full w-full object-cover"
@@ -353,7 +383,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
           <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.48fr_0.6fr_0.56fr] overflow-hidden" style={{ background: paper, color: ink, fontFamily: "Inter, Arial, sans-serif" }}>
             <div className="grid grid-rows-[1fr_140px]" style={{ background: dark }}>
               <img
-                src={isProjects ? "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=700&q=80" : "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=700&q=80"}
+                src={imageUrl}
                 alt=""
                 className="h-full w-full object-cover"
               />
@@ -371,17 +401,9 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               <Nav />
               <div className="mt-14 grid h-[460px] grid-rows-3 gap-5">
                 {(isProjects
-                  ? [
-                    "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=500&q=80",
-                    "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=500&q=80",
-                    "https://images.unsplash.com/photo-1556761175-4b46a572b786?auto=format&fit=crop&w=500&q=80",
-                  ]
-                  : [
-                    "https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=500&q=80",
-                    "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=500&q=80",
-                    "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=500&q=80",
-                  ]
-                ).map((src) => <img key={src} src={src} alt="" className="h-full w-full object-cover" />)}
+                  ? [imageUrl, imageUrl, imageUrl]
+                  : [imageUrl, imageUrl, imageUrl]
+                ).map((src, index) => <img key={`${src}-${index}`} src={src} alt="" className="h-full w-full object-cover" />)}
               </div>
               <div className="absolute bottom-12 right-9"><Logo /></div>
             </div>
@@ -403,7 +425,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
           </div>
           <div className="grid grid-rows-[70px_1fr_130px]" style={{ background: dark }}>
             <div className="relative"><Nav /></div>
-            <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=900&q=80" alt="" className="h-full w-full object-cover" />
+            <img src={imageUrl} alt="" className="h-full w-full object-cover" />
             <div className="grid grid-cols-[54px_1fr] items-center gap-4 px-8 text-white"><Logo light /><p className="text-sm leading-tight">{portfolioBody}</p></div>
           </div>
         </div>
@@ -414,21 +436,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
       const cream = "#fbf8f1";
       const black = "#050505";
       const page = cfg.id.split("-").pop() || "cover";
-      const editorialImages: Record<string, string> = {
-        "brand-messages-red": "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&q=85",
-        "campaign-reader": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=85",
-        "thanks-studio": "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&q=85",
-        "creative-brief-team": "https://images.unsplash.com/photo-1556761175-4b46a572b786?auto=format&fit=crop&q=85",
-        "brand-strategy-workshop": "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&q=85",
-        "visual-style-main": "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&q=85",
-        "visual-style-a": "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&q=85",
-        "visual-style-b": "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&q=85",
-        "summary-reader": "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&q=85",
-      };
-      const imageFor = (seed: string, width = 1200, height = 900) => {
-        const src = editorialImages[seed] || editorialImages["brand-messages-red"];
-        return `${src}&w=${width}&h=${height}`;
-      };
+      const imageFor = (_seed: string, _width = 1200, _height = 900) => imageUrl;
       const redImageStyle = { filter: "saturate(1.18) contrast(1.08)" };
       const Arrow = ({ className = "" }: { className?: string }) => (
         <svg className={className} width="92" height="92" viewBox="0 0 92 92" fill="none">
@@ -998,7 +1006,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               {items.slice(0, 4).map((item, index) => (
                 <div key={item.label} className="overflow-hidden rounded-xl" style={{ background: cfg.soft }}>
                   <img
-                    src={getImageVariant(imageUrl, index, 700, 420)}
+                    src={imageUrl}
                     alt=""
                     className="h-36 w-full object-cover"
                     style={{ filter: index % 2 ? "saturate(1.3)" : "contrast(1.08)" }}
@@ -1093,7 +1101,15 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
 function createMegaComponent(cfg: MegaConfig, Schema: ReturnType<typeof makeSchema>) {
   const MegaLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = ({ data }) => {
     const parsed = Schema.parse(normalizeMegaData(data));
-    return renderLayout(cfg, parsed);
+    const imageUrl = firstUsableImageUrl(parsed.image?.__image_url__, parsed.imageUrl, cfg.imageUrl);
+    return renderLayout(cfg, {
+      ...parsed,
+      imageUrl,
+      image: {
+        ...parsed.image,
+        __image_url__: imageUrl,
+      },
+    });
   };
   return MegaLayout;
 }
