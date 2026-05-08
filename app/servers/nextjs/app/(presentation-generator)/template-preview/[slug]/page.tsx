@@ -86,6 +86,12 @@ function downloadBlob(blob: Blob, fileName: string) {
   URL.revokeObjectURL(blobUrl);
 }
 
+function removeNodeIfAttached(parent: Node, child: Node) {
+  if (child.parentNode === parent) {
+    parent.removeChild(child);
+  }
+}
+
 async function blobToUint8Array(blob: Blob) {
   return new Uint8Array(await blob.arrayBuffer());
 }
@@ -261,7 +267,7 @@ async function renderPreviewSlideImage(target: HTMLElement) {
     });
     return canvas.toDataURL("image/png");
   } finally {
-    document.body.removeChild(stage);
+    removeNodeIfAttached(document.body, stage);
   }
 }
 
