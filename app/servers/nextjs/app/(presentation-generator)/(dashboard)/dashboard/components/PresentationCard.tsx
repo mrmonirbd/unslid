@@ -1,5 +1,5 @@
 'use client'
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { DashboardApi } from "@/app/(presentation-generator)/services/api/dashboard";
 import { MoreHorizontal, Trash2, Users, Lock, ExternalLink, Clock } from "lucide-react";
 import {
@@ -27,7 +27,9 @@ export const PresentationCard = ({
   userPlan?: string;
 }) => {
   const router = useRouter();
-  loadFonts(presentation.fonts || []);
+  useEffect(() => {
+    loadFonts(presentation.fonts || []);
+  }, [presentation.fonts]);
 
   const [visibility, setVisibility] = useState<"private" | "team">(
     presentation.visibility ?? "private"
