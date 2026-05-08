@@ -66,8 +66,8 @@ function transformSvg(svgText: string, options: RemoteSvgOptions): string {
         const noFill = (fill === null || fill === "none" || fill === "transparent");
 
         const looksLikeFrame = noFill && (isExactHundredPercent || approximatelyCoversViewBox);
-        if (looksLikeFrame) {
-          r.parentElement?.removeChild(r);
+        if (looksLikeFrame && r.parentElement?.contains(r)) {
+          r.remove();
         }
       });
     
