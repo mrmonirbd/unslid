@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { setPresentationData } from "@/store/slices/presentationGeneration";
 import { DashboardApi } from '../../services/api/dashboard';
 import { clearHistory } from "@/store/slices/undoRedoSlice";
-import { useFontLoader } from "../../hooks/useFontLoad";
+import { loadFonts } from "../../hooks/useFontLoad";
 import { Theme } from "../../services/api/types";
 
 
@@ -41,7 +41,7 @@ export const usePresentationData = (
     Object.entries(cssVariables).forEach(([key, value]) => {
       element.style.setProperty(key, value)
     })
-    useFontLoader({ [theme.data.fonts.textFont.name]: theme.data.fonts.textFont.url })
+    loadFonts({ [theme.data.fonts.textFont.name]: theme.data.fonts.textFont.url })
 
     // Apply fonts to preview container
     element.style.setProperty('font-family', `"${theme.data.fonts.textFont.name}"`)

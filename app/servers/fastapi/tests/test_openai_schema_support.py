@@ -1,6 +1,8 @@
 import asyncio
 import json
+import os
 from typing import Optional
+import pytest
 from pydantic import BaseModel, Field
 
 
@@ -53,6 +55,9 @@ class TwoColumnSlideModel(BaseModel):
 
 
 def test_openai_schema_support():
+    if not os.getenv("OPENAI_API_KEY"):
+        pytest.skip("OPENAI_API_KEY not set")
+
     response = asyncio.run(
         get_llm_client().beta.chat.completions.parse(
             model=get_large_model(),

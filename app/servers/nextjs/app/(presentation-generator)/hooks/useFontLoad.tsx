@@ -1,5 +1,5 @@
 
-export const useFontLoader = (fonts: Record<string, string>) => {
+export const loadFonts = (fonts: Record<string, string>) => {
     const injectFonts = () => {
         if (typeof document === 'undefined' || !fonts || typeof fonts !== 'object') return;
 
@@ -34,3 +34,5 @@ export const useFontLoader = (fonts: Record<string, string>) => {
     };
     injectFonts();
 };
+
+export const useFontLoader = loadFonts;

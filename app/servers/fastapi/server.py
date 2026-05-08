@@ -1,5 +1,6 @@
 import uvicorn
 import argparse
+from api.main import app
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the FastAPI server")

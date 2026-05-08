@@ -464,18 +464,18 @@ async def convert_slide_to_html(request: SlideToHtmlRequest):
         SlideToHtmlResponse with generated HTML
     """
     try:
-        # Get OpenAI API key from plan context (DB config) or env fallback
-        api_key = get_plan_config_value("OPENAI_API_KEY", get_openai_api_key_env())
-        if not api_key:
-            raise HTTPException(
-                status_code=500, detail="OpenAI API Key is not configured. Please set it in the admin panel."
-            )
-
         # Resolve image path to actual file system path
         actual_image_path = resolve_image_path_to_filesystem(request.image)
         if not actual_image_path:
             raise HTTPException(
                 status_code=404, detail=f"Image file not found: {request.image}"
+            )
+
+        # Get OpenAI API key from plan context (DB config) or env fallback
+        api_key = get_plan_config_value("OPENAI_API_KEY", get_openai_api_key_env())
+        if not api_key:
+            raise HTTPException(
+                status_code=500, detail="OpenAI API Key is not configured. Please set it in the admin panel."
             )
 
         # Read and encode image to base64

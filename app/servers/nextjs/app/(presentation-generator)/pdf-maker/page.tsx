@@ -4,7 +4,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
 import PdfMakerPage from "./PdfMakerPage";
-const page = () => {
+const Page = () => {
 
     const router = useRouter();
     const params = useSearchParams();
@@ -22,4 +22,4 @@ const page = () => {
         <PdfMakerPage presentation_id={queryId} />
     );
 };
-export default page;
+export default Page;

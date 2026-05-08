@@ -47,6 +47,8 @@
     "build",
     "coverage",
     "cypress",
+    "**/*.cy.ts",
+    "**/*.cy.tsx",
     "playwright-report",
     "test-results"
   ]

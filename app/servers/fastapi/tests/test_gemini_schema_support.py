@@ -1,5 +1,7 @@
 import json
+import os
 from typing import Optional
+import pytest
 from pydantic import BaseModel, Field
 from google.genai.types import GenerateContentResponse, GenerateContentConfig
 
@@ -53,6 +55,9 @@ class TwoColumnSlideModel(BaseModel):
 
 
 def test_gemini_schema_support():
+    if not os.getenv("GOOGLE_API_KEY"):
+        pytest.skip("GOOGLE_API_KEY not set")
+
     response: GenerateContentResponse = get_google_llm_client().models.generate_content(
         model=get_large_model(),
         contents=[

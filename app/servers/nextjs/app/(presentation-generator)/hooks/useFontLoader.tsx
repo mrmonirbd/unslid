@@ -1,5 +1,5 @@
 
-export const useFontLoader = ( fonts:string[]) => {
+export const loadFonts = (fonts: string[]) => {
     const injectFonts = (fontUrls: string[]) => {
         fontUrls.forEach((fontUrl) => {
           if (!fontUrl) return;
@@ -14,3 +14,5 @@ export const useFontLoader = ( fonts:string[]) => {
       };
       injectFonts(fonts);
 };
+
+export const useFontLoader = loadFonts;

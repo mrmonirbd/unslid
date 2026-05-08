@@ -3,7 +3,7 @@ import React from "react";
 import PresentationPage from "./components/PresentationPage";
 import { Button } from "@/components/ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
-const page = () => {
+const Page = () => {
 
   const router = useRouter();
   const params = useSearchParams();
@@ -23,4 +23,4 @@ const page = () => {
 
   );
 };
-export default page;
+export default Page;

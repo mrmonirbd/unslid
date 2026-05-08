@@ -17,9 +17,14 @@ from models.sql.user import UserModel
 security = HTTPBearer(auto_error=False)
 AUTH_ROUTER = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
-JWT_SECRET = os.getenv("SECRET_KEY") or os.getenv("JWT_SECRET") or "change-me-in-production"
+JWT_SECRET = os.getenv("SECRET_KEY") or os.getenv("JWT_SECRET") or ""
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_HOURS = int(os.getenv("JWT_EXPIRE_HOURS", "168"))
+
+if os.getenv("ENVIRONMENT") == "production" and (
+    not JWT_SECRET or JWT_SECRET == "change-me-in-production"
+):
+    raise RuntimeError("SECRET_KEY must be set to a strong random value in production.")
 
 
 class SignupRequest(BaseModel):
