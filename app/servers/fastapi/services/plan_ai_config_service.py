@@ -152,8 +152,15 @@ def build_plan_context_dict(cfg: Optional[PlanAIConfig], plan: str) -> dict:
         }
 
     provider = cfg.llm_provider
+    image_provider = cfg.image_provider or defaults["image_provider"]
     llm_key = _key(cfg.llm_api_key)
     img_key = _key(cfg.image_api_key)
+    openai_key = llm_key if provider == "openai" else os.getenv("OPENAI_API_KEY", "")
+    google_key = llm_key if provider == "google" else os.getenv("GOOGLE_API_KEY", "")
+    if img_key and image_provider in {"dall-e-3", "gpt-image-1.5"}:
+        openai_key = img_key
+    if img_key and image_provider in {"gemini_flash", "nanobanana_pro"}:
+        google_key = img_key
 
     return {
         "LLM": provider,
@@ -163,11 +170,11 @@ def build_plan_context_dict(cfg: Optional[PlanAIConfig], plan: str) -> dict:
         "OLLAMA_MODEL": cfg.llm_model if provider == "ollama" else None,
         "CUSTOM_MODEL": cfg.llm_model if provider == "custom" else None,
         # Provide the key to whichever provider is active; others get env fallback
-        "OPENAI_API_KEY": llm_key if provider == "openai" else os.getenv("OPENAI_API_KEY", ""),
-        "GOOGLE_API_KEY": llm_key if provider == "google" else os.getenv("GOOGLE_API_KEY", ""),
+        "OPENAI_API_KEY": openai_key,
+        "GOOGLE_API_KEY": google_key,
         "ANTHROPIC_API_KEY": llm_key if provider == "anthropic" else os.getenv("ANTHROPIC_API_KEY", ""),
         "CUSTOM_LLM_API_KEY": llm_key if provider == "custom" else os.getenv("CUSTOM_LLM_API_KEY", ""),
-        "IMAGE_PROVIDER": cfg.image_provider or defaults["image_provider"],
+        "IMAGE_PROVIDER": image_provider,
         "PEXELS_API_KEY": img_key or os.getenv("PEXELS_API_KEY", ""),
         "PIXABAY_API_KEY": img_key or os.getenv("PIXABAY_API_KEY", ""),
         "CUSTOM_LLM_URL": cfg.llm_base_url,

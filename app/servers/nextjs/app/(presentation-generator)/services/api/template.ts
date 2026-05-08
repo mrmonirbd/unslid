@@ -22,7 +22,8 @@ class TemplateService {
 
     static async deleteCustomTemplate(presentationId: string) {
         try {
-            return await api.delete<any>(`/api/v1/ppt/template-management/delete-templates/${presentationId}`);
+            await api.delete<void>(`/api/v1/ppt/template-management/delete-templates/${presentationId}`);
+            return { success: true };
         } catch (error) {
             console.error("Failed to delete custom template", error);
             throw error;

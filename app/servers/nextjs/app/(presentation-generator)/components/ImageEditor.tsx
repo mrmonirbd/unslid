@@ -115,7 +115,7 @@ const ImageEditor = ({
    */
   const handleImageChange = (newImage: string) => {
     if (onImageChange) {
-      onImageChange(newImage, promptContent);
+      onImageChange(newImage, effectivePrompt || promptContent);
       setPreviewImages(newImage);
     }
   };
@@ -198,6 +198,10 @@ const ImageEditor = ({
       const response = await PresentationGenerationApi.generateImage({
         prompt: effectivePrompt,
       });
+
+      if (typeof response === "string" && response.includes("/app_data/images/placeholder")) {
+        throw new Error("Image provider could not generate an image for this prompt. Try a more descriptive prompt or check the admin image provider settings.");
+      }
 
       setPreviewImages(response);
     } catch (err: any) {

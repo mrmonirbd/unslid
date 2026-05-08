@@ -217,8 +217,9 @@ export class PresentationGenerationApi {
   
   static async generateImage(imageGenerate: ImageGenerate) {
     try {
+      const query = new URLSearchParams({ prompt: imageGenerate.prompt });
       const response = await fetch(
-        `/api/v1/ppt/images/generate?prompt=${imageGenerate.prompt}`,
+        `/api/v1/ppt/images/generate?${query.toString()}`,
         {
           method: "GET",
           headers: await getHeader(),

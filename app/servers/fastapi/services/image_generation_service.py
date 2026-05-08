@@ -27,6 +27,7 @@ from utils.image_provider import (
     is_nanobanana_pro_selected,
     is_dalle3_selected,
     is_comfyui_selected,
+    is_no_image_provider_selected,
 )
 import uuid
 
@@ -50,13 +51,14 @@ def _placeholder_image_path(output_directory: str) -> str:
 
 
 class ImageGenerationService:
-    def __init__(self, output_directory: str):
+    def __init__(self, output_directory: str, raise_on_failure: bool = False):
         self.output_directory = output_directory
+        self.raise_on_failure = raise_on_failure
         self.is_image_generation_disabled = is_image_generation_disabled()
         self.image_gen_func = self.get_image_gen_func()
 
     def get_image_gen_func(self):
-        if self.is_image_generation_disabled:
+        if self.is_image_generation_disabled or is_no_image_provider_selected():
             return None
 
         if is_pixabay_selected():
@@ -88,10 +90,20 @@ class ImageGenerationService:
         """
         if self.is_image_generation_disabled:
             print("Image generation is disabled. Using placeholder image.")
+            if self.raise_on_failure:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Image generation is disabled by the current AI provider settings.",
+                )
             return _placeholder_image_path(self.output_directory)
 
         if not self.image_gen_func:
             print("No image generation function found. Using placeholder image.")
+            if self.raise_on_failure:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No image provider is configured. Enable an image provider in the admin AI config.",
+                )
             return _placeholder_image_path(self.output_directory)
 
         image_prompt = prompt.get_image_prompt(
@@ -133,6 +145,11 @@ class ImageGenerationService:
 
         except Exception as e:
             print(f"Error generating image: {e}")
+            if self.raise_on_failure:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Image provider failed to generate an image for this prompt.",
+                )
             return _placeholder_image_path(self.output_directory)
 
     async def generate_image_openai(

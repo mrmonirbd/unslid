@@ -89,13 +89,15 @@ async def generate_presentation_job(
             # Import here to avoid circular imports and keep worker startup fast
             from api.v1.ppt.endpoints.presentation import run_presentation_generation
             from models.sql.user import UserModel
+            from models.sql.user_ai_preferences import UserAIPreferences
             from utils.rate_limit import increment_monthly_count
             from services.plan_ai_config_service import build_plan_context_dict, get_plan_ai_config
-            from utils.plan_context import set_active_plan_config, clear_active_plan_config
+            from utils.plan_context import set_active_plan_config, clear_active_plan_config, set_active_user_id, clear_active_user_id
             from sqlmodel import select as sql_select
 
             # Load plan AI config into context so LLM/image clients use the correct keys
             clear_active_plan_config()
+            clear_active_user_id()
             result_user = await session.execute(
                 sql_select(UserModel).where(UserModel.id == user_id)
             )
@@ -104,7 +106,30 @@ async def generate_presentation_job(
                 plan = job_user.plan or "free"
                 db_cfg = await get_plan_ai_config(plan, session)
                 ctx = build_plan_context_dict(db_cfg, plan)
+                if db_cfg and (db_cfg.user_can_override_llm or db_cfg.user_can_override_image):
+                    prefs_result = await session.execute(
+                        sql_select(UserAIPreferences).where(UserAIPreferences.user_id == job_user.id)
+                    )
+                    prefs = prefs_result.scalar_one_or_none()
+                    if prefs:
+                        if db_cfg.user_can_override_llm and prefs.llm_provider:
+                            ctx["LLM"] = prefs.llm_provider
+                            ctx["CUSTOM_MODEL"] = prefs.llm_model
+                            if prefs.llm_provider == "openai":
+                                ctx["OPENAI_MODEL"] = prefs.llm_model
+                            elif prefs.llm_provider == "google":
+                                ctx["GOOGLE_MODEL"] = prefs.llm_model
+                            elif prefs.llm_provider == "anthropic":
+                                ctx["ANTHROPIC_MODEL"] = prefs.llm_model
+                            elif prefs.llm_provider == "ollama":
+                                ctx["OLLAMA_MODEL"] = prefs.llm_model
+                            if prefs.llm_base_url:
+                                ctx["CUSTOM_LLM_URL"] = prefs.llm_base_url
+                                ctx["OLLAMA_URL"] = prefs.llm_base_url
+                        if db_cfg.user_can_override_image and prefs.image_provider:
+                            ctx["IMAGE_PROVIDER"] = prefs.image_provider
                 set_active_plan_config(ctx)
+                set_active_user_id(job_user.id)
 
             result = await run_presentation_generation(
                 session=session,

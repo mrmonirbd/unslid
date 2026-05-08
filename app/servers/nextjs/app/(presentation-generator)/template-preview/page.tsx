@@ -1,8 +1,9 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import { ExternalLink, Loader2, Plus } from "lucide-react";
+import { ExternalLink, Loader2, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { templates } from "@/app/presentation-templates";
 import type { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
@@ -14,11 +15,19 @@ import {
 } from "@/app/hooks/useCustomTemplates";
 import { CompiledLayout } from "@/app/hooks/compileLayout";
 import DashboardSidebar from "../(dashboard)/Components/DashboardSidebar";
+import TemplateService from "../services/api/template";
 
 // Component for rendering custom template card with lazy-loaded previews
-const CustomTemplateCard = ({ template }: { template: CustomTemplates }) => {
+const CustomTemplateCard = ({
+  template,
+  onDeleted,
+}: {
+  template: CustomTemplates;
+  onDeleted: () => void;
+}) => {
   const router = useRouter();
   const { previewLayouts, loading, totalLayouts } = useCustomTemplatePreview(template.id);
+  const [deleting, setDeleting] = useState(false);
 
   const handleNavigate = () => {
     if (template.id.startsWith('custom-')) {
@@ -27,6 +36,30 @@ const CustomTemplateCard = ({ template }: { template: CustomTemplates }) => {
       router.push(`/template-preview/custom-${template.id}`);
     }
   }
+
+  const handleDelete = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const confirmed = window.confirm(
+      `Delete "${template.name}"? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeleting(true);
+      const templateId = template.id.startsWith("custom-")
+        ? template.id.slice("custom-".length)
+        : template.id;
+      await TemplateService.deleteCustomTemplate(templateId);
+      toast.success("Template deleted successfully");
+      onDeleted();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete template");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <Card
@@ -42,6 +75,20 @@ const CustomTemplateCard = ({ template }: { template: CustomTemplates }) => {
             <span className="px-2.5 py-0.5 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
               {totalLayouts}
             </span>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-100 bg-white text-red-500 opacity-100 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 md:opacity-0 md:group-hover:opacity-100"
+              aria-label={`Delete ${template.name}`}
+              title="Delete template"
+            >
+              {deleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </button>
             <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
           </div>
         </div>
@@ -100,7 +147,7 @@ const CustomTemplateCard = ({ template }: { template: CustomTemplates }) => {
 
 const LayoutPreview = () => {
   const router = useRouter();
-  const { templates: customTemplates, loading: customLoading } = useCustomTemplateSummaries();
+  const { templates: customTemplates, loading: customLoading, refetch: refetchCustomTemplates } = useCustomTemplateSummaries();
   useEffect(() => {
     const existingScript = document.querySelector('script[src*="tailwindcss.com"]');
     if (!existingScript) {
@@ -210,7 +257,11 @@ const LayoutPreview = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {customTemplates.map((template: CustomTemplates) => (
-                <CustomTemplateCard key={template.id} template={template} />
+                <CustomTemplateCard
+                  key={template.id}
+                  template={template}
+                  onDeleted={refetchCustomTemplates}
+                />
               ))}
             </div>
           )}

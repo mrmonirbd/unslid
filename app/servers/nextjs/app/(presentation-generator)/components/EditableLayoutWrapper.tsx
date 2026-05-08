@@ -377,12 +377,14 @@ const EditableLayoutWrapper: React.FC<EditableLayoutWrapperProps> = ({
 
     // Wait for LoadableComponent to render and then process images
     useEffect(() => {
-        const timer = setTimeout(() => {
-            findAndProcessImages();
-        }, 400);
+        const timers = [200, 600, 1200].map((delay) =>
+            setTimeout(() => {
+                findAndProcessImages();
+            }, delay)
+        );
 
         return () => {
-            clearTimeout(timer);
+            timers.forEach(clearTimeout);
             cleanupElements();
         };
     }, [slideData, children]);
@@ -480,8 +482,54 @@ const EditableLayoutWrapper: React.FC<EditableLayoutWrapperProps> = ({
 
     };
 
+    const openEditorForMediaElement = (element: HTMLImageElement | SVGElement, fallbackIndex = 0) => {
+        const isImageElement = element instanceof HTMLImageElement;
+        const src = isImageElement
+            ? element.src
+            : ((element as unknown as HTMLElement).closest('[data-path]') as HTMLElement | null)?.getAttribute('data-path') || '';
+
+        if (!src) return false;
+
+        const result = findBestDataPath(src, element, slideData);
+        if (!result) return false;
+
+        const { path: dataPath, type, data } = result;
+        const id = element.getAttribute('data-editable-id') || `${slideIndex}-${type}-${dataPath}-${fallbackIndex}`;
+
+        element.setAttribute('data-editable-processed', 'true');
+        element.setAttribute('data-editable-id', id);
+        (element as unknown as HTMLElement).style.cursor = 'pointer';
+
+        setActiveEditor({
+            id,
+            type,
+            src,
+            dataPath,
+            data,
+            element,
+        });
+
+        return true;
+    };
+
+    const handleMediaClickCapture = (event: React.MouseEvent<HTMLDivElement>) => {
+        const target = event.target as Element | null;
+        if (!target) return;
+
+        const mediaElement = target.closest('img, svg') as HTMLImageElement | SVGElement | null;
+        if (!mediaElement || !containerRef.current?.contains(mediaElement)) return;
+
+        const mediaNodes = Array.from(containerRef.current.querySelectorAll('img, svg'));
+        const mediaIndex = Math.max(0, mediaNodes.indexOf(mediaElement));
+
+        if (openEditorForMediaElement(mediaElement, mediaIndex)) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    };
+
     return (
-        <div ref={containerRef} className="editable-layout-wrapper w-full ">
+        <div ref={containerRef} onClickCapture={handleMediaClickCapture} className="editable-layout-wrapper w-full ">
             {children}
 
             {/* Render ImageEditor when an image is being edited */}

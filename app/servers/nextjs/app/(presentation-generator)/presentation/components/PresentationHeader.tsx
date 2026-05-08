@@ -274,7 +274,7 @@ const PresentationHeader = ({
       a.download = `${safeTitle}.pptx`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      a.remove();
       URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error("Export failed:", error);
@@ -319,7 +319,7 @@ const PresentationHeader = ({
         a.download = `${safeTitle}.pdf`;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
+        a.remove();
         URL.revokeObjectURL(blobUrl);
         return;
       }
@@ -343,7 +343,7 @@ const PresentationHeader = ({
         a.download = `${rawTitle.replace(/[^a-z0-9_\-. ]/gi, "_")}.pdf`;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
+        a.remove();
         URL.revokeObjectURL(url);
       } else {
         const err = await response.json().catch(() => ({}));
