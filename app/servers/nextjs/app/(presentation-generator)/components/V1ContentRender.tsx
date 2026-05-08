@@ -127,6 +127,7 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
         );
     }
     const LayoutComp = Layout as React.ComponentType<{ data: any }>;
+    const shouldUseTextReplacer = !slide.layout_group?.startsWith("mega-");
 
     if (isEditMode) {
         return (
@@ -138,32 +139,40 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
                         slideData={slide.content}
                         properties={slide.properties}
                     >
-                        <TiptapTextReplacer
-                            key={slide.id}
-                            slideData={slide.content}
-                            slideIndex={slide.index}
-                            onContentChange={(
-                                content: string,
-                                dataPath: string,
-                                slideIndex?: number
-                            ) => {
-                                if (dataPath && slideIndex !== undefined) {
-                                    dispatch(
-                                        updateSlideContent({
-                                            slideIndex: slideIndex,
-                                            dataPath: dataPath,
-                                            content: content,
-                                        })
-                                    );
-                                }
-                            }}
-                        >
+                        {shouldUseTextReplacer ? (
+                            <TiptapTextReplacer
+                                key={slide.id}
+                                slideData={slide.content}
+                                slideIndex={slide.index}
+                                onContentChange={(
+                                    content: string,
+                                    dataPath: string,
+                                    slideIndex?: number
+                                ) => {
+                                    if (dataPath && slideIndex !== undefined) {
+                                        dispatch(
+                                            updateSlideContent({
+                                                slideIndex: slideIndex,
+                                                dataPath: dataPath,
+                                                content: content,
+                                            })
+                                        );
+                                    }
+                                }}
+                            >
+                                <LayoutComp data={{
+                                    ...slide.content,
+                                    _logo_url__: theme ? theme.logo_url : null,
+                                    __companyName__: (theme && theme.company_name) ? theme.company_name : null,
+                                }} />
+                            </TiptapTextReplacer>
+                        ) : (
                             <LayoutComp data={{
                                 ...slide.content,
                                 _logo_url__: theme ? theme.logo_url : null,
                                 __companyName__: (theme && theme.company_name) ? theme.company_name : null,
                             }} />
-                        </TiptapTextReplacer>
+                        )}
                     </EditableLayoutWrapper>
 
 
