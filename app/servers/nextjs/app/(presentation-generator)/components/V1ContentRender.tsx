@@ -127,7 +127,6 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
         );
     }
     const LayoutComp = Layout as React.ComponentType<{ data: any }>;
-    const isMegaTemplate = slide.layout_group?.startsWith("mega-");
 
     if (isEditMode) {
         return (
@@ -142,7 +141,7 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
                         <TiptapTextReplacer
                             key={slide.id}
                             renderKey={`${slide.id ?? slide.index}-${slide.layout}`}
-                            isolated={isMegaTemplate}
+                            isolated
                             slideData={slide.content}
                             slideIndex={slide.index}
                             onContentChange={(

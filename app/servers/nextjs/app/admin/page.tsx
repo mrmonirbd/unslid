@@ -76,6 +76,7 @@ interface UsageMonitorUser {
   email: string;
   full_name: string;
   plan: string;
+  presentations_total?: number;
   presentations_this_month: number;
   tokens_estimated_this_month: number;
   images_this_month: number;
@@ -1095,7 +1096,10 @@ export default function AdminPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right font-mono text-slate-700">
-                          {u.presentations_this_month}
+                          <p>{u.presentations_total ?? u.presentations_this_month}</p>
+                          <p className="text-[10px] text-slate-400">
+                            {u.presentations_this_month} this month
+                          </p>
                           {u.presentations_this_month >= 80 && (
                             <span className="ml-1 text-amber-500 text-xs">⚠️</span>
                           )}
