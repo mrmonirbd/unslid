@@ -11,8 +11,8 @@ import { createClient } from "@/lib/auth/client";
 export const useOutlineStreaming = (presentationId: string | null) => {
   const dispatch = useDispatch();
   const { outlines } = useSelector((state: RootState) => state.presentationGeneration);
-  const [isStreaming, setIsStreaming] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [activeSlideIndex, setActiveSlideIndex] = useState<number | null>(null);
   const [highestActiveIndex, setHighestActiveIndex] = useState<number>(-1);
   const prevSlidesRef = useRef<{ content: string }[]>([]);
@@ -20,7 +20,11 @@ export const useOutlineStreaming = (presentationId: string | null) => {
   const highestIndexRef = useRef<number>(-1);
 
   useEffect(() => {
-    if (!presentationId || outlines.length > 0) return;
+    if (!presentationId || outlines.length > 0) {
+      setIsStreaming(false);
+      setIsLoading(false);
+      return;
+    }
 
     let eventSource: EventSource;
     let accumulatedChunks = "";

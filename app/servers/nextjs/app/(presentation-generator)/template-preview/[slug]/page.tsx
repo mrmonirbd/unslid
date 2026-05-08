@@ -20,7 +20,6 @@ import {
 import { getTemplateGroupByRouteId, getTemplatesByTemplateName } from "@/app/presentation-templates";
 import { api } from "@/lib/api";
 import { useUser } from "@/app/hooks/useUser";
-import { extractElementPptxModel } from "@/utils/pptx-extractor-client";
 
 interface PptxDesignerTemplate {
   id: number;
@@ -197,6 +196,116 @@ function getPreviewSlideElements() {
   return Array.from(document.querySelectorAll<HTMLElement>("[data-template-preview-slide='true']"));
 }
 
+async function waitForPreviewAssets(targets: HTMLElement[]) {
+  await document.fonts?.ready.catch(() => undefined);
+
+  const images = targets.flatMap((target) => Array.from(target.querySelectorAll<HTMLImageElement>("img")));
+  await Promise.all(images.map(async (image) => {
+    if (image.complete && image.naturalWidth > 0) return;
+    if (typeof image.decode === "function") {
+      await image.decode().catch(() => undefined);
+      return;
+    }
+    await new Promise<void>((resolve) => {
+      image.onload = () => resolve();
+      image.onerror = () => resolve();
+    });
+  }));
+}
+
+async function renderPreviewSlideImage(target: HTMLElement) {
+  const stage = document.createElement("div");
+  const clone = target.cloneNode(true) as HTMLElement;
+
+  stage.style.position = "fixed";
+  stage.style.left = "-10000px";
+  stage.style.top = "0";
+  stage.style.width = "1280px";
+  stage.style.height = "720px";
+  stage.style.overflow = "hidden";
+  stage.style.background = "#ffffff";
+  stage.style.zIndex = "-1";
+  stage.style.pointerEvents = "none";
+
+  clone.removeAttribute("id");
+  clone.style.width = "1280px";
+  clone.style.height = "720px";
+  clone.style.background = "#ffffff";
+  clone.style.boxShadow = "none";
+  clone.style.overflow = "hidden";
+
+  const slideRoot = clone.firstElementChild as HTMLElement | null;
+  if (slideRoot) {
+    slideRoot.style.width = "1280px";
+    slideRoot.style.height = "720px";
+    slideRoot.style.maxWidth = "1280px";
+    slideRoot.style.maxHeight = "720px";
+    slideRoot.style.boxShadow = "none";
+  }
+
+  stage.appendChild(clone);
+  document.body.appendChild(stage);
+
+  try {
+    await waitForPreviewAssets([stage]);
+    const canvas = await html2canvas(stage, {
+      backgroundColor: "#ffffff",
+      width: 1280,
+      height: 720,
+      windowWidth: 1280,
+      windowHeight: 720,
+      scrollX: 0,
+      scrollY: 0,
+      scale: 2,
+      useCORS: true,
+    });
+    return canvas.toDataURL("image/png");
+  } finally {
+    document.body.removeChild(stage);
+  }
+}
+
+async function buildPreviewImageModel(targets: HTMLElement[], title: string) {
+  await waitForPreviewAssets(targets);
+
+  const slides = await Promise.all(targets.map(async (target) => {
+    const dataUrl = await renderPreviewSlideImage(target);
+    return {
+      background: {
+        color: "FFFFFF",
+        opacity: 1,
+      },
+      shapes: [
+        {
+          shape_type: "picture",
+          position: {
+            left: 0,
+            top: 0,
+            width: 1280,
+            height: 720,
+          },
+          clip: false,
+          opacity: 1,
+          invert: false,
+          shape: "rectangle",
+          object_fit: {
+            fit: "fill",
+          },
+          picture: {
+            is_network: false,
+            path: dataUrl,
+          },
+        },
+      ],
+    };
+  }));
+
+  return {
+    name: title,
+    slides,
+  };
+}
+
 function FullPreviewDownloadDropdown({
   title,
 }: {
@@ -215,13 +324,7 @@ function FullPreviewDownloadDropdown({
     try {
       setOpen(false);
       setDownloading(format);
-      const models = await Promise.all(targets.map((target, index) => (
-        extractElementPptxModel(target, `${title} - Slide ${index + 1}`)
-      )));
-      const model = {
-        name: title,
-        slides: models.flatMap((item) => item.slides),
-      };
+      const model = await buildPreviewImageModel(targets, title);
       const blob = format === "pptx"
         ? await PresentationGenerationApi.exportAsPPTX(model)
         : await PresentationGenerationApi.exportAsPDFFromModel(model);
@@ -245,6 +348,7 @@ function FullPreviewDownloadDropdown({
     try {
       setOpen(false);
       setDownloading("images");
+      await waitForPreviewAssets(targets);
       const files = await Promise.all(targets.map(async (target, index) => {
         const canvas = await html2canvas(target, {
           backgroundColor: "#ffffff",
