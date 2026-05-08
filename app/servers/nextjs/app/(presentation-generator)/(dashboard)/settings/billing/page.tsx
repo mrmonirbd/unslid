@@ -60,7 +60,7 @@ type PlanPricing = NonNullable<BillingStatusExtended["plan_pricing"]>;
 const PLAN_LABELS: Record<string, string> = { free: "Free", pro: "Pro", team: "Team" };
 const PLAN_COLORS: Record<string, { border: string; button: string; badge: string }> = {
   free: { border: "border-slate-200", button: "bg-slate-700 hover:bg-slate-600", badge: "bg-slate-100 text-slate-700" },
-  pro:  { border: "border-indigo-300", button: "bg-indigo-600 hover:bg-indigo-500", badge: "bg-indigo-100 text-indigo-700" },
+  pro:  { border: "border-violet-300", button: "bg-violet-600 hover:bg-violet-500", badge: "bg-violet-100 text-violet-700" },
   team: { border: "border-purple-300", button: "bg-purple-600 hover:bg-purple-500", badge: "bg-purple-100 text-purple-700" },
 };
 
@@ -326,7 +326,7 @@ export default function BillingPage() {
             {status?.usage.monthly_limit != null && (
               <div className="mt-1.5 h-1.5 bg-slate-200 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-indigo-500 rounded-full transition-all"
+                  className="h-full bg-violet-500 rounded-full transition-all"
                   style={{ width: `${Math.min(100, ((status.usage.presentations_this_month ?? 0) / status.usage.monthly_limit) * 100)}%` }}
                 />
               </div>
@@ -427,7 +427,7 @@ export default function BillingPage() {
                   className={`bg-white border-2 ${PLAN_COLORS[planKey].border} rounded-xl p-6 space-y-5 relative`}
                 >
                   {planKey === "pro" && (
-                    <span className="absolute -top-3 right-4 text-xs bg-indigo-600 text-white font-semibold px-3 py-0.5 rounded-full shadow">
+                    <span className="absolute -top-3 right-4 text-xs bg-violet-600 text-white font-semibold px-3 py-0.5 rounded-full shadow">
                       Most popular
                     </span>
                   )}
@@ -456,7 +456,7 @@ export default function BillingPage() {
                   <ul className="space-y-2">
                     {entry.features.filter(Boolean).map((f) => (
                       <li key={f} className="text-sm text-slate-600 flex items-start gap-2">
-                        <Check className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" />
+                        <Check className="w-4 h-4 text-violet-500 flex-shrink-0 mt-0.5" />
                         {f}
                       </li>
                     ))}
@@ -519,7 +519,7 @@ export default function BillingPage() {
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {pricing[currentPlan as "pro" | "team"]?.features.filter(Boolean).map((f) => (
               <li key={f} className="text-sm text-slate-600 flex items-start gap-2">
-                <Check className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" />
+                <Check className="w-4 h-4 text-violet-500 flex-shrink-0 mt-0.5" />
                 {f}
               </li>
             ))}
@@ -527,7 +527,7 @@ export default function BillingPage() {
           {status?.has_billing && (
             <p className="text-xs text-slate-400 pt-2">
               Manage or cancel your subscription via the{" "}
-              <button onClick={handlePortal} className="underline text-indigo-500">billing portal</button>.
+              <button onClick={handlePortal} className="underline text-violet-500">billing portal</button>.
             </p>
           )}
         </section>
@@ -544,7 +544,7 @@ export default function BillingPage() {
             <button
               onClick={handlePortal}
               disabled={portalLoading}
-              className="text-sm text-indigo-600 hover:text-indigo-800 underline disabled:opacity-50"
+              className="text-sm text-violet-600 hover:text-violet-800 underline disabled:opacity-50"
             >
               {portalLoading ? "Loading…" : "Change method →"}
             </button>
@@ -614,7 +614,7 @@ export default function BillingPage() {
                           href={inv.pdf_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-indigo-500 hover:text-indigo-700 inline-flex items-center gap-1 text-xs"
+                          className="text-violet-500 hover:text-violet-700 inline-flex items-center gap-1 text-xs"
                         >
                           <Download className="h-3 w-3" />
                           PDF
@@ -624,7 +624,7 @@ export default function BillingPage() {
                           href={inv.hosted_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-indigo-500 hover:text-indigo-700 inline-flex items-center gap-1 text-xs"
+                          className="text-violet-500 hover:text-violet-700 inline-flex items-center gap-1 text-xs"
                         >
                           <ExternalLink className="h-3 w-3" />
                           View

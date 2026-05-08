@@ -266,9 +266,9 @@ export const CustomTemplateCard = React.memo(function CustomTemplateCard({ templ
                         PREVIEW_PLACEHOLDERS.map((index) => (
                             <div
                                 key={`${template.id}-loading-${index}`}
-                                className="relative bg-gradient-to-br from-purple-50 to-blue-50 border border-gray-200 overflow-hidden aspect-video rounded flex items-center justify-center"
+                                className="relative bg-gradient-to-br from-violet-50 to-slate-50 border border-violet-100 overflow-hidden aspect-video rounded flex items-center justify-center"
                             >
-                                {shouldLoadPreview && <Loader2 className="w-4 h-4 text-purple-300 animate-spin" />}
+                                {shouldLoadPreview && <Loader2 className="w-4 h-4 text-violet-300 animate-spin" />}
                             </div>
                         ))
                     ) : previewLayouts.length > 0 && (
@@ -302,7 +302,7 @@ export const CustomTemplateCard = React.memo(function CustomTemplateCard({ templ
 
                 <div className="flex items-center gap-2">
 
-                    <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
+                    <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-violet-600 transition-colors" />
                 </div>
             </div>
         </Card>
@@ -427,7 +427,7 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
                     )}
                 </div>
                 <div className="flex items-center gap-2">
-                    <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                    <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-violet-600 transition-colors" />
                 </div>
             </div>
         </Card>
@@ -512,7 +512,7 @@ const EditedStaticTemplateCard = React.memo(function EditedStaticTemplateCard({
                         {template.layoutCount} saved layouts • {template.description}
                     </p>
                 </div>
-                <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
+                <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-violet-600 transition-colors" />
             </div>
         </Card>
     );
@@ -570,8 +570,8 @@ const DesignerTemplateCard = React.memo(function DesignerTemplateCard({
                         ))}
                     </div>
                 ) : (
-                    <div className="aspect-video bg-gradient-to-br from-purple-50 to-indigo-50 rounded flex flex-col items-center justify-center gap-2">
-                        <FileDown className="w-8 h-8 text-purple-300" />
+                    <div className="aspect-video bg-gradient-to-br from-violet-50 to-slate-50 rounded flex flex-col items-center justify-center gap-2">
+                        <FileDown className="w-8 h-8 text-violet-300" />
                         <span className="text-xs text-slate-400">Thumbnails generating…</span>
                     </div>
                 )}
@@ -593,7 +593,7 @@ const DesignerTemplateCard = React.memo(function DesignerTemplateCard({
                         </div>
                     )}
                 </div>
-                <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
+                <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-violet-600 transition-colors" />
             </div>
         </Card>
     );
@@ -764,8 +764,8 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
 
     if (isUserGeneratedOnly) {
         return (
-            <div className="min-h-screen bg-white font-syne text-slate-950">
-                <div className="rounded-b-[28px] bg-[linear-gradient(115deg,#b7f3ee_0%,#f9fbff_44%,#d7b6ff_100%)] px-6 pb-12 pt-14 md:px-10">
+            <div className="min-h-screen bg-transparent font-syne text-slate-950">
+                <div className="rounded-b-[28px] bg-[linear-gradient(115deg,#ede9fe_0%,#fbf9ff_48%,#f5f3ff_100%)] px-6 pb-12 pt-14 md:px-10">
                     <div className="mx-auto flex max-w-5xl flex-col items-center">
                         <h1 className="font-unbounded text-[34px] font-semibold tracking-[-0.02em] md:text-[42px]">
                             My Templates
@@ -851,11 +851,11 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
     }
 
     return (
-        <div className="min-h-screen bg-white font-syne text-slate-950">
-            <div className="rounded-b-[28px] bg-[linear-gradient(115deg,#b7f3ee_0%,#f9fbff_44%,#d7b6ff_100%)] px-6 pb-12 pt-14 md:px-10">
+        <div className="min-h-screen bg-transparent font-syne text-slate-950">
+            <div className="rounded-b-[28px] bg-[linear-gradient(115deg,#ede9fe_0%,#fbf9ff_48%,#f5f3ff_100%)] px-6 pb-12 pt-14 md:px-10">
                 <div className="mx-auto flex max-w-5xl flex-col items-center">
                     <h1 className="font-unbounded text-[34px] font-semibold tracking-[-0.02em] md:text-[42px]">
-                        My Templates
+                        Templates
                     </h1>
                     <div className="relative mt-7 w-full max-w-3xl">
                         <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-700" />

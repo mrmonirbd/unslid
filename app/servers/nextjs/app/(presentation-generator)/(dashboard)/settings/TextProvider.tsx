@@ -267,7 +267,7 @@ const TextProvider = ({
                                             variant="outline"
                                             role="combobox"
                                             aria-expanded={openProviderSelect}
-                                            className="w-[205px] h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
+                                            className="w-[205px] h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
                                         >
                                             <div className="flex gap-3 items-center">
                                                 <span className="text-sm font-medium text-gray-900">
@@ -345,7 +345,7 @@ const TextProvider = ({
                                                         onInputChange('http://localhost:11434', 'OLLAMA_URL');
                                                     }
                                                 }}
-                                                className="mt-8 py-2.5 bg-[#EDEEEF] px-3.5 w-fit rounded-[48px] text-xs font-semibold text-[#101323] transition-all duration-200 border border-[#EDEEEF] hover:bg-[#E8F0FF]/90 focus:ring-2 focus:ring-blue-500/20"
+                                                className="mt-8 py-2.5 bg-[#EDEEEF] px-3.5 w-fit rounded-[48px] text-xs font-semibold text-[#101323] transition-all duration-200 border border-[#EDEEEF] hover:bg-[#E8F0FF]/90 focus:ring-2 focus:ring-violet-500/20"
                                             >
                                                 Use Ollama URL
                                             </button>
@@ -359,7 +359,7 @@ const TextProvider = ({
                                                         type="text"
                                                         value={currentOllamaUrl}
                                                         onChange={(e) => onApiKeyChange(selectedProvider, e.target.value)}
-                                                        className="w-full px-2 py-3 outline-none border  border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                                                        className="w-full px-2 py-3 outline-none border  border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-blue-500 transition-colors"
                                                         placeholder="http://localhost:11434"
                                                     />
                                                 </div>
@@ -390,7 +390,7 @@ const TextProvider = ({
                                                     type={showApiKey ? 'text' : 'password'}
                                                     value={currentApiKey}
                                                     onChange={(e) => onApiKeyChange(selectedProvider, e.target.value)}
-                                                    className="w-full px-2 py-3 outline-none border  border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                                                    className="w-full px-2 py-3 outline-none border  border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-blue-500 transition-colors"
                                                     placeholder={`Enter your ${llmConfig.LLM} API key`}
                                                 />
                                                 <button
@@ -408,7 +408,7 @@ const TextProvider = ({
                                         type="text"
                                         value={currentCustomUrl}
                                         onChange={(e) => onInputChange(e.target.value, 'CUSTOM_LLM_URL')}
-                                        className="w-full mt-2 px-2 py-3 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                                        className="w-full mt-2 px-2 py-3 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-blue-500 transition-colors"
                                         placeholder="OpenAI-compatible URL"
                                     />
                                 )}
@@ -430,7 +430,7 @@ const TextProvider = ({
                                     }
                                     className={`mt-4 py-2.5 bg-[#EDEEEF] px-3.5 w-fit  rounded-[48px] text-xs font-semibold text-[#101323] transition-all duration-200 border ${modelsLoading
                                         ? " border-gray-300 cursor-not-allowed text-gray-500"
-                                        : " border-[#EDEEEF] text-[#101323] hover:bg-[#E8F0FF]/90 focus:ring-2 focus:ring-blue-500/20"
+                                        : " border-[#EDEEEF] text-[#101323] hover:bg-[#E8F0FF]/90 focus:ring-2 focus:ring-violet-500/20"
                                         }`}
                                 >
                                     {modelsLoading ? (
@@ -464,7 +464,7 @@ const TextProvider = ({
                                                     variant="outline"
                                                     role="combobox"
                                                     aria-expanded={openModelSelect}
-                                                    className="w-full h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
+                                                    className="w-full h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
                                                 >
                                                     <span className="text-sm truncate font-medium text-gray-900">
                                                         {currentModel

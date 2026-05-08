@@ -109,7 +109,7 @@ const DashboardPage: React.FC = () => {
   const usagePct = monthlyLimit ? Math.min(100, (thisMonth / monthlyLimit) * 100) : 0;
 
   return (
-    <div className="min-h-full px-8 pb-12">
+    <div className="min-h-full px-8 pb-12 font-syne">
 
       {/* Page header */}
       <div className="pt-8 pb-6">
@@ -142,7 +142,7 @@ const DashboardPage: React.FC = () => {
             />
             <Link
               href="/upload"
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-white text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all duration-150 shadow-sm shadow-indigo-500/25"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-white text-sm font-semibold bg-violet-600 hover:bg-violet-500 rounded-xl transition-all duration-150 shadow-sm shadow-violet-500/25"
             >
               <Plus className="w-4 h-4" />
               New Presentation
@@ -152,16 +152,16 @@ const DashboardPage: React.FC = () => {
 
         {/* Stats row */}
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 max-w-lg">
-          <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 shadow-sm">
+          <div className="bg-white/95 rounded-xl border border-violet-100 px-4 py-3 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
-              <LayoutGrid className="w-4 h-4 text-indigo-500" />
+              <LayoutGrid className="w-4 h-4 text-violet-500" />
               <span className="text-xs font-medium text-slate-500">Total</span>
             </div>
             <p className="text-2xl font-bold text-slate-900">{isLoading ? "—" : totalCount}</p>
             <p className="text-xs text-slate-400 mt-0.5">presentations</p>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 shadow-sm">
+          <div className="bg-white/95 rounded-xl border border-violet-100 px-4 py-3 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="w-4 h-4 text-emerald-500" />
               <span className="text-xs font-medium text-slate-500">This month</span>
@@ -174,22 +174,22 @@ const DashboardPage: React.FC = () => {
 
           {/* Usage bar — only for free plan with limit */}
           {userPlan === "free" && monthlyLimit && (
-            <div className="bg-white rounded-xl border border-indigo-100 px-4 py-3 shadow-sm col-span-2 sm:col-span-1">
+            <div className="bg-white/95 rounded-xl border border-violet-100 px-4 py-3 shadow-sm col-span-2 sm:col-span-1">
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-indigo-500" />
+                  <Zap className="w-4 h-4 text-violet-500" />
                   <span className="text-xs font-medium text-slate-500">Usage</span>
                 </div>
                 <Link
                   href="/settings/billing"
-                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                  className="text-[11px] font-semibold text-violet-600 hover:text-violet-800"
                 >
                   {usagePct >= 100 ? "Upgrade →" : "Upgrade"}
                 </Link>
               </div>
               <div className="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all ${usagePct >= 90 ? "bg-red-500" : "bg-indigo-500"}`}
+                  className={`h-full rounded-full transition-all ${usagePct >= 90 ? "bg-red-500" : "bg-violet-500"}`}
                   style={{ width: `${usagePct}%` }}
                 />
               </div>
