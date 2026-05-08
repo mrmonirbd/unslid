@@ -80,8 +80,20 @@ const DashboardSidebar = () => {
         aria-label="Go to dashboard"
       >
         {/* <LayoutPanelLeft className="h-5 w-5" /> */}
-        Unslid
+        <div className="inline-flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center shadow-[0_12px_30px_rgba(124,58,237,0.22)]">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+            </div>
+            {/* <span className="text-slate-950 font-bold text-sm tracking-tight">Unslid</span> */}
+          </div>
+    
       </button>
+      
 
       <nav className="flex w-full flex-col items-center gap-1 px-2" aria-label="Main navigation">
         <RailLink href="/upload" label="Create" icon={Plus} active={pathname === "/upload"} highlight />

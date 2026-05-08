@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Annotated, List, Literal, Optional
 from annotated_types import Len
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from pptx.util import Pt
 from pptx.enum.text import PP_ALIGN
 from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE, MSO_CONNECTOR_TYPE
@@ -130,6 +130,13 @@ class PptxAutoShapeBoxModel(PptxShapeModel):
     text_wrap: bool = True
     border_radius: Optional[int] = None
     paragraphs: Optional[List[PptxParagraphModel]] = None
+
+    @field_validator("border_radius", mode="before")
+    @classmethod
+    def round_border_radius(cls, value):
+        if isinstance(value, float):
+            return round(value)
+        return value
 
 
 class PptxPictureBoxModel(PptxShapeModel):

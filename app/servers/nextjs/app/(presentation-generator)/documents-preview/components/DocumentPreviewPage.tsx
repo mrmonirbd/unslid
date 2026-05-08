@@ -171,8 +171,9 @@ const DocumentsPreviewPage: React.FC = () => {
       );
 
       dispatch(setPresentationId(createResponse.id));
-      trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/outline" });
-      router.replace("/outline");
+      const outlineUrl = `/outline?id=${encodeURIComponent(createResponse.id)}`;
+      trackEvent(MixpanelEvent.Navigation, { from: pathname, to: outlineUrl });
+      router.replace(outlineUrl);
     } catch (error: any) {
       console.error("Error in radar presentation creation:", error);
       // Free plan slot limit (HTTP 429) — show upgrade dialog

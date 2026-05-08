@@ -91,6 +91,61 @@ function makeSchema(title: string, imageUrl: string, subtitle: string, quote: st
   });
 }
 
+const clampText = (value: unknown, maxLength: number, fallback = "") => {
+  const text = typeof value === "string" ? value : fallback;
+  return text.length > maxLength ? text.slice(0, maxLength).trimEnd() : text;
+};
+
+const normalizeMegaData = (data: unknown) => {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return {};
+  const source = data as Record<string, unknown>;
+
+  return {
+    ...source,
+    title: clampText(source.title, 120),
+    subtitle: clampText(source.subtitle, 220),
+    quote: clampText(source.quote, 220),
+    items: Array.isArray(source.items)
+      ? source.items.map((item, index) => {
+          if (!item || typeof item !== "object" || Array.isArray(item)) return item;
+          const record = item as Record<string, unknown>;
+          const fallback = baseItems[index % baseItems.length];
+          return {
+            ...record,
+            label: clampText(record.label, 40, fallback.label),
+            text: clampText(record.text, 160, fallback.text),
+          };
+        })
+      : source.items,
+    metrics: Array.isArray(source.metrics)
+      ? source.metrics.map((metric, index) => {
+          if (!metric || typeof metric !== "object" || Array.isArray(metric)) return metric;
+          const record = metric as Record<string, unknown>;
+          const fallback = baseMetrics[index % baseMetrics.length];
+          return {
+            ...record,
+            label: clampText(record.label, 30, fallback.label),
+            value: clampText(record.value, 24, fallback.value),
+            note: clampText(record.note, 80, fallback.note),
+          };
+        })
+      : source.metrics,
+    rows: Array.isArray(source.rows)
+      ? source.rows.map((row, index) => {
+          if (!row || typeof row !== "object" || Array.isArray(row)) return row;
+          const record = row as Record<string, unknown>;
+          const fallback = baseRows[index % baseRows.length];
+          return {
+            ...record,
+            label: clampText(record.label, 36, fallback.label),
+            value: clampText(record.value, 42, fallback.value),
+            note: clampText(record.note, 100, fallback.note),
+          };
+        })
+      : source.rows,
+  };
+};
+
 const textStyle = { letterSpacing: 0 };
 
 const getImageVariant = (imageUrl: string, variant: string | number, width = 900, height = 700) => {
@@ -358,7 +413,21 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
       const cream = "#fbf8f1";
       const black = "#050505";
       const page = cfg.id.split("-").pop() || "cover";
-      const imageFor = (seed: string, width = 1200, height = 900) => `https://picsum.photos/seed/red-editorial-${seed}/${width}/${height}`;
+      const editorialImages: Record<string, string> = {
+        "brand-messages-red": "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&q=85",
+        "campaign-reader": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=85",
+        "thanks-studio": "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&q=85",
+        "creative-brief-team": "https://images.unsplash.com/photo-1556761175-4b46a572b786?auto=format&fit=crop&q=85",
+        "brand-strategy-workshop": "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&q=85",
+        "visual-style-main": "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&q=85",
+        "visual-style-a": "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&q=85",
+        "visual-style-b": "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&q=85",
+        "summary-reader": "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&q=85",
+      };
+      const imageFor = (seed: string, width = 1200, height = 900) => {
+        const src = editorialImages[seed] || editorialImages["brand-messages-red"];
+        return `${src}&w=${width}&h=${height}`;
+      };
       const redImageStyle = { filter: "saturate(1.18) contrast(1.08)" };
       const Arrow = ({ className = "" }: { className?: string }) => (
         <svg className={className} width="92" height="92" viewBox="0 0 92 92" fill="none">
@@ -367,23 +436,37 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
         </svg>
       );
       const Rule = () => <div className="h-[3px] w-full" style={{ background: "#b8b8b8" }} />;
+      const generatedRows = data.rows?.length
+        ? data.rows
+        : data.metrics?.length
+          ? data.metrics.map((metric) => ({
+              label: metric.label,
+              value: [metric.value, metric.note].filter(Boolean).join(" - "),
+              note: metric.note,
+            }))
+          : data.items?.map((item) => ({
+              label: item.label,
+              value: item.text,
+              note: "",
+            })) || [];
+      const editorialRows = generatedRows.length ? generatedRows : baseRows;
+      const editorialItems = data.items?.length ? data.items : editorialRows.map((row) => ({
+        label: row.label,
+        text: row.value || row.note,
+      }));
 
       if (page === "audience") {
-        const audienceRows = [
-          ["(AGE)", "FROM YOUNG STUDENT TO MORE\nSEASONED PROFESSIONALS"],
-          ["(CLIENT)", "MEDIUM TO HIGH PEOPLE,\nMARKETING AGENCIES, MODELS"],
-          ["(LOCATION)", "CLEAN MODERN, GLOBAL SITE,\nLOW MAINTENANCE"],
-        ];
         return (
           <div className="mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] flex-col overflow-hidden px-10 py-9" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
-            <h1 className="text-[150px] font-black uppercase leading-none" style={{ color: red, letterSpacing: "-0.04em" }}>Target Audience</h1>
-            <div className="mt-28 flex flex-1 flex-col justify-between">
-              {audienceRows.map(([label, value]) => (
-                <div key={label}>
+            <h1 className="text-[112px] font-black uppercase leading-none" style={{ color: red, letterSpacing: "-0.04em" }}>{title}</h1>
+            <p className="mt-4 max-w-[760px] text-3xl font-medium leading-tight">{subtitle}</p>
+            <div className="mt-12 flex flex-1 flex-col justify-between">
+              {editorialRows.slice(0, 3).map((row, index) => (
+                <div key={`${row.label}-${index}`}>
                   <Rule />
                   <div className="grid grid-cols-[1fr_0.9fr] py-8">
-                    <div className="text-2xl font-black" style={{ color: red }}>{label}</div>
-                    <div className="whitespace-pre-line text-2xl font-medium leading-tight">{value}</div>
+                    <div className="text-2xl font-black uppercase" style={{ color: red }}>({row.label})</div>
+                    <div className="whitespace-pre-line text-2xl font-medium leading-tight">{row.value || row.note}</div>
                   </div>
                 </div>
               ))}
@@ -448,7 +531,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
       }
 
       if (page === "campaign") {
-        const links = ["The Campaign", "Target Audience", "Social Media", "Deliverables", "Visual Style"];
+        const links = [title, ...editorialItems.map((item) => item.label)].filter(Boolean).slice(0, 5);
         return (
           <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.62fr_1fr] gap-14 overflow-hidden px-10 py-10" style={{ background: cream, color: red, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
             <img src={imageFor("campaign-reader", 720, 980)} alt="" className="h-full w-full object-cover" style={redImageStyle} />
@@ -472,11 +555,15 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
         return (
           <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[1fr_0.82fr] overflow-hidden p-10 text-white" style={{ background: red, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
             <div className="flex flex-col justify-between">
-              <h1 className="text-[150px] font-black uppercase leading-none" style={{ letterSpacing: "-0.05em" }}>Thank You</h1>
-              <div className="space-y-10 text-[26px] uppercase">
-                <div><div>Phone Number:</div><strong>+123-456-7890</strong></div>
-                <div><div>Email Address:</div><strong>HELLO@REALLYGREATSITE.COM</strong></div>
-                <div><div>Website:</div><strong>REALLYGREATSITE.COM</strong></div>
+              <h1 className="text-[112px] font-black uppercase leading-none" style={{ letterSpacing: "-0.05em" }}>{title}</h1>
+              <p className="max-w-[680px] text-[32px] uppercase leading-tight">{subtitle}</p>
+              <div className="space-y-8 text-[24px] uppercase">
+                {editorialRows.slice(0, 3).map((row, index) => (
+                  <div key={`${row.label}-${index}`}>
+                    <div>{row.label}:</div>
+                    <strong>{row.value || row.note}</strong>
+                  </div>
+                ))}
               </div>
             </div>
             <div className="flex flex-col justify-between">
@@ -508,16 +595,17 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
           <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.85fr_1fr] overflow-hidden" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
             <img src={imageFor("brand-strategy-workshop", 780, 720)} alt="" className="h-full w-full object-cover" style={redImageStyle} />
             <div className="flex flex-col justify-between p-16">
-              <h1 className="text-[110px] font-black uppercase leading-[0.92]" style={{ color: red, letterSpacing: "-0.05em" }}>Brand<br />Strategy</h1>
-              <p className="max-w-[580px] text-2xl leading-tight">The brand strategy defines the core direction of the brand. By understanding the market and brand goals</p>
+              <h1 className="text-[92px] font-black uppercase leading-[0.92]" style={{ color: red, letterSpacing: "-0.05em" }}>{title}</h1>
+              <p className="max-w-[580px] text-2xl leading-tight">{subtitle}</p>
               <div>
                 <strong className="text-xl uppercase">(Key Focus)</strong>
                 <div className="mt-6 space-y-3 text-3xl uppercase">
-                  <div>Audience Insights</div>
-                  <div>Brand Objectives</div>
-                  <div>Market Understanding</div>
+                  {editorialRows.slice(0, 3).map((row, index) => (
+                    <div key={`${row.label}-${index}`}>{row.label}</div>
+                  ))}
                 </div>
               </div>
+              {quote && <p className="max-w-[620px] text-xl font-semibold uppercase" style={{ color: red }}>{quote}</p>}
               <Arrow className="ml-auto text-red-600" />
             </div>
           </div>
@@ -561,13 +649,13 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
       return (
         <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[1fr_0.95fr] overflow-hidden" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
           <div className="relative p-10">
-            <h1 className="text-[122px] font-black uppercase leading-[0.88]" style={{ color: red, letterSpacing: "-0.055em" }}>Brand<br />Messages</h1>
+            <h1 className="text-[104px] font-black uppercase leading-[0.88]" style={{ color: red, letterSpacing: "-0.055em" }}>{title}</h1>
             <div className="absolute bottom-24 left-10 max-w-[500px]">
-              <h2 className="text-3xl font-black uppercase" style={{ color: red }}>Design for Style & Performance</h2>
-              <p className="mt-4 text-2xl leading-tight">A perfect balance of style and performance designed to stand out and built to deliver</p>
+              <h2 className="text-3xl font-black uppercase" style={{ color: red }}>{subtitle}</h2>
+              <p className="mt-4 text-2xl leading-tight">{editorialItems[0]?.text || quote}</p>
             </div>
             <div className="absolute bottom-10 left-10 max-w-[520px]">
-              <h2 className="text-3xl font-black uppercase" style={{ color: red }}>Communicating the Brand's Vision</h2>
+              <h2 className="text-3xl font-black uppercase" style={{ color: red }}>{editorialRows[0]?.label}</h2>
             </div>
           </div>
           <img src={imageFor("brand-messages-red", 760, 720)} alt="" className="h-full w-full object-cover" style={redImageStyle} />
@@ -1014,7 +1102,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
 
 function createMegaComponent(cfg: MegaConfig, Schema: ReturnType<typeof makeSchema>) {
   const MegaLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = ({ data }) => {
-    const parsed = Schema.parse(data || {});
+    const parsed = Schema.parse(normalizeMegaData(data));
     return renderLayout(cfg, parsed);
   };
   return MegaLayout;

@@ -2,6 +2,38 @@ import { getHeader, getHeaderForFormData } from "./header";
 import { IconSearch, ImageGenerate, ImageSearch, PreviousGeneratedImagesResponse } from "./params";
 import { ApiResponseHandler } from "./api-error-handler";
 
+function normalizeExportModel<T>(presentationData: T): T {
+  if (!presentationData || typeof presentationData !== "object") {
+    return presentationData;
+  }
+
+  const normalizeShape = (shape: any) => {
+    if (!shape || typeof shape !== "object") return;
+
+    if (typeof shape.border_radius === "number") {
+      shape.border_radius = Math.round(shape.border_radius);
+    } else if (Array.isArray(shape.border_radius)) {
+      shape.border_radius = shape.border_radius.map((radius: unknown) =>
+        typeof radius === "number" ? Math.round(radius) : radius
+      );
+    }
+  };
+
+  const normalized: any = structuredClone(presentationData);
+  if (Array.isArray(normalized.shapes)) {
+    normalized.shapes.forEach(normalizeShape);
+  }
+  if (Array.isArray(normalized.slides)) {
+    normalized.slides.forEach((slide: any) => {
+      if (Array.isArray(slide?.shapes)) {
+        slide.shapes.forEach(normalizeShape);
+      }
+    });
+  }
+
+  return normalized;
+}
+
 export class PresentationGenerationApi {
   static async uploadDoc(documents: File[]) {
     const formData = new FormData();
@@ -243,7 +275,7 @@ export class PresentationGenerationApi {
     const response = await fetch(`/api/v1/ppt/presentation/export/pptx`, {
       method: "POST",
       headers: await getHeader(),
-      body: JSON.stringify(presentationData),
+      body: JSON.stringify(normalizeExportModel(presentationData)),
       cache: "no-cache",
     });
     if (!response.ok) {
@@ -257,7 +289,7 @@ export class PresentationGenerationApi {
     const response = await fetch(`/api/v1/ppt/presentation/export/pdf`, {
       method: "POST",
       headers: await getHeader(),
-      body: JSON.stringify(presentationData),
+      body: JSON.stringify(normalizeExportModel(presentationData)),
       cache: "no-cache",
     });
     if (!response.ok) {

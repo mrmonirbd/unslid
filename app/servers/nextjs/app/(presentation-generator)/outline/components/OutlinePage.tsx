@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RootState } from "@/store/store";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { OverlayLoader } from "@/components/ui/overlay-loader";
 import Wrapper from "@/components/Wrapper";
 import OutlineContent from "./OutlineContent";
@@ -17,24 +17,37 @@ import { usePresentationGeneration } from "../hooks/usePresentationGeneration";
 import TemplateSelection, { DesignerTemplateSelection } from "./TemplateSelection";
 import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
 import { Separator } from "@/components/ui/separator";
+import { useSearchParams } from "next/navigation";
+import { setPresentationId } from "@/store/slices/presentationGeneration";
 
 const OutlinePage: React.FC = () => {
+  const dispatch = useDispatch();
+  const searchParams = useSearchParams();
+  const queryPresentationId = searchParams.get("id");
   const { presentation_id, outlines } = useSelector(
     (state: RootState) => state.presentationGeneration
   );
+  const activePresentationId = queryPresentationId || presentation_id;
 
   const [activeTab, setActiveTab] = useState<string>(TABS.OUTLINE);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateLayoutsWithSettings | string | DesignerTemplateSelection | null>(null);
+
+  React.useEffect(() => {
+    if (queryPresentationId && presentation_id !== queryPresentationId) {
+      dispatch(setPresentationId(queryPresentationId));
+    }
+  }, [dispatch, presentation_id, queryPresentationId]);
+
   // Custom hooks
-  const streamState = useOutlineStreaming(presentation_id);
+  const streamState = useOutlineStreaming(activePresentationId);
   const { handleDragEnd, handleAddSlide } = useOutlineManagement(outlines);
   const { loadingState, handleSubmit } = usePresentationGeneration(
-    presentation_id,
+    activePresentationId,
     outlines,
     selectedTemplate,
     setActiveTab
   );
-  if (!presentation_id) {
+  if (!activePresentationId) {
     return <EmptyStateView />;
   }
 
