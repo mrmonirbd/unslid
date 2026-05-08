@@ -1,19 +1,15 @@
 "use client";
 
-import React, { useRef, useEffect, useState, ReactNode } from "react";
+import React, { useRef, useEffect, ReactNode, useCallback } from "react";
 import ReactDOM from "react-dom/client";
 import TiptapText from "./TiptapText";
-import { useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import { Markdown } from "tiptap-markdown";
-import Underline from "@tiptap/extension-underline";
-
-const extensions = [StarterKit, Markdown, Underline];
 
 interface TiptapTextReplacerProps {
   children: ReactNode;
   slideData?: any;
   slideIndex?: number;
+  isolated?: boolean;
+  renderKey?: string;
   onContentChange?: (
     content: string,
     path: string,
@@ -25,35 +21,57 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
   children,
   slideData,
   slideIndex,
+  isolated = false,
+  renderKey,
   onContentChange = () => {},
 }) => {
-
-  
-
   const containerRef = useRef<HTMLDivElement>(null);
-  const [processedElements, setProcessedElements] = useState(
-    new Set<HTMLElement>()
+  const processedElementsRef = useRef(new Set<HTMLElement>());
+  const isolatedRootRef = useRef<ReturnType<typeof ReactDOM.createRoot> | null>(
+    null
   );
+  const slideDataRef = useRef(slideData);
+  const slideIndexRef = useRef(slideIndex);
+  const onContentChangeRef = useRef(onContentChange);
+
+  slideDataRef.current = slideData;
+  slideIndexRef.current = slideIndex;
+  onContentChangeRef.current = onContentChange;
+
   // Track created React roots to update content when slideData changes
   const rootsRef = useRef<
-    Map<HTMLElement, { root: any; dataPath: string;  fallbackText: string }>
+    Map<
+      HTMLElement,
+      {
+        root: ReturnType<typeof ReactDOM.createRoot>;
+        dataPath: string;
+        fallbackText: string;
+      }
+    >
   >(new Map());
-  useEffect(() => {
-    if (!containerRef.current) return;
 
-    const container = containerRef.current;
+  const cleanupEditorRoots = useCallback(() => {
+    rootsRef.current.forEach(({ root }) => {
+      try {
+        root.unmount();
+      } catch {
+        // The root may already be detached by React during slide changes.
+      }
+    });
+    rootsRef.current.clear();
+    processedElementsRef.current.clear();
+  }, []);
 
-    const replaceTextElements = () => {
-      // Get all elements in the container
+  const replaceTextElements = useCallback(
+    (container: HTMLElement) => {
       const allElements = container.querySelectorAll("*");
 
       allElements.forEach((element) => {
         const htmlElement = element as HTMLElement;
 
         // Skip if already processed
-       
         if (
-          processedElements.has(htmlElement) ||
+          processedElementsRef.current.has(htmlElement) ||
           htmlElement.classList.contains("tiptap-text-editor") ||
           htmlElement.closest(".tiptap-text-editor")
         ) {
@@ -81,7 +99,7 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
         const allClasses = Array.from(htmlElement.classList);
         const allStyles = htmlElement.getAttribute("style");
 
-        const dataPath = findDataPath(slideData, trimmedText);
+        const dataPath = findDataPath(slideDataRef.current, trimmedText);
 
         // Create a container for the TiptapText
         const tiptapContainer = document.createElement("div");
@@ -89,16 +107,16 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
         tiptapContainer.className = Array.from(allClasses).join(" ");
     
         // Replace the element
-        if(htmlElement.parentNode) {
-        htmlElement.parentNode.replaceChild(tiptapContainer, htmlElement);
-        // Mark as processed
-        htmlElement.innerHTML = "";
+        if (htmlElement.parentNode) {
+          htmlElement.parentNode.replaceChild(tiptapContainer, htmlElement);
+          // Mark as processed
+          htmlElement.innerHTML = "";
         }
-        setProcessedElements((prev) => new Set(prev).add(htmlElement));
+        processedElementsRef.current.add(htmlElement);
         // Render TiptapText
         const root = ReactDOM.createRoot(tiptapContainer);
         const initialContent = dataPath.path
-          ? getValueByPath(slideData, dataPath.path) ?? trimmedText
+          ? getValueByPath(slideDataRef.current, dataPath.path) ?? trimmedText
           : trimmedText;
         rootsRef.current.set(tiptapContainer, {
           root,
@@ -111,24 +129,79 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
             content={initialContent}
            
             onContentChange={(content: string) => {
-              if (dataPath && onContentChange) {
-                onContentChange(content, dataPath.path, slideIndex);
+              if (dataPath && onContentChangeRef.current) {
+                onContentChangeRef.current(
+                  content,
+                  dataPath.path,
+                  slideIndexRef.current
+                );
               }
             }}
             placeholder="Enter text..."
           />
         );
       });
-    };
+    },
+    []
+  );
 
-  
+  useEffect(() => {
+    if (!containerRef.current || isolated) return;
+
+    const container = containerRef.current;
+
     // Replace text elements after a short delay to ensure DOM is ready
-    const timer = setTimeout(replaceTextElements, 1000);
+    const timer = setTimeout(() => replaceTextElements(container), 1000);
 
     return () => {
       clearTimeout(timer);
     };
-  }, [slideData, slideIndex]);
+  }, [isolated, replaceTextElements]);
+
+  useEffect(() => {
+    if (!containerRef.current || !isolated) return;
+
+    const container = containerRef.current;
+    cleanupEditorRoots();
+
+    if (isolatedRootRef.current) {
+      try {
+        isolatedRootRef.current.unmount();
+      } catch {
+        // The old isolated root may already have been removed.
+      }
+      isolatedRootRef.current = null;
+    }
+
+    container.innerHTML = "";
+    const mount = document.createElement("div");
+    mount.className = "tiptap-isolated-render w-full h-full";
+    container.appendChild(mount);
+
+    const root = ReactDOM.createRoot(mount);
+    isolatedRootRef.current = root;
+    root.render(<>{children}</>);
+
+    const timer = setTimeout(() => replaceTextElements(container), 100);
+
+    return () => {
+      clearTimeout(timer);
+      cleanupEditorRoots();
+      try {
+        root.unmount();
+      } catch {
+        // Safe during rapid slide switches or hot reload.
+      }
+      if (isolatedRootRef.current === root) {
+        isolatedRootRef.current = null;
+      }
+    };
+  }, [
+    isolated,
+    renderKey,
+    cleanupEditorRoots,
+    replaceTextElements,
+  ]);
   
   // When slideData changes, update existing editors' content using the stored dataPath
   useEffect(() => {
@@ -358,6 +431,10 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
       return { path: "", originalText: "" };
     };
 
+
+  if (isolated) {
+    return <div ref={containerRef} className="tiptap-text-replacer w-full h-full" />;
+  }
 
   return (
     <div ref={containerRef} className="tiptap-text-replacer">
