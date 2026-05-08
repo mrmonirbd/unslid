@@ -31,4 +31,6 @@ const SlideContent = memo(({
   );
 });
 
+SlideContent.displayName = "SlideContent";
+
 export default SlideContent;

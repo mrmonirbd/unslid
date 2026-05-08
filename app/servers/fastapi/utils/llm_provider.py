@@ -9,6 +9,8 @@ from constants.llm import (
 )
 from enums.llm_provider import LLMProvider
 from utils.get_env import (
+    get_google_api_key_env,
+    get_openai_api_key_env,
     get_anthropic_model_env,
     get_codex_model_env,
     get_custom_model_env,
@@ -84,3 +86,28 @@ def get_model():
             status_code=500,
             detail="Invalid LLM provider. Please select one of: openai, google, anthropic, ollama, custom, codex",
         )
+
+
+def get_large_model():
+    """Backward-compatible alias used by older schema tests."""
+    return get_model()
+
+
+def get_llm_client():
+    """Backward-compatible OpenAI client factory used by older schema tests."""
+    from openai import AsyncOpenAI
+
+    api_key = get_plan_config_value("OPENAI_API_KEY", get_openai_api_key_env())
+    if not api_key:
+        raise HTTPException(status_code=500, detail="OpenAI API Key is not set")
+    return AsyncOpenAI(api_key=api_key)
+
+
+def get_google_llm_client():
+    """Backward-compatible Google GenAI client factory used by older schema tests."""
+    from google import genai
+
+    api_key = get_plan_config_value("GOOGLE_API_KEY", get_google_api_key_env())
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Google API Key is not set")
+    return genai.Client(api_key=api_key)

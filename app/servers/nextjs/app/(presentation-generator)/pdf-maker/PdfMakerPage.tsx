@@ -13,7 +13,7 @@ import { DashboardApi } from "../services/api/dashboard";
 
 
 import { V1ContentRender } from "../components/V1ContentRender";
-import { useFontLoader } from "../hooks/useFontLoad";
+import { loadFonts } from "../hooks/useFontLoad";
 import { Theme } from "../services/api/types";
 
 
@@ -92,7 +92,7 @@ const PresentationPage = ({ presentation_id }: { presentation_id: string }) => {
     Object.entries(cssVariables).forEach(([key, value]) => {
       element.style.setProperty(key, value)
     })
-    useFontLoader({ [theme.data.fonts.textFont.name]: theme.data.fonts.textFont.url })
+    loadFonts({ [theme.data.fonts.textFont.name]: theme.data.fonts.textFont.url })
 
     // Apply fonts to preview container
     element.style.setProperty('font-family', `"${theme.data.fonts.textFont.name}"`)

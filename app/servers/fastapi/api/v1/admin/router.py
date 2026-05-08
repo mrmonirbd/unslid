@@ -1167,14 +1167,59 @@ async def get_usage_monitor(
     """
     from utils.rate_limit import get_token_usage, get_image_usage, get_active_sessions
 
-    # Top users by presentations this month
+    month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    presentation_counts = (
+        select(
+            PresentationModel.user_id,
+            func.count(PresentationModel.id).label("presentation_count"),
+        )
+        .where(PresentationModel.user_id.is_not(None))
+        .group_by(PresentationModel.user_id)
+        .subquery()
+    )
+    monthly_presentation_counts = (
+        select(
+            PresentationModel.user_id,
+            func.count(PresentationModel.id).label("presentation_count"),
+        )
+        .where(PresentationModel.user_id.is_not(None))
+        .where(PresentationModel.created_at >= month_start)
+        .group_by(PresentationModel.user_id)
+        .subquery()
+    )
+
+    # Top users by actual generated presentation count.
     result = await session.execute(
-        select(UserModel)
+        select(
+            UserModel,
+            func.coalesce(presentation_counts.c.presentation_count, 0).label("presentation_count"),
+            func.coalesce(monthly_presentation_counts.c.presentation_count, 0).label("monthly_presentation_count"),
+        )
+        .outerjoin(presentation_counts, presentation_counts.c.user_id == UserModel.id)
+        .outerjoin(
+            monthly_presentation_counts,
+            monthly_presentation_counts.c.user_id == UserModel.id,
+        )
         .where(UserModel.is_active == True)
-        .order_by(UserModel.presentations_this_month.desc())
+        .order_by(
+            func.coalesce(monthly_presentation_counts.c.presentation_count, 0).desc(),
+            func.coalesce(presentation_counts.c.presentation_count, 0).desc(),
+        )
         .limit(limit)
     )
-    users = result.scalars().all()
+    user_rows = result.all()
+    users = [row[0] for row in user_rows]
+    presentation_count_by_user = {
+        row[0].id: int(row[1] or 0)
+        for row in user_rows
+        if row[0].id is not None
+    }
+    monthly_presentation_count_by_user = {
+        row[0].id: int(row[2] or 0)
+        for row in user_rows
+        if row[0].id is not None
+    }
     template_counts = await _get_template_counts_by_user(
         session, [u.id for u in users if u.id is not None]
     )
@@ -1189,7 +1234,8 @@ async def get_usage_monitor(
             "email": u.email,
             "full_name": u.full_name,
             "plan": u.plan,
-            "presentations_this_month": u.presentations_this_month,
+            "presentations_total": presentation_count_by_user.get(u.id, 0),
+            "presentations_this_month": monthly_presentation_count_by_user.get(u.id, 0),
             "custom_templates_count": template_counts.get(u.id, 0),
             "tokens_estimated_this_month": tokens,
             "images_this_month": images,

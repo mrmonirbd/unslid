@@ -6,7 +6,7 @@ import { Palette } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateTheme } from '@/store/slices/presentationGeneration';
 import { useRouter } from 'next/navigation';
-import { useFontLoader } from '../../hooks/useFontLoad';
+import { loadFonts } from '../../hooks/useFontLoad';
 import { RootState } from '@/store/store';
 const ThemeSelector = ({ presentation_id, current_theme, themes: allThemes }: { presentation_id: string, current_theme: any, themes: any[] }) => {
     const [currentTheme, setCurrentTheme] = useState<any>(current_theme)
@@ -41,7 +41,7 @@ const ThemeSelector = ({ presentation_id, current_theme, themes: allThemes }: { 
         Object.entries(cssVariables).forEach(([key, value]) => {
             element.style.setProperty(key, value)
         })
-        useFontLoader({ [theme.data.fonts.textFont.name]: theme.data.fonts.textFont.url })
+        loadFonts({ [theme.data.fonts.textFont.name]: theme.data.fonts.textFont.url })
 
         // Apply fonts to preview container
         element.style.setProperty('font-family', `"${theme.data.fonts.textFont.name}"`)

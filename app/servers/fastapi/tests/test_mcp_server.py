@@ -1,6 +1,9 @@
 import asyncio
 import pytest
 from fastmcp import FastMCP, Client
+
+pytest.importorskip("app_mcp")
+
 from app_mcp.tools.start_presentation import register_start_presentation
 from app_mcp.tools.help_me import register_help_me
 from app_mcp.tools.continue_workflow import register_continue_workflow

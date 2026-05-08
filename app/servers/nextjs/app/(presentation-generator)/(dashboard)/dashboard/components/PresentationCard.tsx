@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/popover";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useFontLoader } from "@/app/(presentation-generator)/hooks/useFontLoader";
+import { loadFonts } from "@/app/(presentation-generator)/hooks/useFontLoader";
 import SlideScale from "@/app/(presentation-generator)/components/PresentationRender";
 import MarkdownRenderer from "@/components/MarkDownRender";
 
@@ -27,7 +27,7 @@ export const PresentationCard = ({
   userPlan?: string;
 }) => {
   const router = useRouter();
-  useFontLoader(presentation.fonts || []);
+  loadFonts(presentation.fonts || []);
 
   const [visibility, setVisibility] = useState<"private" | "team">(
     presentation.visibility ?? "private"

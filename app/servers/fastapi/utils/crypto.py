@@ -2,8 +2,8 @@
 Field-level encryption for sensitive values stored in the database (API keys).
 
 Uses Fernet symmetric encryption (AES-128-CBC + HMAC-SHA256).
-The SECRET_KEY environment variable holds a URL-safe base64-encoded 32-byte key.
-Generate one with:  python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+SECRET_KEY may be either a Fernet key or a long random application secret.
+When it is not already a Fernet key, a stable Fernet key is derived from it.
 
 If SECRET_KEY is missing or invalid the functions degrade gracefully:
 - encrypt_value() returns the plaintext unchanged (still stored, just not encrypted)
@@ -12,6 +12,8 @@ This prevents data loss if the key is misconfigured while still working.
 """
 import os
 import logging
+import base64
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,11 @@ def _get_fernet():
         return None
     try:
         from cryptography.fernet import Fernet
-        _fernet = Fernet(secret.encode())
+        try:
+            _fernet = Fernet(secret.encode())
+        except Exception:
+            derived = base64.urlsafe_b64encode(hashlib.sha256(secret.encode()).digest())
+            _fernet = Fernet(derived)
     except Exception as exc:
         logger.error("Invalid SECRET_KEY — encryption disabled: %s", exc)
         _fernet = None

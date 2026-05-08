@@ -12,10 +12,10 @@ interface ThemeCardProps {
 }
 
 export const ThemeCard: React.FC<ThemeCardProps> = ({ theme, onSelect, onDelete, showDeleteButton = true }) => {
-  if (!theme.data.colors['graph_0']) { return null }
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  if (!theme.data.colors['graph_0']) { return null }
 
 
 
@@ -180,6 +180,5 @@ export const ThemeCard: React.FC<ThemeCardProps> = ({ theme, onSelect, onDelete,
   </div>)
 
 }
-
 
 

@@ -16,10 +16,21 @@ if [ ! -f ".env" ]; then
   exit 1
 fi
 
-# Check POSTGRES_PASSWORD is not the default
-PGPASS=$(grep "^POSTGRES_PASSWORD=" .env | cut -d= -f2)
-if [ "$PGPASS" = "localdevpass" ] || [ -z "$PGPASS" ]; then
-  echo "ERROR: POSTGRES_PASSWORD is still 'localdevpass' or empty. Set a strong password in .env before deploying."
+# Check MySQL passwords are not missing/default placeholders
+MYSQL_ROOT_PASS=$(grep "^MYSQL_ROOT_PASSWORD=" .env | cut -d= -f2- || true)
+MYSQL_PASS=$(grep "^MYSQL_PASSWORD=" .env | cut -d= -f2- || true)
+if [ "$MYSQL_ROOT_PASS" = "localdevpass" ] || [ "$MYSQL_ROOT_PASS" = "CHANGE_ME_STRONG_ROOT_PASSWORD" ] || [ -z "$MYSQL_ROOT_PASS" ]; then
+  echo "ERROR: MYSQL_ROOT_PASSWORD is missing or still a default placeholder. Set a strong password in .env before deploying."
+  exit 1
+fi
+if [ "$MYSQL_PASS" = "localdevpass" ] || [ "$MYSQL_PASS" = "CHANGE_ME_STRONG_APP_PASSWORD" ] || [ -z "$MYSQL_PASS" ]; then
+  echo "ERROR: MYSQL_PASSWORD is missing or still a default placeholder. Set a strong password in .env before deploying."
+  exit 1
+fi
+
+SECRET_KEY=$(grep "^SECRET_KEY=" .env | cut -d= -f2- || true)
+if [ "$SECRET_KEY" = "CHANGE_ME_LONG_RANDOM_SECRET" ] || [ -z "$SECRET_KEY" ]; then
+  echo "ERROR: SECRET_KEY is missing or still a default placeholder. Generate a long random SECRET_KEY before deploying."
   exit 1
 fi
 
