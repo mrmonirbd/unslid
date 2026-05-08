@@ -82,7 +82,7 @@ export const PresentationCard = ({
   return (
     <div
       onClick={handlePreview}
-      className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-lg hover:border-slate-300 hover:-translate-y-0.5 flex flex-col"
+      className="group relative bg-white rounded-xl border border-violet-100 overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-lg hover:border-violet-200 hover:-translate-y-0.5 flex flex-col"
     >
       {/* Thumbnail area */}
       <div className="relative bg-slate-100 overflow-hidden" style={{ aspectRatio: "16/10" }}>
@@ -113,7 +113,7 @@ export const PresentationCard = ({
 
         {/* Team badge */}
         {visibility === "team" && (
-          <div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-indigo-600 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
+          <div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-violet-600 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
             <Users className="w-3 h-3" />
             Team
           </div>
@@ -160,7 +160,7 @@ export const PresentationCard = ({
                 >
                   {visibility === "private" ? (
                     <>
-                      <Users className="w-4 h-4 text-indigo-500 shrink-0" />
+                      <Users className="w-4 h-4 text-violet-500 shrink-0" />
                       <span>Share with team</span>
                     </>
                   ) : (

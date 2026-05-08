@@ -27,8 +27,10 @@ from utils.crypto import encrypt_value, decrypt_value
 from models.sql.user import UserModel
 from models.sql.organization import OrganizationModel
 from models.sql.presentation import PresentationModel
+from models.sql.presentation_layout_code import PresentationLayoutCodeModel
 from models.sql.plan_ai_config import PlanAIConfig
 from models.sql.key_value import KeyValueSqlModel
+from models.sql.template import TemplateModel
 from models.sql.template_tier import TemplateTierModel
 from services.database import get_async_session
 from services.plan_ai_config_service import get_all_plan_configs, upsert_plan_ai_config
@@ -164,6 +166,27 @@ async def require_admin(current_user: UserModel = Depends(get_current_user)) -> 
     return current_user
 
 
+async def _get_template_counts_by_user(
+    session: AsyncSession, user_ids: list[int]
+) -> dict[int, int]:
+    if not user_ids:
+        return {}
+
+    result = await session.execute(
+        select(
+            TemplateModel.user_id,
+            func.count(TemplateModel.id).label("custom_templates_count"),
+        )
+        .where(TemplateModel.user_id.in_(user_ids))
+        .group_by(TemplateModel.user_id)
+    )
+    return {
+        row.user_id: row.custom_templates_count
+        for row in result
+        if row.user_id is not None
+    }
+
+
 # ─── Stats Overview ───────────────────────────────────────────────────────────
 
 @ADMIN_ROUTER.get("/stats")
@@ -196,6 +219,12 @@ async def get_platform_stats(
     total_orgs = await session.scalar(select(func.count(OrganizationModel.id)))
 
     total_presentations = await session.scalar(select(func.count(PresentationModel.id)))
+    total_custom_templates = await session.scalar(select(func.count(TemplateModel.id)))
+    users_with_custom_templates = await session.scalar(
+        select(func.count(func.distinct(TemplateModel.user_id))).where(
+            TemplateModel.user_id.isnot(None)
+        )
+    )
 
     # Users by storage region
     eu_users = await session.scalar(
@@ -225,6 +254,10 @@ async def get_platform_stats(
         },
         "presentations": {
             "total": total_presentations or 0,
+        },
+        "custom_templates": {
+            "total": total_custom_templates or 0,
+            "users_with_templates": users_with_custom_templates or 0,
         },
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -390,6 +423,9 @@ async def list_users(
     query = query.order_by(UserModel.created_at.desc()).offset(offset).limit(per_page)
     result = await session.execute(query)
     users = result.scalars().all()
+    template_counts = await _get_template_counts_by_user(
+        session, [u.id for u in users if u.id is not None]
+    )
 
     return [
         {
@@ -401,6 +437,7 @@ async def list_users(
             "is_active": u.is_active,
             "is_admin": u.is_admin,
             "storage_used_bytes": u.storage_used_bytes,
+            "custom_templates_count": template_counts.get(u.id, 0),
             "created_at": u.created_at.isoformat(),
         }
         for u in users
@@ -417,6 +454,10 @@ async def get_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    custom_templates_count = await session.scalar(
+        select(func.count(TemplateModel.id)).where(TemplateModel.user_id == user.id)
+    )
+
     return {
         "id": user.id,
         "email": user.email,
@@ -428,8 +469,78 @@ async def get_user(
         "is_admin": user.is_admin,
         "storage_used_bytes": user.storage_used_bytes,
         "presentations_this_month": user.presentations_this_month,
+        "custom_templates_count": custom_templates_count or 0,
         "created_at": user.created_at.isoformat(),
         "updated_at": user.updated_at.isoformat(),
+    }
+
+
+@ADMIN_ROUTER.get("/users/{user_id}/templates")
+async def get_user_templates(
+    user_id: int,
+    admin: UserModel = Depends(require_admin),
+    session: AsyncSession = Depends(get_async_session),
+):
+    user = await session.get(UserModel, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    result = await session.execute(
+        select(TemplateModel)
+        .where(TemplateModel.user_id == user_id)
+        .order_by(TemplateModel.created_at.desc())
+    )
+    template_rows = result.scalars().all()
+    template_ids = [template.id for template in template_rows]
+
+    layout_stats: dict = {}
+    if template_ids:
+        stats_result = await session.execute(
+            select(
+                PresentationLayoutCodeModel.presentation,
+                func.count(PresentationLayoutCodeModel.id).label("layout_count"),
+                func.max(PresentationLayoutCodeModel.updated_at).label(
+                    "last_updated_at"
+                ),
+            )
+            .where(PresentationLayoutCodeModel.presentation.in_(template_ids))
+            .group_by(PresentationLayoutCodeModel.presentation)
+        )
+        layout_stats = {
+            row.presentation: {
+                "layout_count": row.layout_count or 0,
+                "last_updated_at": row.last_updated_at,
+            }
+            for row in stats_result
+        }
+
+    templates = []
+    for template in template_rows:
+        stats = layout_stats.get(template.id, {})
+        last_updated_at = stats.get("last_updated_at")
+        templates.append(
+            {
+                "id": template.id,
+                "name": template.name,
+                "description": template.description,
+                "layout_count": stats.get("layout_count", 0),
+                "created_at": template.created_at.isoformat()
+                if template.created_at
+                else None,
+                "last_updated_at": last_updated_at.isoformat()
+                if last_updated_at
+                else None,
+            }
+        )
+
+    return {
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+        },
+        "custom_templates_count": len(templates),
+        "templates": templates,
     }
 
 
@@ -1064,6 +1175,9 @@ async def get_usage_monitor(
         .limit(limit)
     )
     users = result.scalars().all()
+    template_counts = await _get_template_counts_by_user(
+        session, [u.id for u in users if u.id is not None]
+    )
 
     rows = []
     for u in users:
@@ -1076,6 +1190,7 @@ async def get_usage_monitor(
             "full_name": u.full_name,
             "plan": u.plan,
             "presentations_this_month": u.presentations_this_month,
+            "custom_templates_count": template_counts.get(u.id, 0),
             "tokens_estimated_this_month": tokens,
             "images_this_month": images,
             "active_ips": sessions,

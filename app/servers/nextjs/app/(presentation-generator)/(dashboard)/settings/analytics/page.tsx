@@ -56,7 +56,7 @@ export default function AnalyticsPage() {
   return (
     <div className="max-w-4xl mx-auto px-8 py-10 space-y-8">
       <div className="flex items-center gap-3">
-        <BarChart2 className="w-6 h-6 text-indigo-500" />
+        <BarChart2 className="w-6 h-6 text-violet-500" />
         <h1 className="text-2xl font-bold text-slate-900">Share Analytics</h1>
       </div>
       <p className="text-sm text-slate-500">
@@ -79,8 +79,8 @@ export default function AnalyticsPage() {
                 onClick={() => loadAnalytics(share.token)}
                 className={`w-full text-left rounded-xl border p-4 transition ${
                   selected === share.token
-                    ? "border-indigo-400 bg-indigo-50"
-                    : "border-slate-200 bg-white hover:border-indigo-200"
+                    ? "border-violet-400 bg-violet-50"
+                    : "border-slate-200 bg-white hover:border-violet-200"
                 }`}
               >
                 <p className="font-medium text-slate-800 text-sm truncate">
@@ -169,7 +169,7 @@ export default function AnalyticsPage() {
                   href={`/s/${analytics.token}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-500"
+                  className="flex items-center gap-2 text-sm text-violet-600 hover:text-violet-500"
                 >
                   <ExternalLink className="w-4 h-4" />
                   Open share link

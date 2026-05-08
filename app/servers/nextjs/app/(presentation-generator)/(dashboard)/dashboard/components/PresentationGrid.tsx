@@ -40,13 +40,13 @@ export const PresentationGrid = ({
   const CreateNewCard = () => (
     <div
       onClick={handleCreate}
-      className="group relative bg-white rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 cursor-pointer transition-all duration-200 flex flex-col items-center justify-center text-center overflow-hidden"
+      className="group relative bg-white rounded-xl border-2 border-dashed border-violet-200 hover:border-violet-400 hover:bg-violet-50/60 cursor-pointer transition-all duration-200 flex flex-col items-center justify-center text-center overflow-hidden"
       style={{ minHeight: "200px" }}
     >
-      <div className="p-3 rounded-xl bg-indigo-50 group-hover:bg-indigo-100 transition-colors mb-3">
-        <Plus className="w-6 h-6 text-indigo-600" />
+      <div className="p-3 rounded-xl bg-violet-50 group-hover:bg-violet-100 transition-colors mb-3">
+        <Plus className="w-6 h-6 text-violet-600" />
       </div>
-      <p className="text-sm font-semibold text-slate-700 group-hover:text-indigo-700 transition-colors">
+      <p className="text-sm font-semibold text-slate-700 group-hover:text-violet-700 transition-colors">
         New Presentation
       </p>
       <p className="text-xs text-slate-400 mt-1">Start from scratch with AI</p>
@@ -64,7 +64,7 @@ export const PresentationGrid = ({
       </p>
       <button
         onClick={handleCreate}
-        className="inline-flex items-center gap-2 px-4 py-2.5 text-white text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all shadow-sm shadow-indigo-500/25"
+        className="inline-flex items-center gap-2 px-4 py-2.5 text-white text-sm font-semibold bg-violet-600 hover:bg-violet-500 rounded-xl transition-all shadow-sm shadow-violet-500/25"
       >
         <Plus className="w-4 h-4" />
         Create your first presentation
@@ -99,7 +99,7 @@ export const PresentationGrid = ({
             <p className="text-slate-500 mb-3">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="text-indigo-600 hover:text-indigo-800 text-sm font-medium underline"
+              className="text-violet-600 hover:text-violet-800 text-sm font-medium underline"
             >
               Try again
             </button>

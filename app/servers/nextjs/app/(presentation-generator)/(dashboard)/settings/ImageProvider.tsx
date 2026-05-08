@@ -61,7 +61,7 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                     </label>
                     <div className="">
                         <Select value={llmConfig.DALL_E_3_QUALITY} onValueChange={(value) => input_field_changed(value, "DALL_E_3_QUALITY")}>
-                            <SelectTrigger className="w-full h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between">
+                            <SelectTrigger className="w-full h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between">
                                 <SelectValue placeholder="Select a quality" />
                             </SelectTrigger>
                             <SelectContent>
@@ -89,7 +89,7 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                         >
                             <SelectTrigger
 
-                                className="w-full h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between">
+                                className="w-full h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between">
                                 <SelectValue placeholder="Select a quality" />
                             </SelectTrigger>
                             <SelectContent>
@@ -159,7 +159,7 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                                                         variant="outline"
                                                         role="combobox"
                                                         aria-expanded={openImageProviderSelect}
-                                                        className="w-[205px] h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
+                                                        className="w-[205px] h-12 px-4 py-4 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-blue-500 transition-colors hover:border-gray-400 justify-between"
                                                     >
                                                         <div className="flex gap-3 items-center">
                                                             <span className="text-sm font-medium text-gray-900">
@@ -245,7 +245,7 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                                                                 <input
                                                                     type="text"
                                                                     placeholder="http://192.168.1.7:8188"
-                                                                    className="w-full px-4 py-2.5 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                                                                    className="w-full px-4 py-2.5 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-blue-500 transition-colors"
                                                                     value={llmConfig.COMFYUI_URL || ""}
                                                                     onChange={(e) => {
                                                                         input_field_changed(
@@ -272,7 +272,7 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                                                         <input
                                                             type={showApiKey ? 'text' : 'password'}
                                                             placeholder={`Enter your ${provider.apiKeyFieldLabel}`}
-                                                            className="w-full px-4 py-2.5 h-12 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                                                            className="w-full px-4 py-2.5 h-12 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-blue-500 transition-colors"
                                                             value={getFieldValue(provider.apiKeyField)}
                                                             onChange={(e) =>
                                                                 updateFieldValue(
@@ -307,7 +307,7 @@ const ImageProvider = ({ llmConfig, setLlmConfig }: { llmConfig: LLMConfig, setL
                                 <div className="relative">
                                     <textarea
                                         placeholder='Paste your ComfyUI workflow JSON here (export via "Export (API)" in ComfyUI)'
-                                        className="w-full px-4 py-2.5 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors font-mono text-xs"
+                                        className="w-full px-4 py-2.5 outline-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-blue-500 transition-colors font-mono text-xs"
                                         rows={3}
                                         value={llmConfig.COMFYUI_WORKFLOW || ""}
                                         onChange={(e) => {

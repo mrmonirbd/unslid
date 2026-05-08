@@ -111,7 +111,7 @@ export default function AIPreferencesPage() {
       )}
 
       {!isPaid && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5 text-sm text-indigo-800 flex items-start gap-3">
+        <div className="bg-violet-50 border border-violet-200 rounded-xl p-5 text-sm text-violet-800 flex items-start gap-3">
           <Info className="h-4 w-4 mt-0.5 shrink-0" />
           <div>
             <p className="font-semibold mb-1">Available on Pro & Team plans</p>
@@ -168,7 +168,7 @@ export default function AIPreferencesPage() {
             <select
               value={prefs.llm_provider ?? ""}
               onChange={(e) => setPrefs((p) => ({ ...p, llm_provider: e.target.value || null, llm_model: null }))}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
             >
               <option value="">Use plan default ({PROVIDER_LABELS[planConfig?.llm_provider ?? ""] ?? planConfig?.llm_provider})</option>
               <option value="openai">OpenAI</option>
@@ -186,7 +186,7 @@ export default function AIPreferencesPage() {
                 value={prefs.llm_model ?? ""}
                 onChange={(e) => setPrefs((p) => ({ ...p, llm_model: e.target.value || null }))}
                 placeholder={`e.g. ${prefs.llm_provider === "openai" ? "gpt-4.1-mini" : prefs.llm_provider === "google" ? "gemini-2.0-flash" : "claude-3-5-haiku"}`}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
             </div>
           )}
@@ -198,7 +198,7 @@ export default function AIPreferencesPage() {
                 value={prefs.llm_base_url ?? ""}
                 onChange={(e) => setPrefs((p) => ({ ...p, llm_base_url: e.target.value || null }))}
                 placeholder={prefs.llm_provider === "ollama" ? "http://localhost:11434" : "https://api.example.com/v1"}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
             </div>
           )}
@@ -217,7 +217,7 @@ export default function AIPreferencesPage() {
             <select
               value={prefs.image_provider ?? ""}
               onChange={(e) => setPrefs((p) => ({ ...p, image_provider: e.target.value || null }))}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
             >
               <option value="">Use plan default ({PROVIDER_LABELS[planConfig?.image_provider ?? ""] ?? planConfig?.image_provider})</option>
               <option value="pexels">Pexels (stock photos — free)</option>
@@ -234,7 +234,7 @@ export default function AIPreferencesPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition"
+          className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition"
         >
           {saved ? "Saved ✓" : saving ? "Saving…" : "Save preferences"}
         </button>

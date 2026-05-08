@@ -34,7 +34,7 @@ interface MemberOrInvite {
 
 const ROLE_BADGE: Record<string, string> = {
   owner: "bg-purple-100 text-purple-700",
-  admin: "bg-blue-100 text-blue-700",
+  admin: "bg-violet-100 text-violet-700",
   member: "bg-slate-100 text-slate-600",
 };
 
@@ -187,7 +187,7 @@ export default function TeamPage() {
   const isOwner = selectedOrg?.role === "owner";
   const isAdmin = selectedOrg?.role === "admin" || isOwner;
   const seatPct = selectedOrg ? Math.min(100, ((selectedOrg.seats_used) / selectedOrg.seats_purchased) * 100) : 0;
-  const seatColor = seatPct >= 100 ? "bg-red-500" : seatPct >= 80 ? "bg-amber-400" : "bg-indigo-500";
+  const seatColor = seatPct >= 100 ? "bg-red-500" : seatPct >= 80 ? "bg-amber-400" : "bg-violet-500";
 
   return (
     <div className="max-w-3xl mx-auto px-8 py-10 space-y-8">
@@ -203,7 +203,7 @@ export default function TeamPage() {
                 key={o.id}
                 onClick={() => loadOrg(o.slug)}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border text-left transition ${
-                  selectedOrg?.slug === o.slug ? "border-indigo-400 bg-indigo-50" : "border-slate-200 hover:border-slate-300 bg-white"
+                  selectedOrg?.slug === o.slug ? "border-violet-400 bg-violet-50" : "border-slate-200 hover:border-slate-300 bg-white"
                 }`}
               >
                 <div>
@@ -229,7 +229,7 @@ export default function TeamPage() {
           <p className="text-sm text-slate-500">You&apos;re on the{" "}
             <strong>{/* user plan from billing */}</strong> plan. Upgrade to Team to invite colleagues and collaborate on presentations.
           </p>
-          <a href="/settings/billing" className="inline-block px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-500 transition">
+          <a href="/settings/billing" className="inline-block px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-lg hover:bg-violet-500 transition">
             Upgrade to Team
           </a>
         </section>
@@ -287,7 +287,7 @@ export default function TeamPage() {
                       }
                     }}
                     disabled={seatSaving || seatInput === selectedOrg.seats_purchased}
-                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition"
+                    className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition"
                   >
                     {seatSaving ? "Saving…" : "Update seats"}
                   </button>
@@ -339,12 +339,12 @@ export default function TeamPage() {
                   onKeyDown={(e) => e.key === "Enter" && handleInvite()}
                   placeholder="Email address"
                   type="email"
-                  className="flex-1 min-w-[200px] px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="flex-1 min-w-[200px] px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                 />
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value as "member" | "admin")}
-                  className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                 >
                   <option value="member">Member</option>
                   <option value="admin">Admin</option>
@@ -352,7 +352,7 @@ export default function TeamPage() {
                 <button
                   onClick={handleInvite}
                   disabled={inviting || !inviteEmail.trim()}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition"
+                  className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition"
                 >
                   {inviting ? "Sending…" : "Invite"}
                 </button>
@@ -430,7 +430,7 @@ export default function TeamPage() {
                           <button
                             onClick={() => handleResendInvite(m.invitation_token!)}
                             title="Resend"
-                            className="p-1 text-slate-400 hover:text-indigo-600 transition"
+                            className="p-1 text-slate-400 hover:text-violet-600 transition"
                           >
                             <RefreshCw className="h-3.5 w-3.5" />
                           </button>
@@ -449,7 +449,7 @@ export default function TeamPage() {
                           <select
                             value={m.role}
                             onChange={(e) => handleChangeRole(m.user_id!, e.target.value as "admin" | "member")}
-                            className="text-xs border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                            className="text-xs border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-violet-400"
                           >
                             <option value="admin">Admin</option>
                             <option value="member">Member</option>
