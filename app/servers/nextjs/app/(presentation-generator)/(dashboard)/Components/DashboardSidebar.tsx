@@ -71,7 +71,7 @@ const DashboardSidebar = () => {
 
   return (
     <aside
-      className="fixed inset-x-0 bottom-0 z-40 flex h-20 flex-row items-center border-t border-violet-100 bg-[#fbf9ff]/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur md:sticky md:top-0 md:h-screen md:w-[72px] md:shrink-0 md:flex-col md:border-r md:border-t-0 md:bg-[#fbf9ff] md:py-3 md:shadow-none"
+      className="relative z-40 flex h-20 shrink-0 flex-row items-center border-t border-violet-100 bg-[#fbf9ff]/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur md:sticky md:top-0 md:order-first md:h-screen md:w-[72px] md:flex-col md:border-r md:border-t-0 md:bg-[#fbf9ff] md:py-3 md:shadow-none"
       aria-label="Dashboard sidebar"
     >
       <button
