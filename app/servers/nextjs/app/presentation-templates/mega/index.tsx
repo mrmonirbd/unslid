@@ -212,17 +212,19 @@ const Shell = ({ cfg, children }: { cfg: MegaConfig; children: React.ReactNode }
       fontFamily: getMegaTheme(cfg).bodyFont,
     }}
   >
-    <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-80" viewBox="0 0 1280 720" preserveAspectRatio="none">
+    <svg className="pointer-events-none absolute inset-0 z-0 h-full w-full opacity-80" viewBox="0 0 1280 720" preserveAspectRatio="none">
       {cfg.curve % 4 === 0 && <path d="M0 560 C220 450 360 690 610 555 C830 435 970 545 1280 410 L1280 720 L0 720 Z" fill={getMegaTheme(cfg).soft} />}
       {cfg.curve % 4 === 1 && <path d="M780 0 C900 140 1120 70 1280 210 L1280 0 Z" fill={getMegaTheme(cfg).soft} />}
       {cfg.curve % 4 === 2 && <path d="M0 0 C210 110 270 270 145 455 C90 535 45 625 0 720 Z" fill={getMegaTheme(cfg).soft} />}
       {cfg.curve % 4 === 3 && <path d="M360 720 C490 520 780 670 940 420 C1040 260 1160 220 1280 240 L1280 720 Z" fill={getMegaTheme(cfg).soft} />}
       <circle cx={cfg.curve % 2 ? 1060 : 180} cy={cfg.curve % 3 ? 140 : 560} r="86" fill={getMegaTheme(cfg).accent} opacity="0.12" />
     </svg>
-    <div className="absolute right-8 top-8 rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur" style={{ background: getMegaTheme(cfg).soft, borderColor: getMegaTheme(cfg).stroke, color: getMegaTheme(cfg).fg }}>
+    <div className="absolute right-8 top-8 z-20 rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur" style={{ background: getMegaTheme(cfg).soft, borderColor: getMegaTheme(cfg).stroke, color: getMegaTheme(cfg).fg }}>
       {cfg.name}
     </div>
-    {children}
+    <div className="relative z-10 h-full w-full">
+      {children}
+    </div>
   </div>
 );
 
