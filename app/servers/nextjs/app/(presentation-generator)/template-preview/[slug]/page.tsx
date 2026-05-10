@@ -969,6 +969,7 @@ function StaticTemplateEditor({
   const [fontSize, setFontSize] = useState(24);
   const [fontFamily, setFontFamily] = useState("Inter, Arial, sans-serif");
   const [imageUrl, setImageUrl] = useState("");
+  const [activeImageElement, setActiveImageElement] = useState<HTMLImageElement | null>(null);
   const [animation, setAnimation] = useState("none");
   const [saveState, setSaveState] = useState<"idle" | "saved">("idle");
 
@@ -1011,6 +1012,23 @@ function StaticTemplateEditor({
       setImageUrl(element.src);
     }
   }, [editorId]);
+
+  const buildImagePrompt = (image: HTMLImageElement) => {
+    const alt = image.alt?.trim();
+    const nearbyText = image
+      .closest("[data-template-preview-slide='true']")
+      ?.textContent
+      ?.replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 220);
+
+    return [
+      alt || nearbyText || savedTemplateMeta.name,
+      "Realistic, high-quality presentation-related photo, natural lighting, professional composition.",
+    ]
+      .filter(Boolean)
+      .join(". ");
+  };
 
   useEffect(() => {
     const root = rootRef.current;
@@ -1069,6 +1087,7 @@ function StaticTemplateEditor({
         event.preventDefault();
         event.stopPropagation();
         selectElement("image", image);
+        setActiveImageElement(image);
       };
       image.addEventListener("mousedown", handleMouseDown);
       imageHandlers.push({ image, handleMouseDown });
@@ -1206,6 +1225,20 @@ function StaticTemplateEditor({
       <div ref={rootRef} onMouseDown={(event) => event.currentTarget === event.target && clearSelection()}>
         {children}
       </div>
+      {activeImageElement && (
+        <ImageEditor
+          initialImage={activeImageElement.src}
+          slideIndex={0}
+          promptContent={buildImagePrompt(activeImageElement)}
+          properties={null}
+          onClose={() => setActiveImageElement(null)}
+          onImageChange={(newImageUrl) => {
+            activeImageElement.src = newImageUrl;
+            setImageUrl(newImageUrl);
+            setActiveImageElement(null);
+          }}
+        />
+      )}
     </div>
   );
 }
