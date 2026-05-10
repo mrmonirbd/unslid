@@ -2253,35 +2253,6 @@ const GroupLayoutPreview = () => {
 
   return (
     <TemplatePreviewShell>
-      <style>{`
-        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] > div:first-child {
-          background: var(--background-color) !important;
-          color: var(--background-text) !important;
-          font-family: var(--body-font-family) !important;
-        }
-        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] h1,
-        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] h2,
-        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] h3,
-        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] h4,
-        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] h5,
-        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] h6 {
-          color: var(--background-text) !important;
-          font-family: var(--heading-font-family) !important;
-        }
-        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] p,
-        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] span,
-        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] li,
-        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] strong,
-        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] em {
-          color: inherit !important;
-          font-family: var(--body-font-family) !important;
-        }
-        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] button {
-          background: var(--primary-color) !important;
-          color: var(--primary-text) !important;
-          border-color: var(--stroke) !important;
-        }
-      `}</style>
       {/* Header */}
       <header className="bg-white shadow-sm border-b sticky top-0 z-30">
         <div className=" mx-auto px-6 py-6">

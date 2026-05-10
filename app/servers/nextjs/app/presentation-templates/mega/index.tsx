@@ -182,6 +182,17 @@ const normalizeMegaData = (data: unknown) => {
 
 const textStyle = { letterSpacing: 0 };
 
+const getMegaTheme = (cfg: MegaConfig) => ({
+  accent: `var(--primary-color, ${cfg.accent})`,
+  bg: `var(--background-color, ${cfg.bg})`,
+  fg: `var(--background-text, ${cfg.fg})`,
+  soft: `var(--card-color, ${cfg.soft})`,
+  stroke: `var(--stroke, ${cfg.soft})`,
+  primaryText: "var(--primary-text, #ffffff)",
+  headingFont: "var(--heading-font-family, Inter, Arial, sans-serif)",
+  bodyFont: "var(--body-font-family, Inter, Arial, sans-serif)",
+});
+
 const getImageVariant = (imageUrl: string, variant: string | number, width = 900, height = 700) => {
   const picsumSeedMatch = imageUrl.match(/\/seed\/([^/]+)\/\d+\/\d+/);
   if (picsumSeedMatch) {
@@ -195,20 +206,20 @@ const Shell = ({ cfg, children }: { cfg: MegaConfig; children: React.ReactNode }
   <div
     className="relative mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] overflow-hidden rounded-xl border shadow-2xl"
     style={{
-      background: `radial-gradient(circle at ${cfg.curve % 2 ? "86% 12%" : "12% 86%"}, ${cfg.soft} 0, transparent 34%), ${cfg.bg}`,
-      borderColor: cfg.soft,
-      color: cfg.fg,
-      fontFamily: "Inter, Arial, sans-serif",
+      background: `radial-gradient(circle at ${cfg.curve % 2 ? "86% 12%" : "12% 86%"}, ${getMegaTheme(cfg).soft} 0, transparent 34%), ${getMegaTheme(cfg).bg}`,
+      borderColor: getMegaTheme(cfg).stroke,
+      color: getMegaTheme(cfg).fg,
+      fontFamily: getMegaTheme(cfg).bodyFont,
     }}
   >
     <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-80" viewBox="0 0 1280 720" preserveAspectRatio="none">
-      {cfg.curve % 4 === 0 && <path d="M0 560 C220 450 360 690 610 555 C830 435 970 545 1280 410 L1280 720 L0 720 Z" fill={cfg.soft} />}
-      {cfg.curve % 4 === 1 && <path d="M780 0 C900 140 1120 70 1280 210 L1280 0 Z" fill={cfg.soft} />}
-      {cfg.curve % 4 === 2 && <path d="M0 0 C210 110 270 270 145 455 C90 535 45 625 0 720 Z" fill={cfg.soft} />}
-      {cfg.curve % 4 === 3 && <path d="M360 720 C490 520 780 670 940 420 C1040 260 1160 220 1280 240 L1280 720 Z" fill={cfg.soft} />}
-      <circle cx={cfg.curve % 2 ? 1060 : 180} cy={cfg.curve % 3 ? 140 : 560} r="86" fill={cfg.accent} opacity="0.12" />
+      {cfg.curve % 4 === 0 && <path d="M0 560 C220 450 360 690 610 555 C830 435 970 545 1280 410 L1280 720 L0 720 Z" fill={getMegaTheme(cfg).soft} />}
+      {cfg.curve % 4 === 1 && <path d="M780 0 C900 140 1120 70 1280 210 L1280 0 Z" fill={getMegaTheme(cfg).soft} />}
+      {cfg.curve % 4 === 2 && <path d="M0 0 C210 110 270 270 145 455 C90 535 45 625 0 720 Z" fill={getMegaTheme(cfg).soft} />}
+      {cfg.curve % 4 === 3 && <path d="M360 720 C490 520 780 670 940 420 C1040 260 1160 220 1280 240 L1280 720 Z" fill={getMegaTheme(cfg).soft} />}
+      <circle cx={cfg.curve % 2 ? 1060 : 180} cy={cfg.curve % 3 ? 140 : 560} r="86" fill={getMegaTheme(cfg).accent} opacity="0.12" />
     </svg>
-    <div className="absolute right-8 top-8 rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur" style={{ background: `${cfg.soft}cc`, borderColor: cfg.soft, color: cfg.fg }}>
+    <div className="absolute right-8 top-8 rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur" style={{ background: getMegaTheme(cfg).soft, borderColor: getMegaTheme(cfg).stroke, color: getMegaTheme(cfg).fg }}>
       {cfg.name}
     </div>
     {children}
@@ -216,9 +227,9 @@ const Shell = ({ cfg, children }: { cfg: MegaConfig; children: React.ReactNode }
 );
 
 const MetricCard = ({ metric, cfg }: { metric: { label: string; value: string; note: string }; cfg: MegaConfig }) => (
-  <div className="rounded-2xl border p-5 shadow-sm backdrop-blur" style={{ background: `${cfg.soft}dd`, borderColor: cfg.soft }}>
+  <div className="rounded-2xl border p-5 shadow-sm backdrop-blur" style={{ background: getMegaTheme(cfg).soft, borderColor: getMegaTheme(cfg).stroke }}>
     <div className="text-sm font-semibold opacity-75">{metric.label}</div>
-    <div className="mt-2 text-5xl font-black" style={{ color: cfg.accent, ...textStyle }}>{metric.value}</div>
+    <div className="mt-2 text-5xl font-black" style={{ color: getMegaTheme(cfg).accent, ...textStyle }}>{metric.value}</div>
     <div className="mt-2 text-sm opacity-80">{metric.note}</div>
   </div>
 );
@@ -227,7 +238,7 @@ const MiniBars = ({ cfg }: { cfg: MegaConfig }) => (
   <div className="flex h-56 items-end gap-4">
     {[42, 68, 52, 86, 74, 94].map((value, index) => (
       <div key={index} className="flex flex-1 flex-col items-center gap-3">
-        <div className="w-full rounded-t-md" style={{ height: `${value}%`, background: index % 2 ? cfg.accent : cfg.soft }} />
+        <div className="w-full rounded-t-md" style={{ height: `${value}%`, background: index % 2 ? getMegaTheme(cfg).accent : getMegaTheme(cfg).soft }} />
         <span className="text-xs font-semibold opacity-70">Q{index + 1}</span>
       </div>
     ))}
@@ -237,8 +248,8 @@ const MiniBars = ({ cfg }: { cfg: MegaConfig }) => (
 const MiniPie = ({ cfg }: { cfg: MegaConfig }) => {
   const darkSlice = cfg.fg === "#f9fafb" ? "#f8fafc" : "#0f172a";
   return (
-    <div className="relative mx-auto flex h-72 w-72 items-center justify-center rounded-full" style={{ background: `conic-gradient(${cfg.accent} 0 42%, ${cfg.soft} 42% 68%, ${darkSlice} 68% 84%, rgba(255,255,255,.72) 84% 100%)` }}>
-      <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full text-center shadow-sm" style={{ background: cfg.bg, color: cfg.fg }}>
+    <div className="relative mx-auto flex h-72 w-72 items-center justify-center rounded-full" style={{ background: `conic-gradient(${getMegaTheme(cfg).accent} 0 42%, ${getMegaTheme(cfg).soft} 42% 68%, ${darkSlice} 68% 84%, rgba(255,255,255,.72) 84% 100%)` }}>
+      <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full text-center shadow-sm" style={{ background: getMegaTheme(cfg).bg, color: getMegaTheme(cfg).fg }}>
         <span className="text-4xl font-black">42%</span>
         <span className="text-xs font-bold uppercase opacity-65">Primary</span>
       </div>
@@ -254,6 +265,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
   const metrics = data.metrics?.length ? data.metrics : baseMetrics;
   const rows = data.rows?.length ? data.rows : baseRows;
   const imageUrl = firstUsableImageUrl(data.image?.__image_url__, data.imageUrl, cfg.imageUrl);
+  const theme = getMegaTheme(cfg);
 
   switch (cfg.kind) {
     case "personalPortfolio": {
@@ -692,7 +704,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
         <Shell cfg={cfg}>
           <div className="grid h-full w-full grid-cols-[1.1fr_0.9fr] gap-10 p-16">
             <div className="flex flex-col justify-center">
-              <div className="mb-5 h-2 w-28 rounded-full" style={{ background: cfg.accent }} />
+              <div className="mb-5 h-2 w-28 rounded-full" style={{ background: theme.accent }} />
               <h1 className="text-6xl font-black leading-[1.02]" style={textStyle}>{title}</h1>
               <p className="mt-6 max-w-xl text-2xl leading-snug opacity-80">{subtitle}</p>
             </div>
@@ -713,7 +725,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               <div className="absolute bottom-16 left-4 grid w-[86%] grid-cols-2 gap-4">
                 {items.slice(0, 4).map((item, index) => (
                   <div key={index} className="rounded-lg bg-white/90 p-4 shadow-sm backdrop-blur">
-                    <div className="text-2xl font-black" style={{ color: cfg.accent }}>0{index + 1}</div>
+                    <div className="text-2xl font-black" style={{ color: theme.accent }}>0{index + 1}</div>
                     <h3 className="mt-2 text-lg font-bold text-slate-950">{item.label}</h3>
                   </div>
                 ))}
@@ -742,11 +754,11 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             <h1 className="text-5xl font-black" style={textStyle}>{title}</h1>
             <div className="relative mt-16 grid grid-cols-4 gap-8">
               <svg className="absolute left-0 right-0 top-4 h-24 w-full" viewBox="0 0 1000 120" preserveAspectRatio="none">
-                <path d="M0 72 C160 8 260 112 410 56 C560 0 650 110 820 46 C900 16 950 34 1000 22" fill="none" stroke={cfg.accent} strokeWidth="6" strokeLinecap="round" />
+                <path d="M0 72 C160 8 260 112 410 56 C560 0 650 110 820 46 C900 16 950 34 1000 22" fill="none" stroke={theme.accent} strokeWidth="6" strokeLinecap="round" />
               </svg>
               {items.slice(0, 4).map((item, index) => (
                 <div key={index} className="relative">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full text-xl font-black text-white" style={{ background: cfg.accent }}>{index + 1}</div>
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full text-xl font-black" style={{ background: theme.accent, color: theme.primaryText }}>{index + 1}</div>
                   <h3 className="mt-8 text-2xl font-bold">{item.label}</h3>
                   <p className="mt-3 text-base leading-relaxed opacity-75">{item.text}</p>
                 </div>
@@ -766,7 +778,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             </div>
             <div className="grid grid-cols-2 gap-6">
               {["Current State", "Target State"].map((heading, index) => (
-                <div key={heading} className="rounded-xl p-8" style={{ background: index ? cfg.accent : cfg.soft, color: index ? "#fff" : cfg.fg }}>
+                <div key={heading} className="rounded-xl p-8" style={{ background: index ? theme.accent : theme.soft, color: index ? theme.primaryText : theme.fg }}>
                   <h2 className="text-3xl font-black">{heading}</h2>
                   {items.slice(index * 2, index * 2 + 2).map((item) => (
                     <div key={item.label} className="mt-8">
@@ -791,10 +803,10 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
                 {metrics.slice(0, 4).map((metric, index) => <MetricCard key={index} metric={metric} cfg={cfg} />)}
               </div>
             </div>
-            <div className="rounded-xl p-8" style={{ background: cfg.soft }}>
+            <div className="rounded-xl p-8" style={{ background: theme.soft }}>
               <MiniBars cfg={cfg} />
               <svg className="mt-6 h-20 w-full" viewBox="0 0 520 100" preserveAspectRatio="none">
-                <path d="M0 78 C90 12 145 84 225 38 C310 -10 360 72 430 28 C470 4 500 15 520 8" fill="none" stroke={cfg.accent} strokeWidth="8" strokeLinecap="round" />
+                <path d="M0 78 C90 12 145 84 225 38 C310 -10 360 72 430 28 C470 4 500 15 520 8" fill="none" stroke={theme.accent} strokeWidth="8" strokeLinecap="round" />
               </svg>
             </div>
           </div>
@@ -809,18 +821,18 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               <p className="mt-5 text-xl leading-relaxed opacity-75">{subtitle}</p>
               <div className="mt-10 grid grid-cols-2 gap-4">
                 {rows.slice(0, 4).map((row, index) => (
-                  <div key={row.label} className="rounded-xl p-4" style={{ background: index % 2 ? cfg.soft : "rgba(255,255,255,.52)" }}>
+                  <div key={row.label} className="rounded-xl p-4" style={{ background: index % 2 ? theme.soft : "rgba(255,255,255,.52)" }}>
                     <div className="text-sm font-bold opacity-65">{row.label}</div>
                     <div className="mt-2 text-2xl font-black">{["42%", "26%", "16%", "16%"][index]}</div>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="flex flex-col justify-center rounded-[36px] p-10" style={{ background: cfg.soft }}>
+            <div className="flex flex-col justify-center rounded-[36px] p-10" style={{ background: theme.soft }}>
               <MiniPie cfg={cfg} />
               <div className="mt-8 grid grid-cols-4 gap-3 text-center text-xs font-bold">
                 {["Core", "Upsell", "Retain", "New"].map((label, index) => (
-                  <div key={label} className="rounded-full px-3 py-2" style={{ background: index === 0 ? cfg.accent : cfg.bg, color: index === 0 ? "#fff" : cfg.fg }}>{label}</div>
+                  <div key={label} className="rounded-full px-3 py-2" style={{ background: index === 0 ? theme.accent : theme.bg, color: index === 0 ? theme.primaryText : theme.fg }}>{label}</div>
                 ))}
               </div>
             </div>
@@ -838,10 +850,10 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
                 {metrics.slice(0, 4).map((metric, index) => <MetricCard key={index} metric={metric} cfg={cfg} />)}
               </div>
             </div>
-            <div className="rounded-xl p-8" style={{ background: cfg.soft }}>
+            <div className="rounded-xl p-8" style={{ background: theme.soft }}>
               <MiniBars cfg={cfg} />
               <svg className="mt-6 h-20 w-full" viewBox="0 0 520 100" preserveAspectRatio="none">
-                <path d="M0 78 C90 12 145 84 225 38 C310 -10 360 72 430 28 C470 4 500 15 520 8" fill="none" stroke={cfg.accent} strokeWidth="8" strokeLinecap="round" />
+                <path d="M0 78 C90 12 145 84 225 38 C310 -10 360 72 430 28 C470 4 500 15 520 8" fill="none" stroke={theme.accent} strokeWidth="8" strokeLinecap="round" />
               </svg>
               <div className="mt-8 grid grid-cols-3 gap-4">
                 {rows.slice(0, 3).map((row) => <div key={row.label}><div className="text-sm opacity-60">{row.label}</div><div className="text-2xl font-black">{row.value}</div></div>)}
@@ -855,11 +867,11 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
         <Shell cfg={cfg}>
           <div className="flex h-full w-full flex-col p-14">
             <h1 className="text-5xl font-black" style={textStyle}>{title}</h1>
-            <div className="mt-10 overflow-hidden rounded-xl border" style={{ borderColor: cfg.soft }}>
+            <div className="mt-10 overflow-hidden rounded-xl border" style={{ borderColor: theme.soft }}>
               {rows.map((row, index) => (
-                <div key={row.label} className="grid grid-cols-[0.8fr_0.8fr_1.4fr] gap-6 px-8 py-5" style={{ background: index % 2 ? "transparent" : cfg.soft }}>
+                <div key={row.label} className="grid grid-cols-[0.8fr_0.8fr_1.4fr] gap-6 px-8 py-5" style={{ background: index % 2 ? "transparent" : theme.soft }}>
                   <strong>{row.label}</strong>
-                  <span style={{ color: cfg.accent }} className="font-bold">{row.value}</span>
+                  <span style={{ color: theme.accent }} className="font-bold">{row.value}</span>
                   <span className="opacity-75">{row.note}</span>
                 </div>
               ))}
@@ -877,7 +889,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             </div>
             <div className="mt-10 grid grid-cols-3 gap-6">
               {["Starter", "Growth", "Scale"].map((tier, index) => (
-                <div key={tier} className="relative rounded-2xl p-7" style={{ background: index === 1 ? cfg.accent : cfg.soft, color: index === 1 ? "#fff" : cfg.fg }}>
+                <div key={tier} className="relative rounded-2xl p-7" style={{ background: index === 1 ? theme.accent : theme.soft, color: index === 1 ? theme.primaryText : theme.fg }}>
                   <div className="text-sm font-bold uppercase opacity-70">{tier}</div>
                   <div className="mt-5 text-5xl font-black">{["$499", "$1.5k", "$4k"][index]}</div>
                   {items.slice(0, 3).map((item) => (
@@ -905,8 +917,8 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
                   key={index}
                   className="flex items-end rounded-lg p-4 text-sm font-bold"
                   style={{
-                    background: index % 5 === 0 ? cfg.accent : index % 3 === 0 ? cfg.soft : "rgba(255,255,255,.5)",
-                    color: index % 5 === 0 ? "#fff" : cfg.fg,
+                    background: index % 5 === 0 ? theme.accent : index % 3 === 0 ? theme.soft : "rgba(255,255,255,.5)",
+                    color: index % 5 === 0 ? theme.primaryText : theme.fg,
                     opacity: 0.72 + (index % 4) * 0.07,
                   }}
                 >
@@ -925,8 +937,8 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             <p className="mt-4 max-w-3xl text-xl opacity-75">{subtitle}</p>
             <div className="mt-10 grid grid-cols-3 gap-5">
               {items.concat(items).slice(0, 6).map((item, index) => (
-                <div key={`${item.label}-${index}`} className="rounded-2xl p-6" style={{ background: index % 2 ? cfg.soft : cfg.bg, border: `2px solid ${cfg.soft}` }}>
-                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-full text-lg font-black text-white" style={{ background: cfg.accent }}>
+                <div key={`${item.label}-${index}`} className="rounded-2xl p-6" style={{ background: index % 2 ? theme.soft : theme.bg, border: `2px solid ${theme.soft}` }}>
+                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-full text-lg font-black" style={{ background: theme.accent, color: theme.primaryText }}>
                     {index + 1}
                   </div>
                   <h3 className="text-xl font-black">{item.label}</h3>
@@ -947,8 +959,8 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             </div>
             <div className="flex flex-col justify-center gap-4">
               {items.concat(items).slice(0, 6).map((item, index) => (
-                <div key={`${item.label}-${index}`} className="grid grid-cols-[80px_1fr] items-center rounded-2xl p-4" style={{ background: index % 2 ? cfg.soft : "rgba(255,255,255,.62)" }}>
-                  <div className="text-4xl font-black" style={{ color: cfg.accent }}>{String(index + 1).padStart(2, "0")}</div>
+                <div key={`${item.label}-${index}`} className="grid grid-cols-[80px_1fr] items-center rounded-2xl p-4" style={{ background: index % 2 ? theme.soft : "rgba(255,255,255,.62)" }}>
+                  <div className="text-4xl font-black" style={{ color: theme.accent }}>{String(index + 1).padStart(2, "0")}</div>
                   <div>
                     <h3 className="text-xl font-black">{item.label}</h3>
                     <p className="text-sm opacity-70">{item.text}</p>
@@ -972,7 +984,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             </div>
             <div className="grid grid-cols-2 gap-5">
               {metrics.slice(0, 4).map((metric, index) => (
-                <div key={metric.label} className="rounded-2xl p-6" style={{ background: index === 0 ? cfg.accent : cfg.soft, color: index === 0 ? "#fff" : cfg.fg }}>
+                <div key={metric.label} className="rounded-2xl p-6" style={{ background: index === 0 ? theme.accent : theme.soft, color: index === 0 ? theme.primaryText : theme.fg }}>
                   <div className="text-sm font-bold opacity-70">{metric.label}</div>
                   <div className="mt-3 text-5xl font-black">{metric.value}</div>
                   <p className="mt-4 text-sm leading-relaxed opacity-80">{metric.note}</p>
@@ -989,7 +1001,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
           <div className="grid h-full w-full grid-cols-[0.8fr_1.2fr] gap-10 p-16">
             <img src={imageUrl} alt="" className="h-full w-full rounded-full object-cover" />
             <div className="flex flex-col justify-center">
-              <div className="text-8xl font-black" style={{ color: cfg.accent }}>&ldquo;</div>
+              <div className="text-8xl font-black" style={{ color: theme.accent }}>&ldquo;</div>
               <h1 className="max-w-4xl text-5xl font-black leading-tight" style={textStyle}>{quote || title}</h1>
               <p className="mt-8 max-w-2xl text-xl opacity-75">{subtitle}</p>
             </div>
@@ -1004,7 +1016,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             <h1 className="text-5xl font-black" style={textStyle}>{title}</h1>
             <div className="mt-10 grid grid-cols-4 gap-5">
               {items.slice(0, 4).map((item, index) => (
-                <div key={item.label} className="overflow-hidden rounded-xl" style={{ background: cfg.soft }}>
+                <div key={item.label} className="overflow-hidden rounded-xl" style={{ background: theme.soft }}>
                   <img
                     src={imageUrl}
                     alt=""
@@ -1032,8 +1044,8 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             </div>
             <div className="grid grid-cols-2 gap-5">
               {["Strengths", "Risks", "Opportunities", "Actions"].map((heading, index) => (
-                <div key={heading} className="rounded-xl p-6" style={{ background: cfg.soft }}>
-                  <h3 className="text-2xl font-black" style={{ color: cfg.accent }}>{heading}</h3>
+                <div key={heading} className="rounded-xl p-6" style={{ background: theme.soft }}>
+                  <h3 className="text-2xl font-black" style={{ color: theme.accent }}>{heading}</h3>
                   <p className="mt-4 text-sm leading-relaxed opacity-75">{items[index % items.length]?.text}</p>
                 </div>
               ))}
@@ -1052,7 +1064,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             </div>
             <div className="flex flex-col justify-center gap-4">
               {items.slice(0, 4).map((item, index) => (
-                <div key={item.label} className="mx-auto rounded-lg px-8 py-5 text-center text-white" style={{ width: `${95 - index * 15}%`, background: index === 0 ? cfg.accent : cfg.soft, color: index === 0 ? "#fff" : cfg.fg }}>
+                <div key={item.label} className="mx-auto rounded-lg px-8 py-5 text-center" style={{ width: `${95 - index * 15}%`, background: index === 0 ? theme.accent : theme.soft, color: index === 0 ? theme.primaryText : theme.fg }}>
                   <div className="text-xl font-black">{item.label}</div>
                   <div className="text-sm opacity-80">{item.text}</div>
                 </div>
@@ -1069,10 +1081,10 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               <h1 className="text-5xl font-black" style={textStyle}>{title}</h1>
               <p className="mt-5 text-xl opacity-75">{subtitle}</p>
             </div>
-            <div className="relative rounded-[36px] p-8" style={{ background: cfg.soft }}>
+            <div className="relative rounded-[36px] p-8" style={{ background: theme.soft }}>
               <svg className="h-full w-full" viewBox="0 0 560 420">
-                <path d="M80 250 C120 110 260 120 310 70 C390 -5 510 80 480 190 C455 285 350 260 300 340 C245 420 110 390 80 250Z" fill={cfg.bg} stroke={cfg.accent} strokeWidth="5" />
-                {[120, 210, 310, 420].map((x, i) => <circle key={x} cx={x} cy={[230, 160, 280, 180][i]} r="18" fill={cfg.accent} />)}
+                <path d="M80 250 C120 110 260 120 310 70 C390 -5 510 80 480 190 C455 285 350 260 300 340 C245 420 110 390 80 250Z" fill={theme.bg} stroke={theme.accent} strokeWidth="5" />
+                {[120, 210, 310, 420].map((x, i) => <circle key={x} cx={x} cy={[230, 160, 280, 180][i]} r="18" fill={theme.accent} />)}
               </svg>
             </div>
           </div>
@@ -1086,7 +1098,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             <p className="mt-5 text-xl opacity-75">{subtitle}</p>
             <div className="mt-10 grid grid-cols-4 gap-5">
               {items.slice(0, 4).map((item) => (
-                <div key={item.label} className="rounded-xl p-6" style={{ background: cfg.soft }}>
+                <div key={item.label} className="rounded-xl p-6" style={{ background: theme.soft }}>
                   <h3 className="text-xl font-bold">{item.label}</h3>
                   <p className="mt-3 text-sm leading-relaxed opacity-75">{item.text}</p>
                 </div>
