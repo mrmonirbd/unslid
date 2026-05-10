@@ -134,14 +134,14 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   }
 
   return (
-    <div className="h-screen overflow-hidden font-syne ">
+    <div className="min-h-dvh bg-white font-syne md:h-screen md:overflow-hidden">
       <div
         style={{
           background: "#ffffff",
         }}
-        className="flex  gap-6 relative "
+        className="relative flex min-h-dvh flex-col gap-0 md:h-screen md:min-h-0 md:flex-row md:gap-6"
       >
-        <div className="w-[200px]">
+        <div className="w-full md:w-[200px] md:shrink-0">
           <SidePanel
             selectedSlide={selectedSlide}
             onSlideClick={handleSlideClick}
@@ -150,7 +150,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
 
           />
         </div>
-        <div className=" w-full h-[calc(100vh-20px)] hide-scrollbar pr-[25px] overflow-y-auto">
+        <div className="hide-scrollbar h-auto min-w-0 flex-1 overflow-y-auto px-3 pb-6 md:h-[calc(100vh-20px)] md:pr-[25px]">
           <div className="relative">
             <PresentationHeader presentation_id={presentation_id} isPresentationSaving={isSaving} currentSlide={selectedSlide} />
             {/* Presence avatars — positioned inside the header row */}
@@ -180,9 +180,9 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
               background: "rgba(255, 255, 255, 0.10)",
               boxShadow: "0 0 20.01px 0 rgba(122, 90, 248, 0.16) inset",
             }}
-            className="p-6 rounded-[20px] flex flex-col items-center overflow-hidden justify-center  border border-[#EDECEC] "
+            className="flex flex-col items-center justify-center overflow-x-auto rounded-[20px] border border-[#EDECEC] p-3 sm:p-4 md:overflow-hidden md:p-6"
           >
-            <div className="w-full max-w-[1280px] h-full">
+            <div className="h-full w-full min-w-[620px] max-w-[1280px] md:min-w-0">
 
               {!presentationData ||
                 loading ||

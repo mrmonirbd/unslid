@@ -313,12 +313,12 @@ function TemplateThemeSelector({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" className="gap-2 rounded-full">
+        <Button type="button" variant="outline" className="max-w-full gap-2 rounded-full">
           <Palette className="h-4 w-4" />
-          {selectedTheme?.name || "Theme"}
+          <span className="max-w-[140px] truncate">{selectedTheme?.name || "Theme"}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[420px] max-h-[440px] overflow-y-auto rounded-2xl">
+      <PopoverContent align="end" className="max-h-[440px] w-[min(420px,calc(100vw-2rem))] overflow-y-auto rounded-2xl">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Preset themes</h3>
@@ -334,7 +334,7 @@ function TemplateThemeSelector({
             Loading themes...
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {themes.map((theme) => (
               <button
                 key={theme.id}
@@ -708,7 +708,7 @@ function FullPreviewDownloadDropdown({
     <div className="relative">
       <button
         type="button"
-        className="flex items-center gap-[7px] rounded-[53px] px-[18px] py-[11px] text-sm font-semibold text-[#101323] disabled:opacity-60"
+        className="flex items-center gap-[7px] rounded-[53px] px-4 py-[11px] text-sm font-semibold text-[#101323] disabled:opacity-60 sm:px-[18px]"
         style={{
           background: "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
         }}
@@ -719,7 +719,7 @@ function FullPreviewDownloadDropdown({
         <ArrowRightFromLine className="h-3.5 w-3.5" />
       </button>
       {open && (
-        <div className="absolute right-0 top-12 z-50 w-[200px] rounded-[18px] border border-slate-200 bg-white p-5 text-sm shadow-xl">
+        <div className="absolute right-0 top-12 z-50 w-[min(200px,calc(100vw-2rem))] rounded-[18px] border border-slate-200 bg-white p-5 text-sm shadow-xl">
           <p className="text-sm font-medium text-[#19001F]">Export as</p>
           <div className="my-[18px] h-[1px] bg-[#E8E8E8]" />
           <div className="space-y-3">
@@ -2274,9 +2274,9 @@ const GroupLayoutPreview = () => {
     <TemplatePreviewShell>
       {/* Header */}
       <header className="bg-white shadow-sm border-b sticky top-0 z-30">
-        <div className=" mx-auto px-6 py-6">
-          <div className="flex items-center justify-between mb-4 max-w-[1440px] mx-auto">
-            <div className="flex items-center gap-4">
+        <div className="mx-auto px-4 py-5 sm:px-6 sm:py-6">
+          <div className="mx-auto mb-4 flex max-w-[1440px] flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
               <Button
                 variant="outline"
                 size="sm"
@@ -2303,56 +2303,58 @@ const GroupLayoutPreview = () => {
               </Button>
             </div>
 
-            {isCustom && (
-              <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:justify-end">
+              {isCustom && (
+                <div className="flex items-center gap-3">
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    trackEvent(MixpanelEvent.TemplatePreview_Delete_Templates_Button_Clicked, { pathname });
-                    trackEvent(MixpanelEvent.TemplatePreview_Delete_Templates_API_Call);
-                    handleDeleteCustomTemplate();
-                  }}
-                  className="flex items-center gap-2 border-red-200 text-red-700 hover:bg-red-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete Template
-                </Button>
-              </div>
-            )}
-            {isDesigner && designerTemplate?.file_url && (
-              <a
-                href={designerTemplate.file_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-purple-200 bg-white px-3 text-sm font-medium text-purple-700 shadow-sm transition-colors hover:bg-purple-50"
-              >
-                <Download className="w-4 h-4" />
-                Open PPTX
-              </a>
-            )}
-            <Button
-              type="button"
-              onClick={() => setAiPromptModalOpen(true)}
-              disabled={aiGenerating}
-              className="gap-2 bg-indigo-600 text-white hover:bg-indigo-500"
-            >
-              {aiGenerating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      trackEvent(MixpanelEvent.TemplatePreview_Delete_Templates_Button_Clicked, { pathname });
+                      trackEvent(MixpanelEvent.TemplatePreview_Delete_Templates_API_Call);
+                      handleDeleteCustomTemplate();
+                    }}
+                    className="flex items-center gap-2 border-red-200 text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete Template
+                  </Button>
+                </div>
               )}
-              Generate with AI
-            </Button>
-            <TemplateThemeSelector
-              themes={availableThemes}
-              selectedTheme={selectedTheme}
-              loading={themesLoading}
-              onApply={handleApplyTheme}
-              onReset={handleResetTheme}
-            />
-            <FullPreviewDownloadDropdown title={resolvedTemplateName} />
+              {isDesigner && designerTemplate?.file_url && (
+                <a
+                  href={designerTemplate.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-purple-200 bg-white px-3 text-sm font-medium text-purple-700 shadow-sm transition-colors hover:bg-purple-50"
+                >
+                  <Download className="w-4 h-4" />
+                  Open PPTX
+                </a>
+              )}
+              <Button
+                type="button"
+                onClick={() => setAiPromptModalOpen(true)}
+                disabled={aiGenerating}
+                className="gap-2 bg-indigo-600 text-white hover:bg-indigo-500"
+              >
+                {aiGenerating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                Generate with AI
+              </Button>
+              <TemplateThemeSelector
+                themes={availableThemes}
+                selectedTheme={selectedTheme}
+                loading={themesLoading}
+                onApply={handleApplyTheme}
+                onReset={handleResetTheme}
+              />
+              <FullPreviewDownloadDropdown title={resolvedTemplateName} />
+            </div>
           </div>
 
           <div className="text-center">

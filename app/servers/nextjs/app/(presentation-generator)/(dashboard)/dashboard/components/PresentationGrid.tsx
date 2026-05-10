@@ -40,8 +40,7 @@ export const PresentationGrid = ({
   const CreateNewCard = () => (
     <div
       onClick={handleCreate}
-      className="group relative bg-white rounded-xl border-2 border-dashed border-violet-200 hover:border-violet-400 hover:bg-violet-50/60 cursor-pointer transition-all duration-200 flex flex-col items-center justify-center text-center overflow-hidden"
-      style={{ minHeight: "200px" }}
+      className="group relative flex min-h-[150px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-violet-200 bg-white text-center transition-all duration-200 hover:border-violet-400 hover:bg-violet-50/60 sm:min-h-[200px]"
     >
       <div className="p-3 rounded-xl bg-violet-50 group-hover:bg-violet-100 transition-colors mb-3">
         <Plus className="w-6 h-6 text-violet-600" />
@@ -54,7 +53,7 @@ export const PresentationGrid = ({
   );
 
   const EmptyState = () => (
-    <div className="col-span-full flex flex-col items-center justify-center py-20 text-center">
+    <div className="col-span-full flex flex-col items-center justify-center px-3 py-12 text-center sm:py-20">
       <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
         <Presentation className="w-8 h-8 text-slate-400" />
       </div>
@@ -74,7 +73,7 @@ export const PresentationGrid = ({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-5">
         <div
           className="bg-white rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center animate-pulse"
           style={{ minHeight: "200px" }}
@@ -92,7 +91,7 @@ export const PresentationGrid = ({
 
   if (error) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-5">
         <CreateNewCard />
         <div className="col-span-3 flex items-center justify-center py-16 text-center">
           <div>
@@ -111,7 +110,7 @@ export const PresentationGrid = ({
 
   if (!presentations || presentations.length === 0) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-5">
         <CreateNewCard />
         <EmptyState />
       </div>
@@ -119,7 +118,7 @@ export const PresentationGrid = ({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-5">
       <CreateNewCard />
       {presentations.map((presentation) => (
         <PresentationCard

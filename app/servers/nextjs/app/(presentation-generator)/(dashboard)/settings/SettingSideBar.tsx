@@ -1,9 +1,9 @@
 import React from 'react'
 const SettingSideBar = ({ mode, setMode, selectedProvider, setSelectedProvider }: { mode: 'nanobanana' | 'unslid', setMode: (mode: 'nanobanana' | 'unslid') => void, selectedProvider: 'text-provider' | 'image-provider', setSelectedProvider: (provider: 'text-provider' | 'image-provider') => void }) => {
     return (
-        <div className='w-full max-w-[230px] h-screen px-4 pt-[22px] bg-[#F9FAFB]'>
-            <p className='text-xs text-black  font-medium border-b mt-[3.15rem]  border-[#E1E1E5] pb-3.5'>FILTER BY:</p>
-            <div className='mt-6'>
+        <div className='w-full shrink-0 rounded-xl bg-[#F9FAFB] px-3 py-3 md:h-screen md:max-w-[230px] md:rounded-none md:px-4 md:pt-[22px]'>
+            <p className='mt-0 border-b border-[#E1E1E5] pb-2 text-xs font-medium text-black md:mt-[3.15rem] md:pb-3.5'>FILTER BY:</p>
+            <div className='mt-4 md:mt-6'>
                 <p className='text-[#3A3A3A] text-xs font-medium pb-2.5'>Select Mode</p>
                 <div className='p-1 rounded-[40px] bg-[#ffffff] w-fit border border-[#EDEEEF] flex items-center justify-center mb-[34px] '>
                     <button className='px-3  py-2 text-xs font-medium text-[#3A3A3A] rounded-[70px]'
@@ -34,7 +34,7 @@ const SettingSideBar = ({ mode, setMode, selectedProvider, setSelectedProvider }
 
                 </div>
                 <p className='text-[#3A3A3A] text-xs font-medium pb-2.5'>Select Provider</p>
-                {mode === 'unslid' && <div className='space-y-2.5'>
+                {mode === 'unslid' && <div className='grid grid-cols-2 gap-2.5 md:block md:space-y-2.5'>
                     <button className={` w-full rounded-[6px] p-3 py-4 flex items-center gap-1.5 border  ${selectedProvider === 'text-provider' ? 'bg-[#F4F3FF] border-[#D9D6FE]' : 'bg-white border-[#E1E1E5]'}`} onClick={() => setSelectedProvider('text-provider')}>
                         <div className='relative w-6 h-6 rounded-full overflow-hidden border border-[#EDEEEF]'>
 

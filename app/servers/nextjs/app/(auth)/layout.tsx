@@ -4,7 +4,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(115deg,#b7f3ee_0%,#f9fbff_44%,#d7b6ff_100%)] p-4 font-syne text-slate-950">
+    <div className="relative flex min-h-dvh items-center justify-center overflow-y-auto overflow-x-hidden bg-[linear-gradient(115deg,#b7f3ee_0%,#f9fbff_44%,#d7b6ff_100%)] p-4 font-syne text-slate-950">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="relative text-center mb-8">

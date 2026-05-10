@@ -39,7 +39,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="rounded-2xl border border-violet-100 bg-white/95 p-8 shadow-[0_18px_50px_rgba(124,58,237,0.12)] backdrop-blur">
+    <div className="rounded-2xl border border-violet-100 bg-white/95 p-5 shadow-[0_18px_50px_rgba(124,58,237,0.12)] backdrop-blur sm:p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-950 mb-1">Welcome back</h1>
         <p className="text-slate-600 text-sm">Sign in to your account </p>

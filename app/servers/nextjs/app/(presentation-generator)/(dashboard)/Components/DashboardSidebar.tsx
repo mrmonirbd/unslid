@@ -71,12 +71,12 @@ const DashboardSidebar = () => {
 
   return (
     <aside
-      className="sticky top-0 z-40 flex h-screen w-[72px] shrink-0 flex-col items-center border-r border-violet-100 bg-[#fbf9ff] py-3"
+      className="fixed inset-x-0 bottom-0 z-40 flex h-20 flex-row items-center border-t border-violet-100 bg-[#fbf9ff]/95 px-2 py-2 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur md:sticky md:top-0 md:h-screen md:w-[72px] md:shrink-0 md:flex-col md:border-r md:border-t-0 md:bg-[#fbf9ff] md:py-3 md:shadow-none"
       aria-label="Dashboard sidebar"
     >
       <button
         onClick={() => router.push("/dashboard")}
-        className="mb-5 flex h-9 w-9 items-center justify-center rounded-xl text-violet-700 transition hover:bg-violet-50"
+        className="hidden h-9 w-9 items-center justify-center rounded-xl text-violet-700 transition hover:bg-violet-50 md:mb-5 md:flex"
         aria-label="Go to dashboard"
       >
         {/* <LayoutPanelLeft className="h-5 w-5" /> */}
@@ -95,7 +95,7 @@ const DashboardSidebar = () => {
       </button>
       
 
-      <nav className="flex w-full flex-col items-center gap-1 px-2" aria-label="Main navigation">
+      <nav className="flex min-w-0 flex-1 items-center justify-around gap-1 px-1 md:w-full md:flex-none md:flex-col md:justify-start md:px-2" aria-label="Main navigation">
         <RailLink href="/upload" label="Create" icon={Plus} active={pathname === "/upload"} highlight />
         {mainNav.map(({ href, label, icon }) => (
           <RailLink
@@ -111,13 +111,13 @@ const DashboardSidebar = () => {
         )}
       </nav>
 
-      <div className="mt-auto flex w-full flex-col items-center gap-1 px-2">
+      <div className="flex items-center gap-1 px-1 md:mt-auto md:w-full md:flex-col md:px-2">
         <RailLink href="/settings/account" label="Account" icon={User} active={pathname === "/settings/account"} />
         <a
           href="mailto:support@yourcompany.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="group flex w-full flex-col items-center gap-1 rounded-xl px-1 py-2 text-[11px] font-semibold text-slate-600 transition hover:text-violet-700"
+          className="group hidden w-full flex-col items-center gap-1 rounded-xl px-1 py-2 text-[11px] font-semibold text-slate-600 transition hover:text-violet-700 md:flex"
           title="Help"
         >
           <span className="flex h-9 w-9 items-center justify-center rounded-xl group-hover:bg-violet-50">
@@ -125,7 +125,7 @@ const DashboardSidebar = () => {
           </span>
         </a>
         <button
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 transition hover:bg-violet-50 hover:text-violet-700"
+          className="hidden h-9 w-9 items-center justify-center rounded-xl text-slate-600 transition hover:bg-violet-50 hover:text-violet-700 md:flex"
           aria-label="Notifications"
         >
           <Bell className="h-5 w-5" />

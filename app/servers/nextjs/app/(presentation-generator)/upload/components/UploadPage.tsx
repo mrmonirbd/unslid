@@ -209,7 +209,7 @@ const UploadPage = () => {
   };
 
   return (
-    <Wrapper className="pb-10 lg:max-w-[70%] xl:max-w-[65%]">
+    <Wrapper className="px-4 pb-8 sm:px-6 lg:max-w-[70%] lg:px-0 xl:max-w-[65%]">
       {/* Free plan limit dialog */}
       <Dialog open={showFreeLimitDialog} onOpenChange={setShowFreeLimitDialog}>
         <DialogContent className="max-w-md">
@@ -256,7 +256,7 @@ const UploadPage = () => {
         extra_info={loadingState.extra_info}
       />
       <div className="rounded-2xl border border-slate-200/70 bg-white/80 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/60" >
-        <div className="flex flex-col gap-4 md:items-center md:flex-row justify-between p-4">
+        <div className="flex flex-col justify-between gap-4 p-4 md:flex-row md:items-center">
           <div >
             <h2 className="text-lg font-unbounded tracking-tight text-slate-900 ">Configuration</h2>
             <p className="text-sm text-slate-500 font-syne">Choose slides, tone, and language preferences.</p>
@@ -294,7 +294,7 @@ const UploadPage = () => {
         <div className="p-4 md:p-6">
           <Button
             onClick={handleGeneratePresentation}
-            className="w-full rounded-[28px] flex items-center justify-center py-5 bg-[#5141e5] text-white font-syne font-semibold text-lg hover:bg-[#5141e5]/85 focus-visible:ring-2 focus-visible:ring-[#5141e5]/40"
+            className="flex w-full items-center justify-center rounded-[28px] bg-[#5141e5] py-5 text-base font-semibold text-white hover:bg-[#5141e5]/85 focus-visible:ring-2 focus-visible:ring-[#5141e5]/40 sm:text-lg"
             data-testid="next-button"
           >
             <span>Generate Presentation</span>

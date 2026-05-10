@@ -486,7 +486,7 @@ const PresentationHeader = ({
       {historyOpen && (
         <div className="fixed inset-0 z-[200] flex">
           <div className="flex-1 bg-black/40" onClick={() => setHistoryOpen(false)} />
-          <div className="w-80 bg-white h-full flex flex-col shadow-2xl border-l border-slate-200">
+          <div className="flex h-full w-[min(20rem,86vw)] flex-col border-l border-slate-200 bg-white shadow-2xl">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <History className="w-4 h-4 text-indigo-500" />
@@ -537,8 +537,8 @@ const PresentationHeader = ({
         </div>
       )}
 
-      <div className="py-7 sticky top-0 bg-white z-50 mb-[17px]  font-syne flex justify-between items-center">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="sticky top-0 z-50 mb-4 flex flex-col gap-3 bg-white py-4 font-syne md:mb-[17px] md:flex-row md:items-center md:justify-between md:py-7">
+        <div className="flex min-w-0 items-center gap-3">
           <ToolTip content="Back to Dashboard">
             <Link
               href="/dashboard"
@@ -553,7 +553,7 @@ const PresentationHeader = ({
             <MarkdownRenderer content={presentationData?.title || "Presentation"} className="mb-0 max-w-[400px] truncate text-sm text-[#101323]" />
           </h2>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex max-w-full items-center gap-2.5 overflow-x-auto pb-1 md:overflow-visible md:pb-0">
 
           {isPresentationSaving && <div className="flex items-center gap-2">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -648,7 +648,7 @@ const PresentationHeader = ({
                 <span className="hidden lg:inline">Share</span>
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-[320px] p-0 rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            <PopoverContent align="end" className="w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 p-0 shadow-2xl">
               {/* Header */}
               <div className="px-5 py-4 border-b border-slate-100">
                 <p className="font-semibold text-slate-900 text-sm">Share presentation</p>
@@ -764,7 +764,7 @@ const PresentationHeader = ({
 
           <Popover open={open} onOpenChange={setOpen} >
             <PopoverTrigger asChild>
-              <button className="flex  items-center gap-[7px] px-[18px] py-[11px] rounded-[53px] text-sm font-semibold text-[#101323]"
+              <button className="flex items-center gap-[7px] rounded-[53px] px-4 py-[11px] text-sm font-semibold text-[#101323] md:px-[18px]"
                 style={{
                   background: "linear-gradient(270deg, #D5CAFC 2.4%, #E3D2EB 27.88%, #F4DCD3 69.23%, #FDE4C2 100%)",
                 }}
@@ -773,7 +773,7 @@ const PresentationHeader = ({
                 {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Export"} <ArrowRightFromLine className="w-3.5 h-3.5" />
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-[200px] rounded-[18px] space-y-2 p-0  ">
+            <PopoverContent align="end" className="w-[min(200px,calc(100vw-2rem))] space-y-2 rounded-[18px] p-0">
               <ExportOptions mobile={false} />
             </PopoverContent>
           </Popover>
