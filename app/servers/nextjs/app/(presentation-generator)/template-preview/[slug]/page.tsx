@@ -3,8 +3,16 @@ import React, { useEffect, useRef, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRightFromLine, ArrowUpRight, Download, FileSpreadsheet, Home, Loader2, Minus, MoveDiagonal, Plus, Save, Trash2, Type } from "lucide-react";
+import { ArrowLeft, ArrowRightFromLine, ArrowUpRight, Download, FileSpreadsheet, Home, Loader2, Minus, MoveDiagonal, Plus, Save, Sparkles, Trash2, Type } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import html2canvas from "html2canvas";
+import { jsonrepair } from "jsonrepair";
 
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import TemplateService from "../../services/api/template";
@@ -20,6 +28,9 @@ import {
 import { getTemplateGroupByRouteId, getTemplatesByTemplateName } from "@/app/presentation-templates";
 import { api } from "@/lib/api";
 import { useUser } from "@/app/hooks/useUser";
+import { createClient } from "@/lib/auth/client";
+import DesignerTemplateSlideRender from "../../components/DesignerTemplateSlideRender";
+import ImageEditor from "../../components/ImageEditor";
 
 interface PptxDesignerTemplate {
   id: number;
@@ -58,6 +69,134 @@ interface SelectableDesignerPreview {
   name: string;
   slide_count: number;
   slides: SelectableDesignerSlide[];
+}
+
+interface DesignerTextBox {
+  text: string;
+  font_size_pt?: number | null;
+}
+
+interface DesignerPreviewSlideForGeneration {
+  slide_number: number;
+  text_boxes: DesignerTextBox[];
+}
+
+const getTemplateScopedLayoutId = (templateId: string, layoutId: string) => {
+  const rawLayoutId = layoutId.split(":").pop() || layoutId;
+  return `${templateId}:${rawLayoutId}`;
+};
+
+const buildDesignerSlideSchema = (slide: DesignerPreviewSlideForGeneration) => {
+  const textBoxCount = Math.max(slide.text_boxes.length, 1);
+  const slotDescriptions = slide.text_boxes.map((box, index) => {
+    const role =
+      index === 0
+        ? "main title/headline"
+        : box.text.length <= 30
+        ? "short label or badge"
+        : "body/description text";
+    return `Slot ${index + 1}: ${role}. Replace template text "${box.text.slice(0, 90)}" with generated content.`;
+  });
+
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["__designer_text_boxes__"],
+    properties: {
+      __designer_text_boxes__: {
+        type: "array",
+        minItems: textBoxCount,
+        maxItems: textBoxCount,
+        description: [
+          "Generated text for the selected designer PPTX template text boxes, in visual top-to-bottom/left-to-right order.",
+          ...slotDescriptions,
+        ].join(" "),
+        items: {
+          type: "string",
+          minLength: 1,
+          maxLength: 180,
+        },
+      },
+    },
+  };
+};
+
+const shouldTypeString = (key: string, value: string) => {
+  if (!value) return false;
+  const normalizedKey = key.toLowerCase();
+  if (["id", "presentation", "layout", "layout_group", "type", "created_at", "updated_at"].includes(normalizedKey)) return false;
+  if (normalizedKey.includes("url")) return false;
+  if (normalizedKey.includes("color")) return false;
+  if (normalizedKey.includes("font")) return false;
+  if (normalizedKey.includes("prompt")) return false;
+  return true;
+};
+
+const countTypableCharacters = (value: unknown, key = ""): number => {
+  if (typeof value === "string") {
+    return shouldTypeString(key, value) ? value.length : 0;
+  }
+  if (Array.isArray(value)) {
+    return value.reduce((total, item) => total + countTypableCharacters(item, key), 0);
+  }
+  if (value && typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>).reduce(
+      (total, [childKey, childValue]) => total + countTypableCharacters(childValue, childKey),
+      0
+    );
+  }
+  return 0;
+};
+
+const revealTypableText = (value: unknown, characterBudget: { remaining: number }, key = ""): unknown => {
+  if (typeof value === "string") {
+    if (!shouldTypeString(key, value)) return value;
+    const visibleLength = Math.max(0, Math.min(value.length, characterBudget.remaining));
+    characterBudget.remaining -= visibleLength;
+    return value.slice(0, visibleLength);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => revealTypableText(item, characterBudget, key));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([childKey, childValue]) => [
+        childKey,
+        revealTypableText(childValue, characterBudget, childKey),
+      ])
+    );
+  }
+  return value;
+};
+
+const buildTypedPresentationData = (presentationData: any, visibleCharacters: number) => {
+  if (!presentationData) return null;
+  return revealTypableText(structuredClone(presentationData), { remaining: visibleCharacters });
+};
+
+const hasPendingGeneratedImage = (value: unknown): boolean => {
+  if (!value || typeof value !== "object") return false;
+  if (Array.isArray(value)) return value.some(hasPendingGeneratedImage);
+
+  const record = value as Record<string, unknown>;
+  if (typeof record.__image_prompt__ === "string") {
+    const imageUrl = typeof record.__image_url__ === "string" ? record.__image_url__ : "";
+    return !imageUrl || imageUrl.includes("placeholder");
+  }
+
+  return Object.values(record).some(hasPendingGeneratedImage);
+};
+
+function ImageUpdatingOverlay({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-black/20">
+      <div className="flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-slate-800 shadow-lg">
+        <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+        Updating images...
+      </div>
+    </div>
+  );
 }
 
 function TemplatePreviewShell({ children }: { children: React.ReactNode }) {
@@ -693,15 +832,14 @@ const EMPTY_STATIC_EDITOR_PANEL_STATE: StaticEditorPanelState = {
 };
 
 function StaticTemplateEditPanel({ state }: { state: StaticEditorPanelState }) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [draftImageUrl, setDraftImageUrl] = useState(state.imageUrl);
+  const [showImageEditor, setShowImageEditor] = useState(false);
   const actions = state.actions;
   const selection = state.selection;
   const isText = selection?.type === "text";
   const isImage = selection?.type === "image";
 
   useEffect(() => {
-    setDraftImageUrl(state.imageUrl);
+    setShowImageEditor(false);
   }, [state.imageUrl, selection?.element]);
 
   if (!selection || !actions) {
@@ -753,28 +891,9 @@ function StaticTemplateEditPanel({ state }: { state: StaticEditorPanelState }) {
         onChange={(event) => actions.setColor(event.target.value)}
         title="Text color"
       />
-      <Button type="button" variant="outline" size="sm" disabled={!isImage} onClick={() => fileInputRef.current?.click()}>
+      <Button type="button" variant="outline" size="sm" disabled={!isImage} onClick={() => setShowImageEditor(true)}>
         Replace image
       </Button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) actions.replaceImageFile(file);
-          event.target.value = "";
-        }}
-      />
-      <input
-        className="h-9 w-56 rounded-md border px-2 text-xs"
-        value={draftImageUrl}
-        disabled={!isImage}
-        placeholder="Image URL"
-        onChange={(event) => setDraftImageUrl(event.target.value)}
-        onKeyDown={(event) => event.key === "Enter" && actions.replaceImage(draftImageUrl)}
-      />
       <select
         className="h-9 rounded-md border px-2 text-sm"
         value={state.animation}
@@ -799,6 +918,19 @@ function StaticTemplateEditPanel({ state }: { state: StaticEditorPanelState }) {
       <Button type="button" variant="outline" size="sm" onClick={actions.resetEdits}>
         Reset
       </Button>
+      {isImage && showImageEditor && (
+        <ImageEditor
+          initialImage={state.imageUrl}
+          slideIndex={0}
+          promptContent={`A realistic, high-quality presentation-related image for ${selection.label}. Professional photography, natural lighting, relevant to the slide content.`}
+          properties={null}
+          onClose={() => setShowImageEditor(false)}
+          onImageChange={(newImageUrl) => {
+            actions.replaceImage(newImageUrl);
+            setShowImageEditor(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1230,6 +1362,14 @@ const GroupLayoutPreview = () => {
   const [designerLoading, setDesignerLoading] = useState(false);
   const [designerError, setDesignerError] = useState<string | null>(null);
   const [staticEditorPanelState, setStaticEditorPanelState] = useState<StaticEditorPanelState>(EMPTY_STATIC_EDITOR_PANEL_STATE);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiPromptModalOpen, setAiPromptModalOpen] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiGenerationMessage, setAiGenerationMessage] = useState("");
+  const [rawGeneratedPresentationData, setRawGeneratedPresentationData] = useState<any | null>(null);
+  const [generatedPresentationData, setGeneratedPresentationData] = useState<any | null>(null);
+  const [activeUpdatingSlideIndex, setActiveUpdatingSlideIndex] = useState<number | null>(null);
+  const typedVisibleCharactersRef = useRef(0);
   const { user } = useUser();
   const isAdmin = !!user?.is_admin;
 
@@ -1245,6 +1385,114 @@ const GroupLayoutPreview = () => {
     loading: customLoading,
     error: customError,
   } = useCustomTemplateDetails({ id: templateParams?.split("custom-")[1] || "", name: "", description: "" });
+
+  const scrollToPreviewSlide = (index: number) => {
+    const possibleIds = [
+      `${resolvedStaticTemplateId}-static-preview-${index}`,
+      `${templateParams}-designer-html-preview-${index}`,
+      `${templateParams}-designer-slide-preview-${index}`,
+      `${templateParams}-custom-preview-${index}`,
+    ];
+    window.setTimeout(() => {
+      const element = possibleIds
+        .map((id) => document.getElementById(id))
+        .find(Boolean);
+      element?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+  };
+
+  const streamGeneratedOutlines = async (presentationId: string) => {
+    const authClient = createClient();
+    const { data: { session } } = await authClient.auth.getSession();
+    const token = session?.access_token ?? "";
+    const url = `/api/v1/ppt/outlines/stream/${presentationId}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+
+    return await new Promise<{ content: string }[]>((resolve, reject) => {
+      const eventSource = new EventSource(url);
+
+      eventSource.addEventListener("response", (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "status") {
+          setAiGenerationMessage(data.status || "Generating outline...");
+          return;
+        }
+
+        if (data.type === "complete") {
+          eventSource.close();
+          const slides = data.presentation?.outlines?.slides || [];
+          resolve(slides);
+          return;
+        }
+
+        if (data.type === "error") {
+          eventSource.close();
+          reject(new Error(data.detail || "Failed to generate outline"));
+        }
+      });
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        reject(new Error("Failed to connect to outline generator"));
+      };
+    });
+  };
+
+  const streamPreparedPresentation = async (presentationId: string) => {
+    const authClient = createClient();
+    const { data: { session } } = await authClient.auth.getSession();
+    const token = session?.access_token ?? "";
+    const url = `/api/v1/ppt/presentation/stream/${presentationId}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+
+    return await new Promise<any>((resolve, reject) => {
+      const eventSource = new EventSource(url);
+      let accumulatedChunks = "";
+
+      eventSource.addEventListener("response", (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "chunk") {
+          accumulatedChunks += data.chunk;
+          try {
+            const partialData = JSON.parse(jsonrepair(accumulatedChunks));
+            if (partialData?.slides?.length) {
+              const activeIndex = partialData.slides.length - 1;
+              setRawGeneratedPresentationData(partialData);
+              setActiveUpdatingSlideIndex(activeIndex);
+              scrollToPreviewSlide(activeIndex);
+              setAiGenerationMessage(`Generating slide ${partialData.slides.length}...`);
+            }
+          } catch {
+            // Wait for enough stream chunks to form valid JSON.
+          }
+          return;
+        }
+
+        if (data.type === "complete" || data.type === "closing") {
+          eventSource.close();
+          const finalIndex = Math.max((data.presentation?.slides?.length || 1) - 1, 0);
+          setGeneratedPresentationData(
+            buildTypedPresentationData(data.presentation, typedVisibleCharactersRef.current)
+          );
+          setRawGeneratedPresentationData(data.presentation);
+          setActiveUpdatingSlideIndex(finalIndex);
+          scrollToPreviewSlide(finalIndex);
+          resolve(data.presentation);
+          return;
+        }
+
+        if (data.type === "error") {
+          eventSource.close();
+          reject(new Error(data.detail || "Failed to generate presentation"));
+        }
+      });
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        reject(new Error("Failed to connect to presentation generator"));
+      };
+    });
+  };
 
 
 
@@ -1263,6 +1511,34 @@ const GroupLayoutPreview = () => {
       router.replace(`/template-preview/${staticGroup.slug}`);
     }
   }, [isCustom, isDesigner, router, staticGroup?.id, staticGroup?.slug, templateParams]);
+
+  useEffect(() => {
+    if (!rawGeneratedPresentationData) {
+      typedVisibleCharactersRef.current = 0;
+      setGeneratedPresentationData(null);
+      return;
+    }
+
+    const totalCharacters = countTypableCharacters(rawGeneratedPresentationData);
+    if (totalCharacters === 0) {
+      setGeneratedPresentationData(rawGeneratedPresentationData);
+      return;
+    }
+
+    let visibleCharacters = Math.min(typedVisibleCharactersRef.current, totalCharacters);
+    const step = Math.max(8, Math.ceil(totalCharacters / 140));
+    const interval = window.setInterval(() => {
+      visibleCharacters = Math.min(totalCharacters, visibleCharacters + step);
+      typedVisibleCharactersRef.current = visibleCharacters;
+      setGeneratedPresentationData(buildTypedPresentationData(rawGeneratedPresentationData, visibleCharacters));
+      if (visibleCharacters >= totalCharacters) {
+        setActiveUpdatingSlideIndex(null);
+        window.clearInterval(interval);
+      }
+    }, 22);
+
+    return () => window.clearInterval(interval);
+  }, [rawGeneratedPresentationData]);
 
   useEffect(() => {
     if (!isDesigner || !designerTemplateId) return;
@@ -1415,6 +1691,154 @@ const GroupLayoutPreview = () => {
     : staticTemplates.length;
   const resolvedTemplateName = isDesigner ? designerTemplate?.name || "Designer Template" : templateName;
 
+  const buildGenerationLayout = () => {
+    if (isDesigner) {
+      if (designerHtmlTemplate?.layouts.length) {
+        return {
+          layout: {
+            name: designerHtmlTemplate.id,
+            ordered: false,
+            slides: designerHtmlTemplate.layouts.map((layout) => ({
+              id: designerHtmlTemplate.id.startsWith("custom-")
+                ? `${designerHtmlTemplate.id}:${layout.layoutId}`
+                : `custom-${designerHtmlTemplate.id}:${layout.layoutId}`,
+              name: layout.layoutName,
+              description: layout.layoutDescription,
+              templateID: designerHtmlTemplate.id,
+              templateName: designerHtmlTemplate.name,
+              json_schema: layout.schemaJSON,
+            })),
+          },
+          pptxTemplateId: null,
+        };
+      }
+
+      const designerSlides = designerSelectablePreview?.slides.filter((slide) => slide.text_boxes.length > 0) || [];
+      const templateId = `designer-${designerTemplateId}`;
+      return {
+        layout: {
+          name: templateId,
+          ordered: true,
+          slides: designerSlides.map((slide) => ({
+            id: `${templateId}:slide-${slide.slide_number}`,
+            name: `Designer Slide ${slide.slide_number}`,
+            description: `Generate text specifically for slide ${slide.slide_number} of the selected designer PPTX template.`,
+            templateID: templateId,
+            templateName: designerTemplate?.name || "Designer Template",
+            json_schema: buildDesignerSlideSchema(slide),
+          })),
+        },
+        pptxTemplateId: designerTemplateId,
+      };
+    }
+
+    if (isCustom && customTemplate) {
+      return {
+        layout: {
+          name: customTemplate.id,
+          ordered: false,
+          slides: customTemplate.layouts.map((layout) => ({
+            id: customTemplate.id.startsWith("custom-")
+              ? `${customTemplate.id}:${layout.layoutId}`
+              : `custom-${customTemplate.id}:${layout.layoutId}`,
+            name: layout.layoutName,
+            description: layout.layoutDescription,
+            templateID: customTemplate.id,
+            templateName: customTemplate.name,
+            json_schema: layout.schemaJSON,
+          })),
+        },
+        pptxTemplateId: null,
+      };
+    }
+
+    return {
+      layout: {
+        name: resolvedStaticTemplateId,
+        ordered: false,
+        slides: staticTemplates.map((layout) => ({
+          id: getTemplateScopedLayoutId(resolvedStaticTemplateId, layout.layoutId),
+          name: layout.layoutName,
+          description: layout.layoutDescription,
+          templateID: resolvedStaticTemplateId,
+          templateName: resolvedTemplateName,
+          json_schema: layout.schemaJSON,
+        })),
+      },
+      pptxTemplateId: null,
+    };
+  };
+
+  const handleGenerateWithAi = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error("Please enter a prompt");
+      return;
+    }
+
+    const { layout, pptxTemplateId } = buildGenerationLayout();
+    if (!layout.slides.length) {
+      toast.error("No usable layouts found for this template");
+      return;
+    }
+
+    try {
+      setAiPromptModalOpen(false);
+      setAiGenerating(true);
+      typedVisibleCharactersRef.current = 0;
+      setRawGeneratedPresentationData(null);
+      setGeneratedPresentationData(null);
+      setActiveUpdatingSlideIndex(null);
+      setAiGenerationMessage("Creating presentation...");
+
+      const createResponse = await PresentationGenerationApi.createPresentation({
+        content: aiPrompt,
+        n_slides: layout.slides.length,
+        file_paths: [],
+        language: "English",
+        tone: "default",
+        verbosity: "standard",
+        instructions: [
+          "Generate content for every template page/layout.",
+          "All image prompts must be realistic, presentation-related, high-quality photographic scenes with natural lighting.",
+          "Avoid abstract, cartoon, logo, icon-only, blurry, or generic stock-looking image prompts unless the user explicitly asks for them.",
+          "Image prompts should be directly relevant to the user's topic and the slide's message.",
+        ].join(" "),
+        include_table_of_contents: false,
+        include_title_slide: true,
+        web_search: false,
+      });
+
+      setAiGenerationMessage("Generating outline...");
+      const outlines = await streamGeneratedOutlines(createResponse.id);
+
+      setAiGenerationMessage("Preparing template content...");
+      await PresentationGenerationApi.presentationPrepare({
+        presentation_id: createResponse.id,
+        outlines,
+        layout,
+        pptx_template_id: pptxTemplateId,
+      });
+
+      setAiGenerationMessage("Generating slide content and images...");
+      await streamPreparedPresentation(createResponse.id);
+      toast.success("Template updated with AI content");
+    } catch (error: any) {
+      console.error("Template AI generation failed", error);
+      toast.error("Generation Error", {
+        description: error?.message || "Failed to generate content for this template.",
+      });
+    } finally {
+      setAiGenerating(false);
+      setAiGenerationMessage("");
+    }
+  };
+
+  const getGeneratedSlide = (index: number) => {
+    const slides = generatedPresentationData?.slides;
+    if (!Array.isArray(slides) || slides.length === 0) return null;
+    return slides[index] ?? null;
+  };
+
   return (
     <TemplatePreviewShell>
       {/* Header */}
@@ -1477,6 +1901,19 @@ const GroupLayoutPreview = () => {
                 Open PPTX
               </a>
             )}
+            <Button
+              type="button"
+              onClick={() => setAiPromptModalOpen(true)}
+              disabled={aiGenerating}
+              className="gap-2 bg-indigo-600 text-white hover:bg-indigo-500"
+            >
+              {aiGenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              Generate with AI
+            </Button>
             <FullPreviewDownloadDropdown title={resolvedTemplateName} />
           </div>
 
@@ -1498,16 +1935,70 @@ const GroupLayoutPreview = () => {
               {layoutCount} layout{layoutCount !== 1 ? "s" : ""} •{" "}
               {templateDescription}
             </p>
+            {aiGenerating && aiGenerationMessage && (
+              <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {aiGenerationMessage}
+              </p>
+            )}
           </div>
+
         </div>
 
       </header>
 
+      <Dialog open={aiPromptModalOpen} onOpenChange={(open) => !aiGenerating && setAiPromptModalOpen(open)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Generate content for this template</DialogTitle>
+            <DialogDescription>
+              AI will update all {layoutCount} page{layoutCount !== 1 ? "s" : ""} in this template and use realistic, presentation-related images.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <textarea
+              value={aiPrompt}
+              onChange={(event) => setAiPrompt(event.target.value)}
+              placeholder={`Write what this ${resolvedTemplateName} presentation should be about...`}
+              className="min-h-[150px] w-full resize-y rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              disabled={aiGenerating}
+              autoFocus
+            />
+            {aiGenerationMessage && (
+              <p className="text-xs font-medium text-indigo-700">
+                {aiGenerationMessage}
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAiPromptModalOpen(false)}
+                disabled={aiGenerating}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleGenerateWithAi}
+                disabled={aiGenerating || !aiPrompt.trim()}
+                className="gap-2 bg-indigo-600 text-white hover:bg-indigo-500"
+              >
+                {aiGenerating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {aiGenerating ? "Generating" : `Generate ${layoutCount} pages`}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Layout Grid - Wrapped in SchemaHighlightProvider for custom templates */}
       <main className="mx-auto px-2 py-8" id="presentation-page">
-        {!isCustom && !isDesigner && (
-          <StaticTemplateEditPanel state={staticEditorPanelState} />
-        )}
+        <StaticTemplateEditPanel state={staticEditorPanelState} />
 
         {/* Static Templates */}
         {!isCustom && (
@@ -1516,6 +2007,7 @@ const GroupLayoutPreview = () => {
             {staticTemplates.map((template: any, index: number) => {
               const LayoutComponent = template.component;
               const previewTargetId = `${resolvedStaticTemplateId}-static-preview-${index}`;
+              const generatedSlide = getGeneratedSlide(index);
 
               return (
                 <Card
@@ -1550,6 +2042,7 @@ const GroupLayoutPreview = () => {
                         "static-template-edits",
                         user?.id || user?.email || "guest",
                         resolvedStaticTemplateId,
+                        generatedPresentationData?.id || "sample",
                         template.layoutId,
                       ].join(":")}
                       editorId={`${resolvedStaticTemplateId}-${template.layoutId}-${index}`}
@@ -1565,10 +2058,11 @@ const GroupLayoutPreview = () => {
                       <div
                         id={previewTargetId}
                         data-template-preview-slide="true"
-                        className="flex-shrink-0"
+                        className="relative flex-shrink-0"
                         style={{ width: "1280px", height: "720px" }}
                       >
-                        <LayoutComponent data={template.sampleData} />
+                        <LayoutComponent data={generatedSlide?.content ?? template.sampleData} />
+                        <ImageUpdatingOverlay show={aiGenerating && hasPendingGeneratedImage(generatedSlide?.content)} />
                       </div>
                     </StaticTemplateEditor>
                   </div>
@@ -1588,6 +2082,7 @@ const GroupLayoutPreview = () => {
             {designerHtmlTemplate.layouts.map((layout: CustomTemplateLayout, index: number) => {
               const LayoutComponent = layout.component;
               const previewTargetId = `${templateParams}-designer-html-preview-${index}`;
+              const generatedSlide = getGeneratedSlide(index);
               return (
                 <Card
                   key={`${templateParams}-html-${layout.rawLayoutId}-${index}`}
@@ -1629,21 +2124,42 @@ const GroupLayoutPreview = () => {
                         <div
                           id={previewTargetId}
                           data-template-preview-slide="true"
-                          className="flex-shrink-0"
+                          className="relative flex-shrink-0"
                           style={{ width: "1280px", height: "720px" }}
                         >
-                          <LayoutComponent data={layout.sampleData} />
+                          <LayoutComponent data={generatedSlide?.content ?? layout.sampleData} />
+                          <ImageUpdatingOverlay show={aiGenerating && hasPendingGeneratedImage(generatedSlide?.content)} />
                         </div>
                       </AdminEditableLayout>
                     ) : (
-                      <div
-                        id={previewTargetId}
-                        data-template-preview-slide="true"
-                        className="flex-shrink-0"
-                        style={{ width: "1280px", height: "720px" }}
+                      <StaticTemplateEditor
+                        storageKey={[
+                          "designer-html-template-preview-edits",
+                          user?.id || user?.email || "guest",
+                          templateParams,
+                          generatedPresentationData?.id || "sample",
+                          layout.layoutId,
+                        ].join(":")}
+                        editorId={`${templateParams}-${layout.layoutId}-${index}`}
+                        onPanelStateChange={setStaticEditorPanelState}
+                        savedTemplateMeta={{
+                          userKey: String(user?.id || user?.email || "guest"),
+                          templateId: templateParams,
+                          name: resolvedTemplateName,
+                          description: templateDescription,
+                          layoutCount,
+                        }}
                       >
-                        <LayoutComponent data={layout.sampleData} />
-                      </div>
+                        <div
+                          id={previewTargetId}
+                          data-template-preview-slide="true"
+                          className="relative flex-shrink-0"
+                          style={{ width: "1280px", height: "720px" }}
+                        >
+                          <LayoutComponent data={generatedSlide?.content ?? layout.sampleData} />
+                          <ImageUpdatingOverlay show={aiGenerating && hasPendingGeneratedImage(generatedSlide?.content)} />
+                        </div>
+                      </StaticTemplateEditor>
                     )}
                   </div>
                 </Card>
@@ -1666,6 +2182,7 @@ const GroupLayoutPreview = () => {
                 text_boxes: [],
               }))).map((slide, index) => {
                 const previewTargetId = `${templateParams}-designer-slide-preview-${index}`;
+                const generatedSlide = getGeneratedSlide(index);
                 return (
                 <Card
                   key={`${templateParams}-designer-slide-${index}`}
@@ -1704,6 +2221,14 @@ const GroupLayoutPreview = () => {
                       className="relative flex-shrink-0 bg-white"
                       style={{ width: "1280px", height: "720px" }}
                     >
+                      {generatedSlide?.content && designerTemplateId ? (
+                        <DesignerTemplateSlideRender
+                          templateId={designerTemplateId}
+                          slideIndex={index}
+                          slideContent={generatedSlide.content}
+                        />
+                      ) : (
+                        <>
                       {slide.thumbnail_url && (
                         <img
                           src={slide.thumbnail_url}
@@ -1735,6 +2260,9 @@ const GroupLayoutPreview = () => {
                           </div>
                         ))}
                       </div>
+                        </>
+                      )}
+                      <ImageUpdatingOverlay show={aiGenerating && hasPendingGeneratedImage(generatedSlide?.content)} />
                     </div>
                   </div>
                 </Card>
@@ -1759,6 +2287,7 @@ const GroupLayoutPreview = () => {
             {customTemplate && customTemplate.layouts.map((layout: CustomTemplateLayout, index: number) => {
               const LayoutComponent = layout.component;
               const previewTargetId = `${templateParams}-custom-preview-${index}`;
+              const generatedSlide = getGeneratedSlide(index);
               return (
                 <Card
                   key={`${templateParams}-${layout.layoutId}-${index}`}
@@ -1785,14 +2314,34 @@ const GroupLayoutPreview = () => {
                   </div>
 
                   <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
-                    <div
-                      id={previewTargetId}
-                      data-template-preview-slide="true"
-                      className="flex-shrink-0"
-                      style={{ width: "1280px", height: "720px" }}
+                    <StaticTemplateEditor
+                      storageKey={[
+                        "custom-template-preview-edits",
+                        user?.id || user?.email || "guest",
+                        templateParams,
+                        generatedPresentationData?.id || "sample",
+                        layout.layoutId,
+                      ].join(":")}
+                      editorId={`${templateParams}-${layout.layoutId}-${index}`}
+                      onPanelStateChange={setStaticEditorPanelState}
+                      savedTemplateMeta={{
+                        userKey: String(user?.id || user?.email || "guest"),
+                        templateId: templateParams,
+                        name: resolvedTemplateName,
+                        description: templateDescription,
+                        layoutCount,
+                      }}
                     >
-                      <LayoutComponent data={layout.sampleData} />
-                    </div>
+                      <div
+                        id={previewTargetId}
+                        data-template-preview-slide="true"
+                        className="relative flex-shrink-0"
+                        style={{ width: "1280px", height: "720px" }}
+                      >
+                        <LayoutComponent data={generatedSlide?.content ?? layout.sampleData} />
+                        <ImageUpdatingOverlay show={aiGenerating && hasPendingGeneratedImage(generatedSlide?.content)} />
+                      </div>
+                    </StaticTemplateEditor>
                   </div>
                 </Card>
               );
