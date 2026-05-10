@@ -379,11 +379,59 @@ function TemplateThemeSelector({
   );
 }
 
+function ResponsivePreviewFrame({
+  id,
+  className = "",
+  children,
+}: {
+  id: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+
+    const updateScale = () => {
+      const width = frame.getBoundingClientRect().width;
+      setScale(Math.min(1, width / 1280));
+    };
+
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={frameRef}
+      className={`relative mx-auto aspect-video w-full max-w-[1280px] overflow-hidden bg-white ${className}`}
+    >
+      <div
+        id={id}
+        data-template-preview-slide="true"
+        className="absolute left-0 top-0 origin-top-left"
+        style={{
+          width: "1280px",
+          height: "720px",
+          transform: `scale(${scale})`,
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function TemplatePreviewShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex min-h-dvh bg-gray-50 pb-20 md:h-screen md:overflow-hidden md:pb-0">
       <DashboardSidebar />
-      <div className="flex-1 h-screen overflow-y-auto">
+      <div className="min-w-0 flex-1 md:h-screen md:overflow-y-auto">
         {children}
       </div>
     </div>
@@ -558,6 +606,7 @@ async function renderPreviewSlideImage(target: HTMLElement) {
   clone.style.background = "#ffffff";
   clone.style.boxShadow = "none";
   clone.style.overflow = "hidden";
+  clone.style.transform = "none";
 
   const slideRoot = clone.firstElementChild as HTMLElement | null;
   if (slideRoot) {
@@ -931,7 +980,7 @@ function AdminEditableLayout({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="w-full space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-indigo-100 bg-indigo-50 px-3 py-2">
         <div className="flex min-w-0 items-center gap-2 text-sm text-indigo-900">
           <Type className="h-4 w-4 shrink-0" />
@@ -1069,14 +1118,14 @@ function StaticTemplateEditPanel({ state }: { state: StaticEditorPanelState }) {
     setShowImageEditor(false);
   }, [state.imageUrl, selection?.element]);
 
-  if (!selection || !actions) {
+  if (!selection || !actions || selection.type === "image") {
     return null;
   }
 
   return (
     <div
       data-static-editor-panel="true"
-      className="sticky top-[132px] z-40 mx-auto mb-6 flex w-full max-w-[1440px] flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur"
+      className="fixed inset-x-3 bottom-24 z-[80] mx-auto flex max-h-[42dvh] w-auto max-w-[1440px] flex-wrap items-center gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-2xl backdrop-blur md:bottom-auto md:left-[88px] md:right-4 md:top-4 md:max-h-[calc(100dvh-2rem)]"
     >
       <span className="max-w-[240px] truncate rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
         {selection.type}: {selection.label}
@@ -1474,7 +1523,7 @@ function StaticTemplateEditor({
   }, [clearSelection, selection]);
 
   return (
-    <div className="space-y-3">
+    <div className="w-full space-y-3">
       <style>{`
         @keyframes staticEditorFade { from { opacity: 0; } to { opacity: 1; } }
         @keyframes staticEditorRise { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: translateY(0); } }
@@ -2453,11 +2502,11 @@ const GroupLayoutPreview = () => {
                 <Card
                   key={`${resolvedStaticTemplateId}-${template.layoutId}-${index}`}
                   id={template.layoutId}
-                  className="overflow-hidden shadow-md"
+                  className="w-full overflow-hidden shadow-md"
                 >
-                  <div className="bg-white px-6 py-4 border-b">
-                    <div className="flex items-center justify-between">
-                      <div>
+                  <div className="border-b bg-white px-4 py-4 sm:px-6">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
                         <h3 className="text-xl font-semibold text-gray-900">
                           {template.layoutName}
                         </h3>
@@ -2465,18 +2514,18 @@ const GroupLayoutPreview = () => {
                           {template.layoutDescription}
                         </p>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                        <span className="max-w-full truncate rounded bg-gray-100 px-3 py-1 font-mono text-sm text-gray-600">
                           {template.layoutId}
                         </span>
-                        <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                        <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
                           #{index + 1}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
+                  <div className="flex justify-center bg-gray-100 p-2 sm:p-4 md:p-6">
                     <StaticTemplateEditor
                       key={`${resolvedStaticTemplateId}-${template.layoutId}-${generatedPresentationVersion}`}
                       storageKey={[
@@ -2496,15 +2545,10 @@ const GroupLayoutPreview = () => {
                         layoutCount,
                       }}
                     >
-                      <div
-                        id={previewTargetId}
-                        data-template-preview-slide="true"
-                        className="relative flex-shrink-0"
-                        style={{ width: "1280px", height: "720px" }}
-                      >
+                      <ResponsivePreviewFrame id={previewTargetId}>
                         <SlideHoverToolbar onAi={() => setAiPromptModalOpen(true)} />
                         <LayoutComponent data={generatedSlide?.content ?? template.sampleData} />
-                      </div>
+                      </ResponsivePreviewFrame>
                     </StaticTemplateEditor>
                   </div>
                 </Card>
@@ -2519,7 +2563,7 @@ const GroupLayoutPreview = () => {
         )}
 
         {isDesigner && designerTemplate && !shouldShowExcelPreview && designerHtmlTemplate?.layouts.length ? (
-          <div className="flex flex-col items-center justify-center w-full gap-10 aspect-video mx-auto">
+          <div className="mx-auto flex w-full max-w-[1440px] flex-col items-center justify-center gap-10">
             {designerHtmlTemplate.layouts.map((layout: CustomTemplateLayout, index: number) => {
               const LayoutComponent = layout.component;
               const previewTargetId = `${templateParams}-designer-html-preview-${index}`;
@@ -2528,11 +2572,11 @@ const GroupLayoutPreview = () => {
                 <Card
                   key={`${templateParams}-html-${layout.rawLayoutId}-${index}`}
                   id={`designer-html-${layout.rawLayoutId}`}
-                  className="overflow-hidden shadow-md"
+                  className="w-full overflow-hidden shadow-md"
                 >
-                  <div className="bg-white px-6 py-4 border-b">
-                    <div className="flex items-center justify-between">
-                      <div>
+                  <div className="border-b bg-white px-4 py-4 sm:px-6">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
                         <h3 className="text-xl font-semibold text-gray-900">
                           {layout.rawLayoutName}
                         </h3>
@@ -2540,13 +2584,13 @@ const GroupLayoutPreview = () => {
                           Converted HTML layout from {designerTemplate.name}
                         </p>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         {isAdmin && (
                           <>
                           <span className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium">
                             HTML
                           </span>
-                          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
+                          <span className="max-w-full truncate rounded bg-gray-100 px-3 py-1 font-mono text-sm text-gray-600">
                             {designerTemplate.html_template_slug}:{layout.rawLayoutId}
                           </span>
                           </>
@@ -2555,7 +2599,7 @@ const GroupLayoutPreview = () => {
                     </div>
                   </div>
 
-                  <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
+                  <div className="flex justify-center bg-gray-100 p-2 sm:p-4 md:p-6">
                     {isAdmin && designerHtmlTemplate?.id ? (
                       <AdminEditableLayout
                         layout={layout}
@@ -2564,15 +2608,10 @@ const GroupLayoutPreview = () => {
                         templateDescription={templateDescription}
                         onSaved={() => toast.success("Reload the page to see the saved compiled version")}
                       >
-                        <div
-                          id={previewTargetId}
-                          data-template-preview-slide="true"
-                          className="relative flex-shrink-0"
-                          style={{ width: "1280px", height: "720px" }}
-                        >
+                        <ResponsivePreviewFrame id={previewTargetId}>
                           <SlideHoverToolbar onAi={() => setAiPromptModalOpen(true)} />
                           <LayoutComponent data={generatedSlide?.content ?? layout.sampleData} />
-                        </div>
+                        </ResponsivePreviewFrame>
                       </AdminEditableLayout>
                     ) : (
                       <StaticTemplateEditor
@@ -2594,15 +2633,10 @@ const GroupLayoutPreview = () => {
                           layoutCount,
                         }}
                       >
-                        <div
-                          id={previewTargetId}
-                          data-template-preview-slide="true"
-                          className="relative flex-shrink-0"
-                          style={{ width: "1280px", height: "720px" }}
-                        >
+                        <ResponsivePreviewFrame id={previewTargetId}>
                           <SlideHoverToolbar onAi={() => setAiPromptModalOpen(true)} />
                           <LayoutComponent data={generatedSlide?.content ?? layout.sampleData} />
-                        </div>
+                        </ResponsivePreviewFrame>
                       </StaticTemplateEditor>
                     )}
                   </div>
@@ -2631,11 +2665,11 @@ const GroupLayoutPreview = () => {
                 <Card
                   key={`${templateParams}-designer-slide-${index}`}
                   id={`designer-slide-${slide.slide_number}`}
-                  className="overflow-hidden shadow-md"
+                  className="w-full overflow-hidden shadow-md"
                 >
-                  <div className="bg-white px-6 py-4 border-b">
-                    <div className="flex items-center justify-between">
-                      <div>
+                  <div className="border-b bg-white px-4 py-4 sm:px-6">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
                         <h3 className="text-xl font-semibold text-gray-900">
                           Slide {slide.slide_number}
                         </h3>
@@ -2643,10 +2677,10 @@ const GroupLayoutPreview = () => {
                           {designerTemplate.name}
                         </p>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         {isAdmin && (
                           <>
-                          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
+                          <span className="max-w-full truncate rounded bg-gray-100 px-3 py-1 font-mono text-sm text-gray-600">
                             {templateParams}:slide-{index + 1}
                           </span>
                           <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
@@ -2658,13 +2692,8 @@ const GroupLayoutPreview = () => {
                     </div>
                   </div>
 
-                  <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
-                    <div
-                      id={previewTargetId}
-                      data-template-preview-slide="true"
-                      className="relative flex-shrink-0 bg-white"
-                      style={{ width: "1280px", height: "720px" }}
-                    >
+                  <div className="flex justify-center bg-gray-100 p-2 sm:p-4 md:p-6">
+                    <ResponsivePreviewFrame id={previewTargetId}>
                       <SlideHoverToolbar onAi={() => setAiPromptModalOpen(true)} />
                       {generatedSlide?.content && designerTemplateId ? (
                         <DesignerTemplateSlideRender
@@ -2707,7 +2736,7 @@ const GroupLayoutPreview = () => {
                       </div>
                         </>
                       )}
-                    </div>
+                    </ResponsivePreviewFrame>
                   </div>
                 </Card>
                 );
@@ -2725,7 +2754,7 @@ const GroupLayoutPreview = () => {
         {/* Custom Templates - with page-level schema editor */}
         {isCustom && (
 
-          <div className="flex flex-col items-center justify-center w-full gap-10  aspect-video mx-auto">
+          <div className="mx-auto flex w-full max-w-[1440px] flex-col items-center justify-center gap-10">
             {/* Slides List */}
 
             {customTemplate && customTemplate.layouts.map((layout: CustomTemplateLayout, index: number) => {
@@ -2736,11 +2765,11 @@ const GroupLayoutPreview = () => {
                 <Card
                   key={`${templateParams}-${layout.layoutId}-${index}`}
                   id={layout.layoutId}
-                  className="overflow-hidden shadow-md"
+                  className="w-full overflow-hidden shadow-md"
                 >
-                  <div className="bg-white px-6 py-4 border-b">
-                    <div className="flex items-center justify-between">
-                      <div>
+                  <div className="border-b bg-white px-4 py-4 sm:px-6">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
                         <h3 className="text-xl font-semibold text-gray-900">
                           {layout.rawLayoutName}
                         </h3>
@@ -2749,15 +2778,15 @@ const GroupLayoutPreview = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-end justify-end ">
-                      <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-mono">
+                    <div className="mt-3 flex items-end justify-start sm:justify-end">
+                      <span className="max-w-full truncate rounded bg-gray-100 px-3 py-1 font-mono text-sm text-gray-600">
                         {templateParams}:{layout.layoutId}
                       </span>
 
                     </div>
                   </div>
 
-                  <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
+                  <div className="flex justify-center bg-gray-100 p-2 sm:p-4 md:p-6">
                     {isAdmin && customTemplateId ? (
                       <AdminEditableLayout
                         layout={layout}
@@ -2766,15 +2795,10 @@ const GroupLayoutPreview = () => {
                         templateDescription={templateDescription}
                         onSaved={() => toast.success("Reload the page to see the saved compiled version")}
                       >
-                        <div
-                          id={previewTargetId}
-                          data-template-preview-slide="true"
-                          className="relative flex-shrink-0"
-                          style={{ width: "1280px", height: "720px" }}
-                        >
+                        <ResponsivePreviewFrame id={previewTargetId}>
                           <SlideHoverToolbar onAi={() => setAiPromptModalOpen(true)} />
                           <LayoutComponent data={generatedSlide?.content ?? layout.sampleData} />
-                        </div>
+                        </ResponsivePreviewFrame>
                       </AdminEditableLayout>
                     ) : (
                       <StaticTemplateEditor
@@ -2796,15 +2820,10 @@ const GroupLayoutPreview = () => {
                           layoutCount,
                         }}
                       >
-                        <div
-                          id={previewTargetId}
-                          data-template-preview-slide="true"
-                          className="relative flex-shrink-0"
-                          style={{ width: "1280px", height: "720px" }}
-                        >
+                        <ResponsivePreviewFrame id={previewTargetId}>
                           <SlideHoverToolbar onAi={() => setAiPromptModalOpen(true)} />
                           <LayoutComponent data={generatedSlide?.content ?? layout.sampleData} />
-                        </div>
+                        </ResponsivePreviewFrame>
                       </StaticTemplateEditor>
                     )}
                   </div>
