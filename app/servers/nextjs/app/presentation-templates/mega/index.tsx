@@ -269,17 +269,17 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
 
   switch (cfg.kind) {
     case "personalPortfolio": {
-      const dark = "#2e2e2c";
-      const paper = "#e9e9e9";
-      const ink = "#2b2b2b";
+      const dark = theme.accent;
+      const paper = theme.bg;
+      const ink = theme.fg;
       const page = cfg.id.split("-").pop() || "cover";
       const imageFor = (_seed: string, _width = 900, _height = 640) => imageUrl;
       const Blob = ({ className = "" }: { className?: string }) => (
-        <div className={`pointer-events-none absolute h-32 w-32 rounded-full blur-2xl ${className}`} style={{ background: "radial-gradient(circle, rgba(193,95,213,.62), rgba(49,164,220,.45) 45%, transparent 70%)" }} />
+        <div className={`pointer-events-none absolute h-32 w-32 rounded-full blur-2xl ${className}`} style={{ background: `radial-gradient(circle, ${theme.soft}, ${theme.accent} 45%, transparent 70%)`, opacity: 0.45 }} />
       );
       const Logo = ({ light = false }: { light?: boolean }) => (
         <div className="grid h-9 w-9 grid-cols-2 gap-1">
-          {[0, 1, 2, 3].map((dot) => <span key={dot} className="rounded-full" style={{ background: light ? paper : ink }} />)}
+          {[0, 1, 2, 3].map((dot) => <span key={dot} className="rounded-full" style={{ background: light ? theme.primaryText : ink }} />)}
         </div>
       );
       const Nav = () => <div className="absolute right-10 top-10 text-4xl font-light tracking-tight" style={{ color: ink }}>‹›</div>;
@@ -294,14 +294,14 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
           <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.82fr_1fr] overflow-hidden" style={{ background: paper, color: ink, fontFamily: "Inter, Arial, sans-serif" }}>
             <div className="grid grid-rows-[1fr_140px]" style={{ background: dark }}>
               <img src={imageFor("contents-studio", 680, 430)} alt="" className="h-full w-full object-cover" />
-              <div className="flex items-center px-[72px] text-sm text-white">Portfolio 2026</div>
+              <div className="flex items-center px-[72px] text-sm" style={{ color: theme.primaryText }}>Portfolio 2026</div>
             </div>
             <div className="relative px-12 py-16">
               <Nav /><Blob className="right-20 top-44" /><Blob className="bottom-8 left-44" />
               <h1 className="text-[58px] font-black uppercase leading-none" style={{ fontFamily: "Impact, Arial Black, Inter, sans-serif" }}>{title}</h1>
               <div className="mt-5 max-w-[470px]">
                 {contents.map((item, index) => (
-                  <div key={item} className="grid grid-cols-[1fr_60px] border-b border-neutral-400 py-1 text-[30px] leading-tight">
+                  <div key={item} className="grid grid-cols-[1fr_60px] border-b py-1 text-[30px] leading-tight" style={{ borderColor: theme.stroke }}>
                     <span>{item}</span><span className="text-right">{String(index + 1).padStart(2, "0")}</span>
                   </div>
                 ))}
@@ -318,7 +318,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
           <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.43fr_1fr_210px] overflow-hidden" style={{ background: paper, color: ink, fontFamily: "Inter, Arial, sans-serif" }}>
             <div className="grid grid-rows-[1fr_140px]" style={{ background: dark }}>
               <img src={imageUrl} alt="" className="h-full w-full object-cover" />
-              <div className="flex items-center px-16 text-sm text-white">Portfolio 2026</div>
+              <div className="flex items-center px-16 text-sm" style={{ color: theme.primaryText }}>Portfolio 2026</div>
             </div>
             <div className="relative px-[56px] py-[72px]">
               <Blob className="left-56 top-0" />
@@ -328,7 +328,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               <p className="mt-7 max-w-[560px] text-[15px] leading-snug">{items[1]?.text || rows[1]?.note || quote}</p>
               <div className="absolute bottom-[56px] left-[56px] text-sm">{rows[0]?.label || items[0]?.label}</div>
             </div>
-            <div className="relative border-l border-neutral-400 px-8 py-20">
+            <div className="relative border-l px-8 py-20" style={{ borderColor: theme.stroke }}>
               <Nav />
               <img src={imageUrl} alt="" className="mt-12 h-36 w-full object-cover" />
               <img src={imageUrl} alt="" className="mt-5 h-36 w-full object-cover" />
@@ -357,7 +357,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
                 alt=""
                 className="h-full w-full object-cover"
               />
-              <div className="flex items-center justify-between px-8 text-sm text-white"><span>Portfolio 2026</span><Logo light /></div>
+              <div className="flex items-center justify-between px-8 text-sm" style={{ color: theme.primaryText }}><span>Portfolio 2026</span><Logo light /></div>
             </div>
           </div>
         );
@@ -374,9 +374,9 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
                 alt=""
                 className="h-full w-full object-cover"
               />
-              <div className="flex items-center px-[72px] text-sm text-white">{rows[0]?.label || items[0]?.label}</div>
+              <div className="flex items-center px-[72px] text-sm" style={{ color: theme.primaryText }}>{rows[0]?.label || items[0]?.label}</div>
             </div>
-            <div className="relative border-l border-neutral-400 px-[64px] py-[72px]">
+            <div className="relative border-l px-[64px] py-[72px]" style={{ borderColor: theme.stroke }}>
               <Nav /><Blob className="right-40 top-36" /><Blob className="bottom-12 left-72" />
               <h1 className="text-[64px] font-black uppercase leading-none" style={{ fontFamily: "Impact, Arial Black, Inter, sans-serif" }}>{title}</h1>
               <h2 className="mt-8 text-3xl">{subtitle}</h2>
@@ -399,7 +399,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
                 alt=""
                 className="h-full w-full object-cover"
               />
-              <div className="flex items-center px-[72px] text-sm text-white">Portfolio 2026</div>
+              <div className="flex items-center px-[72px] text-sm" style={{ color: theme.primaryText }}>Portfolio 2026</div>
             </div>
             <div className="relative px-10 py-28">
               <Blob className="right-10 top-8" />
@@ -409,7 +409,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               <ul className="mt-7 list-disc pl-5 text-sm leading-snug">{items.slice(0, 4).map((item) => <li key={item.label}>{item.label}</li>)}</ul>
               <div className="absolute bottom-14 left-10 text-sm">{rows[0]?.label || (isProjects ? "Work Samples" : "Achievements")}</div>
             </div>
-            <div className="relative border-l border-neutral-400 p-8">
+            <div className="relative border-l p-8" style={{ borderColor: theme.stroke }}>
               <Nav />
               <div className="mt-14 grid h-[460px] grid-rows-3 gap-5">
                 {(isProjects
@@ -431,22 +431,22 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               <p className="text-sm">{rows[0]?.label || "Portfolio"}</p>
               <h1 className="mt-12 text-[78px] font-black uppercase leading-[0.96]" style={{ fontFamily: "Impact, Arial Black, Inter, sans-serif" }}>{title}</h1>
               <p className="mt-8 text-2xl uppercase leading-tight">{subtitle}</p>
-              <button className="mt-12 rounded-full px-5 py-2 text-sm text-white" style={{ background: dark }}>See more ›</button>
+              <button className="mt-12 rounded-full px-5 py-2 text-sm" style={{ background: dark, color: theme.primaryText }}>See more ›</button>
             </div>
             <div className="flex justify-between text-sm"><span>{items[0]?.label}</span><span>{items[1]?.label}</span></div>
           </div>
           <div className="grid grid-rows-[70px_1fr_130px]" style={{ background: dark }}>
             <div className="relative"><Nav /></div>
             <img src={imageUrl} alt="" className="h-full w-full object-cover" />
-            <div className="grid grid-cols-[54px_1fr] items-center gap-4 px-8 text-white"><Logo light /><p className="text-sm leading-tight">{portfolioBody}</p></div>
+            <div className="grid grid-cols-[54px_1fr] items-center gap-4 px-8" style={{ color: theme.primaryText }}><Logo light /><p className="text-sm leading-tight">{portfolioBody}</p></div>
           </div>
         </div>
       );
     }
     case "redEditorial": {
-      const red = "#f51f18";
-      const cream = "#fbf8f1";
-      const black = "#050505";
+      const red = theme.accent;
+      const cream = theme.bg;
+      const black = theme.fg;
       const page = cfg.id.split("-").pop() || "cover";
       const imageFor = (_seed: string, _width = 1200, _height = 900) => imageUrl;
       const redImageStyle = { filter: "saturate(1.18) contrast(1.08)" };
@@ -456,7 +456,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
           <path d="M74 18L18 74" stroke="currentColor" strokeWidth="10" />
         </svg>
       );
-      const Rule = () => <div className="h-[3px] w-full" style={{ background: "#b8b8b8" }} />;
+      const Rule = () => <div className="h-[3px] w-full" style={{ background: theme.stroke }} />;
       const generatedRows = data.rows?.length
         ? data.rows
         : data.metrics?.length
@@ -529,7 +529,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
                   <Rule />
                   <div className="grid grid-cols-[130px_150px_1fr_0.55fr] items-center py-5">
                     <div className="text-2xl font-black uppercase">Phase {index + 1}</div>
-                    <div className="h-[3px] bg-black" />
+                    <div className="h-[3px]" style={{ background: black }} />
                     <div className="pl-8 text-2xl font-black uppercase" style={{ color: red }}>{row.label}</div>
                     <div className="whitespace-pre-line text-xl leading-tight">{row.value || row.note}</div>
                   </div>
@@ -552,7 +552,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
                   <div className="grid grid-cols-[60px_1fr_82px] items-center gap-6">
                     <div className="text-xl font-medium">({String(index + 1).padStart(2, "0")})</div>
                     <div className="text-[72px] font-black uppercase leading-none" style={{ letterSpacing: "-0.04em" }}>{label}</div>
-                    <Arrow className="text-red-600" />
+                    <Arrow />
                   </div>
                   <div className="mt-6 h-[3px]" style={{ background: red }} />
                 </div>
@@ -564,7 +564,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
 
       if (page === "thanks") {
         return (
-          <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[1fr_0.82fr] overflow-hidden p-10 text-white" style={{ background: red, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
+          <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[1fr_0.82fr] overflow-hidden p-10" style={{ background: red, color: theme.primaryText, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
             <div className="flex flex-col justify-between">
               <h1 className="text-[112px] font-black uppercase leading-none" style={{ letterSpacing: "-0.05em" }}>{title}</h1>
               <p className="max-w-[680px] text-[32px] uppercase leading-tight">{subtitle}</p>
@@ -578,7 +578,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               </div>
             </div>
             <div className="flex flex-col justify-between">
-              <Arrow className="ml-auto text-white" />
+              <Arrow className="ml-auto" />
               <img src={imageFor("thanks-studio", 780, 320)} alt="" className="h-[270px] w-full object-cover" style={redImageStyle} />
             </div>
           </div>
@@ -588,10 +588,10 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
       if (page === "brief") {
         return (
           <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.92fr_1fr] overflow-hidden" style={{ background: cream, color: red, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
-            <div className="flex flex-col justify-between p-10" style={{ background: red, color: cream }}>
+            <div className="flex flex-col justify-between p-10" style={{ background: red, color: theme.primaryText }}>
               <h1 className="text-[104px] font-black uppercase leading-[0.9]" style={{ letterSpacing: "-0.05em" }}>{title}</h1>
               <p className="max-w-[520px] text-3xl uppercase leading-tight">{subtitle}</p>
-              <Arrow className="mx-auto text-white" />
+              <Arrow className="mx-auto" />
               <div className="grid grid-cols-2 text-2xl uppercase">
                 <strong>{editorialRows[0]?.label}</strong>
                 <strong>{editorialRows[1]?.label || editorialItems[0]?.label}</strong>
@@ -618,7 +618,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
                 </div>
               </div>
               {quote && <p className="max-w-[620px] text-xl font-semibold uppercase" style={{ color: red }}>{quote}</p>}
-              <Arrow className="ml-auto text-red-600" />
+              <Arrow className="ml-auto" />
             </div>
           </div>
         );
@@ -651,8 +651,8 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             </div>
             <div className="relative mt-12 flex-1">
               <img src={imageFor("summary-reader", 1180, 460)} alt="" className="h-full w-full object-cover" style={redImageStyle} />
-              <div className="absolute bottom-5 left-6 rounded-full px-8 py-4 text-2xl uppercase text-white" style={{ background: red }}>{editorialRows[0]?.label}</div>
-              <div className="absolute bottom-5 right-8 rounded-full px-8 py-4 text-2xl uppercase text-white" style={{ background: red }}>{editorialRows[1]?.label || editorialItems[0]?.label}</div>
+              <div className="absolute bottom-5 left-6 rounded-full px-8 py-4 text-2xl uppercase" style={{ background: red, color: theme.primaryText }}>{editorialRows[0]?.label}</div>
+              <div className="absolute bottom-5 right-8 rounded-full px-8 py-4 text-2xl uppercase" style={{ background: red, color: theme.primaryText }}>{editorialRows[1]?.label || editorialItems[0]?.label}</div>
             </div>
           </div>
         );
@@ -676,10 +676,10 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
     }
     case "visionMission":
       return (
-        <div className="relative mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[72px_1fr_450px] overflow-hidden bg-white shadow-2xl" style={{ fontFamily: "Inter, Arial, sans-serif" }}>
-          <div className="h-full" style={{ background: "#bfff00" }} />
-          <div className="flex flex-col justify-center px-12 py-14 text-black">
-            <div className="mb-14 inline-flex w-fit rounded-full px-8 py-3 text-4xl font-black" style={{ background: "#bfff00", color: "#5b3ff2", letterSpacing: 0 }}>
+        <div className="relative mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[72px_1fr_450px] overflow-hidden shadow-2xl" style={{ background: theme.bg, color: theme.fg, fontFamily: theme.bodyFont }}>
+          <div className="h-full" style={{ background: theme.accent }} />
+          <div className="flex flex-col justify-center px-12 py-14">
+            <div className="mb-14 inline-flex w-fit rounded-full px-8 py-3 text-4xl font-black" style={{ background: theme.accent, color: theme.primaryText, letterSpacing: 0 }}>
               {items[0]?.label || "VISION"}
             </div>
             <h1 className="max-w-[700px] text-[78px] font-black leading-[0.98]" style={{ letterSpacing: "-0.01em" }}>{title}</h1>
@@ -688,12 +688,12 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             </p>
             <p className="mt-14 text-[21px] font-medium">{items[0]?.text || quote}</p>
           </div>
-          <div className="relative flex items-center justify-center p-8" style={{ background: "#5638f5" }}>
+          <div className="relative flex items-center justify-center p-8" style={{ background: theme.soft }}>
             <img src={imageUrl} alt="" className="h-[86%] w-full object-cover shadow-xl" />
-            <div className="absolute bottom-14 right-0 flex h-24 w-44 items-center justify-center rounded-l-full" style={{ background: "#bfff00" }}>
+            <div className="absolute bottom-14 right-0 flex h-24 w-44 items-center justify-center rounded-l-full" style={{ background: theme.accent, color: theme.primaryText }}>
               <svg width="92" height="42" viewBox="0 0 92 42" fill="none">
-                <path d="M8 21H76" stroke="#5638f5" strokeWidth="7" strokeLinecap="round" />
-                <path d="M58 7L78 21L58 35" stroke="#5638f5" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M8 21H76" stroke="currentColor" strokeWidth="7" strokeLinecap="round" />
+                <path d="M58 7L78 21L58 35" stroke="currentColor" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
           </div>
@@ -724,9 +724,9 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               <img src={imageUrl} alt="" className="h-full w-full rounded-[32px] object-cover" />
               <div className="absolute bottom-16 left-4 grid w-[86%] grid-cols-2 gap-4">
                 {items.slice(0, 4).map((item, index) => (
-                  <div key={index} className="rounded-lg bg-white/90 p-4 shadow-sm backdrop-blur">
+                  <div key={index} className="rounded-lg p-4 shadow-sm backdrop-blur" style={{ background: theme.soft, color: theme.fg }}>
                     <div className="text-2xl font-black" style={{ color: theme.accent }}>0{index + 1}</div>
-                    <h3 className="mt-2 text-lg font-bold text-slate-950">{item.label}</h3>
+                    <h3 className="mt-2 text-lg font-bold">{item.label}</h3>
                   </div>
                 ))}
               </div>
@@ -821,7 +821,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               <p className="mt-5 text-xl leading-relaxed opacity-75">{subtitle}</p>
               <div className="mt-10 grid grid-cols-2 gap-4">
                 {rows.slice(0, 4).map((row, index) => (
-                  <div key={row.label} className="rounded-xl p-4" style={{ background: index % 2 ? theme.soft : "rgba(255,255,255,.52)" }}>
+                  <div key={row.label} className="rounded-xl p-4" style={{ background: index % 2 ? theme.soft : theme.bg }}>
                     <div className="text-sm font-bold opacity-65">{row.label}</div>
                     <div className="mt-2 text-2xl font-black">{["42%", "26%", "16%", "16%"][index]}</div>
                   </div>
@@ -893,7 +893,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
                   <div className="text-sm font-bold uppercase opacity-70">{tier}</div>
                   <div className="mt-5 text-5xl font-black">{["$499", "$1.5k", "$4k"][index]}</div>
                   {items.slice(0, 3).map((item) => (
-                    <div key={item.label} className="mt-5 border-t pt-4 text-sm leading-relaxed opacity-85" style={{ borderColor: index === 1 ? "rgba(255,255,255,.25)" : "rgba(15,23,42,.12)" }}>
+                    <div key={item.label} className="mt-5 border-t pt-4 text-sm leading-relaxed opacity-85" style={{ borderColor: theme.stroke }}>
                       {item.label}
                     </div>
                   ))}
@@ -917,7 +917,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
                   key={index}
                   className="flex items-end rounded-lg p-4 text-sm font-bold"
                   style={{
-                    background: index % 5 === 0 ? theme.accent : index % 3 === 0 ? theme.soft : "rgba(255,255,255,.5)",
+                    background: index % 5 === 0 ? theme.accent : index % 3 === 0 ? theme.soft : theme.bg,
                     color: index % 5 === 0 ? theme.primaryText : theme.fg,
                     opacity: 0.72 + (index % 4) * 0.07,
                   }}
@@ -959,7 +959,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
             </div>
             <div className="flex flex-col justify-center gap-4">
               {items.concat(items).slice(0, 6).map((item, index) => (
-                <div key={`${item.label}-${index}`} className="grid grid-cols-[80px_1fr] items-center rounded-2xl p-4" style={{ background: index % 2 ? theme.soft : "rgba(255,255,255,.62)" }}>
+                <div key={`${item.label}-${index}`} className="grid grid-cols-[80px_1fr] items-center rounded-2xl p-4" style={{ background: index % 2 ? theme.soft : theme.bg }}>
                   <div className="text-4xl font-black" style={{ color: theme.accent }}>{String(index + 1).padStart(2, "0")}</div>
                   <div>
                     <h3 className="text-xl font-black">{item.label}</h3>
