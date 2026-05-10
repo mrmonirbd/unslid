@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRightFromLine, ArrowUpRight, Download, FileSpreadsheet, Home, Loader2, Minus, MoveDiagonal, Plus, Save, Sparkles, Trash2, Type } from "lucide-react";
+import { ArrowLeft, ArrowRightFromLine, ArrowUpRight, Download, FileSpreadsheet, Home, Loader2, MessageSquare, Mic2, Minus, MoveDiagonal, Pencil, Plus, Save, Sparkles, Trash2, Type, Video } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -169,31 +169,58 @@ const revealTypableText = (value: unknown, characterBudget: { remaining: number 
   return value;
 };
 
-const buildTypedPresentationData = (presentationData: any, visibleCharacters: number) => {
-  if (!presentationData) return null;
-  return revealTypableText(structuredClone(presentationData), { remaining: visibleCharacters });
+const buildSequentialTypedPresentationData = (
+  presentationData: any,
+  activeSlideIndex: number,
+  visibleCharacters: number
+) => {
+  if (!presentationData?.slides?.length) return presentationData;
+  const nextPresentation = structuredClone(presentationData);
+  nextPresentation.slides = presentationData.slides.slice(0, activeSlideIndex + 1).map((slide: any, index: number) => {
+    if (index < activeSlideIndex) return structuredClone(slide);
+    return revealTypableText(structuredClone(slide), { remaining: visibleCharacters });
+  });
+  return nextPresentation;
 };
 
-const hasPendingGeneratedImage = (value: unknown): boolean => {
-  if (!value || typeof value !== "object") return false;
-  if (Array.isArray(value)) return value.some(hasPendingGeneratedImage);
+function SlideHoverToolbar({ onAi }: { onAi: () => void }) {
+  const tools = [
+    { label: "Edit", icon: Pencil },
+    { label: "Narration", icon: Mic2 },
+    { label: "AI", icon: Sparkles, active: true, onClick: onAi },
+    { label: "Video", icon: Video },
+    { label: "Comments", icon: MessageSquare },
+    { label: "Delete", icon: Trash2 },
+  ];
 
-  const record = value as Record<string, unknown>;
-  if (typeof record.__image_prompt__ === "string") {
-    const imageUrl = typeof record.__image_url__ === "string" ? record.__image_url__ : "";
-    return !imageUrl || imageUrl.includes("placeholder");
-  }
-
-  return Object.values(record).some(hasPendingGeneratedImage);
-};
-
-function ImageUpdatingOverlay({ show }: { show: boolean }) {
-  if (!show) return null;
   return (
-    <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-black/20">
-      <div className="flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-slate-800 shadow-lg">
-        <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
-        Updating images...
+    <div className="pointer-events-none absolute right-4 top-4 z-[70] opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur">
+        {tools.map((tool) => {
+          const Icon = tool.icon;
+          return (
+            <button
+              key={tool.label}
+              type="button"
+              title={tool.label}
+              onClick={(event) => {
+                event.stopPropagation();
+                tool.onClick?.();
+              }}
+              className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${
+                tool.active
+                  ? "border-violet-100 bg-violet-100 text-violet-700"
+                  : "border-slate-100 bg-slate-50 text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              {tool.label === "AI" ? (
+                <span className="text-xs font-bold">AI</span>
+              ) : (
+                <Icon className="h-4 w-4" />
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -1104,11 +1131,15 @@ function StaticTemplateEditor({
     };
   }, [children, selectElement, storageKey]);
 
-  const saveEdits = () => {
+  const persistEdits = () => {
     const root = rootRef.current;
     if (!root) return;
     window.localStorage.setItem(storageKey, cleanStaticEditorHtml(root));
     saveStaticTemplateEditIndex(savedTemplateMeta);
+  };
+
+  const saveEdits = () => {
+    persistEdits();
     setSaveState("saved");
     setTimeout(() => setSaveState("idle"), 1400);
   };
@@ -1137,6 +1168,11 @@ function StaticTemplateEditor({
     if (!element || !(element instanceof HTMLImageElement) || !url.trim()) return;
     element.src = url.trim();
     setImageUrl(url.trim());
+    window.setTimeout(() => {
+      persistEdits();
+      setSaveState("saved");
+      window.setTimeout(() => setSaveState("idle"), 1400);
+    }, 0);
   };
 
   const replaceImageFile = (file: File) => {
@@ -1236,6 +1272,11 @@ function StaticTemplateEditor({
             activeImageElement.src = newImageUrl;
             setImageUrl(newImageUrl);
             setActiveImageElement(null);
+            window.setTimeout(() => {
+              persistEdits();
+              setSaveState("saved");
+              window.setTimeout(() => setSaveState("idle"), 1400);
+            }, 0);
           }}
         />
       )}
@@ -1401,10 +1442,16 @@ const GroupLayoutPreview = () => {
   const [aiGenerationMessage, setAiGenerationMessage] = useState("");
   const [rawGeneratedPresentationData, setRawGeneratedPresentationData] = useState<any | null>(null);
   const [generatedPresentationData, setGeneratedPresentationData] = useState<any | null>(null);
-  const [activeUpdatingSlideIndex, setActiveUpdatingSlideIndex] = useState<number | null>(null);
+  const [generatedPresentationVersion, setGeneratedPresentationVersion] = useState("sample");
+  const [, setActiveUpdatingSlideIndex] = useState<number | null>(null);
   const typedVisibleCharactersRef = useRef(0);
+  const generationRunRef = useRef(0);
   const { user } = useUser();
   const isAdmin = !!user?.is_admin;
+  const userStorageId = user?.id || user?.email ? String(user.id || user.email) : "";
+  const generatedPreviewStorageKey = userStorageId
+    ? `template-preview-ai-generated:${userStorageId}:${templateParams}`
+    : "";
 
 
   // Fetch static templates if not custom
@@ -1432,6 +1479,63 @@ const GroupLayoutPreview = () => {
         .find(Boolean);
       element?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 80);
+  };
+
+  const saveGeneratedPreviewData = (data: any) => {
+    if (!generatedPreviewStorageKey || typeof window === "undefined" || !data?.slides?.length) return "";
+    const updatedAt = new Date().toISOString();
+    window.localStorage.setItem(
+      generatedPreviewStorageKey,
+      JSON.stringify({
+        data,
+        updatedAt,
+      })
+    );
+    return updatedAt;
+  };
+
+  const revealPresentationSequentially = async (presentationData: any) => {
+    if (!presentationData?.slides?.length) return;
+
+    const runId = ++generationRunRef.current;
+    setRawGeneratedPresentationData(presentationData);
+    setGeneratedPresentationData({ ...presentationData, slides: [] });
+    typedVisibleCharactersRef.current = 0;
+
+    for (let slideIndex = 0; slideIndex < presentationData.slides.length; slideIndex += 1) {
+      if (runId !== generationRunRef.current) return;
+
+      const slide = presentationData.slides[slideIndex];
+      const totalCharacters = countTypableCharacters(slide);
+      const step = Math.max(6, Math.ceil(Math.max(totalCharacters, 1) / 90));
+      let visibleCharacters = totalCharacters === 0 ? 1 : 0;
+
+      setActiveUpdatingSlideIndex(slideIndex);
+      setAiGenerationMessage(`Updating slide ${slideIndex + 1} of ${presentationData.slides.length}...`);
+      scrollToPreviewSlide(slideIndex);
+
+      while (visibleCharacters < Math.max(totalCharacters, 1)) {
+        if (runId !== generationRunRef.current) return;
+
+        visibleCharacters = Math.min(Math.max(totalCharacters, 1), visibleCharacters + step);
+        typedVisibleCharactersRef.current += step;
+        setGeneratedPresentationData(
+          buildSequentialTypedPresentationData(presentationData, slideIndex, visibleCharacters)
+        );
+        await new Promise((resolve) => window.setTimeout(resolve, 24));
+      }
+
+      setGeneratedPresentationData({
+        ...presentationData,
+        slides: presentationData.slides.slice(0, slideIndex + 1),
+      });
+      await new Promise((resolve) => window.setTimeout(resolve, 320));
+    }
+
+    if (runId !== generationRunRef.current) return;
+    typedVisibleCharactersRef.current = countTypableCharacters(presentationData);
+    setGeneratedPresentationData(presentationData);
+    setActiveUpdatingSlideIndex(null);
   };
 
   const streamGeneratedOutlines = async (presentationId: string) => {
@@ -1481,6 +1585,8 @@ const GroupLayoutPreview = () => {
       const eventSource = new EventSource(url);
       let accumulatedChunks = "";
 
+      let isSettled = false;
+
       eventSource.addEventListener("response", (event) => {
         const data = JSON.parse(event.data);
 
@@ -1489,10 +1595,6 @@ const GroupLayoutPreview = () => {
           try {
             const partialData = JSON.parse(jsonrepair(accumulatedChunks));
             if (partialData?.slides?.length) {
-              const activeIndex = partialData.slides.length - 1;
-              setRawGeneratedPresentationData(partialData);
-              setActiveUpdatingSlideIndex(activeIndex);
-              scrollToPreviewSlide(activeIndex);
               setAiGenerationMessage(`Generating slide ${partialData.slides.length}...`);
             }
           } catch {
@@ -1502,15 +1604,18 @@ const GroupLayoutPreview = () => {
         }
 
         if (data.type === "complete" || data.type === "closing") {
+          if (isSettled) return;
+          isSettled = true;
           eventSource.close();
           const finalIndex = Math.max((data.presentation?.slides?.length || 1) - 1, 0);
-          setGeneratedPresentationData(
-            buildTypedPresentationData(data.presentation, typedVisibleCharactersRef.current)
-          );
-          setRawGeneratedPresentationData(data.presentation);
-          setActiveUpdatingSlideIndex(finalIndex);
-          scrollToPreviewSlide(finalIndex);
-          resolve(data.presentation);
+          const updatedAt = saveGeneratedPreviewData(data.presentation);
+          revealPresentationSequentially(data.presentation)
+            .then(() => {
+              setGeneratedPresentationVersion(updatedAt ? `saved-${updatedAt}` : `generated-${Date.now()}`);
+              scrollToPreviewSlide(finalIndex);
+              resolve(data.presentation);
+            })
+            .catch(reject);
           return;
         }
 
@@ -1546,31 +1651,30 @@ const GroupLayoutPreview = () => {
   }, [isCustom, isDesigner, router, staticGroup?.id, staticGroup?.slug, templateParams]);
 
   useEffect(() => {
+    if (!generatedPreviewStorageKey || typeof window === "undefined") return;
+
+    const savedPayload = window.localStorage.getItem(generatedPreviewStorageKey);
+    if (!savedPayload) return;
+
+    try {
+      const parsed = JSON.parse(savedPayload);
+      const savedData = parsed?.data;
+      if (!savedData?.slides?.length) return;
+
+      typedVisibleCharactersRef.current = countTypableCharacters(savedData);
+      setRawGeneratedPresentationData(savedData);
+      setGeneratedPresentationData(savedData);
+      setGeneratedPresentationVersion(`saved-${parsed?.updatedAt || "local"}`);
+    } catch {
+      window.localStorage.removeItem(generatedPreviewStorageKey);
+    }
+  }, [generatedPreviewStorageKey]);
+
+  useEffect(() => {
     if (!rawGeneratedPresentationData) {
       typedVisibleCharactersRef.current = 0;
       setGeneratedPresentationData(null);
-      return;
     }
-
-    const totalCharacters = countTypableCharacters(rawGeneratedPresentationData);
-    if (totalCharacters === 0) {
-      setGeneratedPresentationData(rawGeneratedPresentationData);
-      return;
-    }
-
-    let visibleCharacters = Math.min(typedVisibleCharactersRef.current, totalCharacters);
-    const step = Math.max(8, Math.ceil(totalCharacters / 140));
-    const interval = window.setInterval(() => {
-      visibleCharacters = Math.min(totalCharacters, visibleCharacters + step);
-      typedVisibleCharactersRef.current = visibleCharacters;
-      setGeneratedPresentationData(buildTypedPresentationData(rawGeneratedPresentationData, visibleCharacters));
-      if (visibleCharacters >= totalCharacters) {
-        setActiveUpdatingSlideIndex(null);
-        window.clearInterval(interval);
-      }
-    }, 22);
-
-    return () => window.clearInterval(interval);
   }, [rawGeneratedPresentationData]);
 
   useEffect(() => {
@@ -1730,7 +1834,7 @@ const GroupLayoutPreview = () => {
         return {
           layout: {
             name: designerHtmlTemplate.id,
-            ordered: false,
+            ordered: true,
             slides: designerHtmlTemplate.layouts.map((layout) => ({
               id: designerHtmlTemplate.id.startsWith("custom-")
                 ? `${designerHtmlTemplate.id}:${layout.layoutId}`
@@ -1769,7 +1873,7 @@ const GroupLayoutPreview = () => {
       return {
         layout: {
           name: customTemplate.id,
-          ordered: false,
+          ordered: true,
           slides: customTemplate.layouts.map((layout) => ({
             id: customTemplate.id.startsWith("custom-")
               ? `${customTemplate.id}:${layout.layoutId}`
@@ -1788,7 +1892,7 @@ const GroupLayoutPreview = () => {
     return {
       layout: {
         name: resolvedStaticTemplateId,
-        ordered: false,
+        ordered: true,
         slides: staticTemplates.map((layout) => ({
           id: getTemplateScopedLayoutId(resolvedStaticTemplateId, layout.layoutId),
           name: layout.layoutName,
@@ -1817,6 +1921,8 @@ const GroupLayoutPreview = () => {
     try {
       setAiPromptModalOpen(false);
       setAiGenerating(true);
+      generationRunRef.current += 1;
+      setGeneratedPresentationVersion(`generating-${Date.now()}`);
       typedVisibleCharactersRef.current = 0;
       setRawGeneratedPresentationData(null);
       setGeneratedPresentationData(null);
@@ -2071,11 +2177,12 @@ const GroupLayoutPreview = () => {
 
                   <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
                     <StaticTemplateEditor
+                      key={`${resolvedStaticTemplateId}-${template.layoutId}-${generatedPresentationVersion}`}
                       storageKey={[
                         "static-template-edits",
                         user?.id || user?.email || "guest",
                         resolvedStaticTemplateId,
-                        generatedPresentationData?.id || "sample",
+                        generatedPresentationVersion,
                         template.layoutId,
                       ].join(":")}
                       editorId={`${resolvedStaticTemplateId}-${template.layoutId}-${index}`}
@@ -2094,8 +2201,8 @@ const GroupLayoutPreview = () => {
                         className="relative flex-shrink-0"
                         style={{ width: "1280px", height: "720px" }}
                       >
+                        <SlideHoverToolbar onAi={() => setAiPromptModalOpen(true)} />
                         <LayoutComponent data={generatedSlide?.content ?? template.sampleData} />
-                        <ImageUpdatingOverlay show={aiGenerating && hasPendingGeneratedImage(generatedSlide?.content)} />
                       </div>
                     </StaticTemplateEditor>
                   </div>
@@ -2160,17 +2267,18 @@ const GroupLayoutPreview = () => {
                           className="relative flex-shrink-0"
                           style={{ width: "1280px", height: "720px" }}
                         >
+                          <SlideHoverToolbar onAi={() => setAiPromptModalOpen(true)} />
                           <LayoutComponent data={generatedSlide?.content ?? layout.sampleData} />
-                          <ImageUpdatingOverlay show={aiGenerating && hasPendingGeneratedImage(generatedSlide?.content)} />
                         </div>
                       </AdminEditableLayout>
                     ) : (
                       <StaticTemplateEditor
+                        key={`${templateParams}-${layout.layoutId}-${generatedPresentationVersion}`}
                         storageKey={[
                           "designer-html-template-preview-edits",
                           user?.id || user?.email || "guest",
                           templateParams,
-                          generatedPresentationData?.id || "sample",
+                          generatedPresentationVersion,
                           layout.layoutId,
                         ].join(":")}
                         editorId={`${templateParams}-${layout.layoutId}-${index}`}
@@ -2189,8 +2297,8 @@ const GroupLayoutPreview = () => {
                           className="relative flex-shrink-0"
                           style={{ width: "1280px", height: "720px" }}
                         >
+                          <SlideHoverToolbar onAi={() => setAiPromptModalOpen(true)} />
                           <LayoutComponent data={generatedSlide?.content ?? layout.sampleData} />
-                          <ImageUpdatingOverlay show={aiGenerating && hasPendingGeneratedImage(generatedSlide?.content)} />
                         </div>
                       </StaticTemplateEditor>
                     )}
@@ -2254,6 +2362,7 @@ const GroupLayoutPreview = () => {
                       className="relative flex-shrink-0 bg-white"
                       style={{ width: "1280px", height: "720px" }}
                     >
+                      <SlideHoverToolbar onAi={() => setAiPromptModalOpen(true)} />
                       {generatedSlide?.content && designerTemplateId ? (
                         <DesignerTemplateSlideRender
                           templateId={designerTemplateId}
@@ -2295,7 +2404,6 @@ const GroupLayoutPreview = () => {
                       </div>
                         </>
                       )}
-                      <ImageUpdatingOverlay show={aiGenerating && hasPendingGeneratedImage(generatedSlide?.content)} />
                     </div>
                   </div>
                 </Card>
@@ -2348,11 +2456,12 @@ const GroupLayoutPreview = () => {
 
                   <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
                     <StaticTemplateEditor
+                      key={`${templateParams}-${layout.layoutId}-${generatedPresentationVersion}`}
                       storageKey={[
                         "custom-template-preview-edits",
                         user?.id || user?.email || "guest",
                         templateParams,
-                        generatedPresentationData?.id || "sample",
+                        generatedPresentationVersion,
                         layout.layoutId,
                       ].join(":")}
                       editorId={`${templateParams}-${layout.layoutId}-${index}`}
@@ -2371,8 +2480,8 @@ const GroupLayoutPreview = () => {
                         className="relative flex-shrink-0"
                         style={{ width: "1280px", height: "720px" }}
                       >
+                        <SlideHoverToolbar onAi={() => setAiPromptModalOpen(true)} />
                         <LayoutComponent data={generatedSlide?.content ?? layout.sampleData} />
-                        <ImageUpdatingOverlay show={aiGenerating && hasPendingGeneratedImage(generatedSlide?.content)} />
                       </div>
                     </StaticTemplateEditor>
                   </div>
