@@ -1724,7 +1724,7 @@ const GroupLayoutPreview = () => {
 
       const slide = presentationData.slides[slideIndex];
       const totalCharacters = countTypableCharacters(slide);
-      const step = Math.max(6, Math.ceil(Math.max(totalCharacters, 1) / 90));
+      const step = Math.max(1, Math.ceil(Math.max(totalCharacters, 1) / 260));
       let visibleCharacters = totalCharacters === 0 ? 1 : 0;
 
       setActiveUpdatingSlideIndex(slideIndex);
@@ -1739,14 +1739,15 @@ const GroupLayoutPreview = () => {
         setGeneratedPresentationData(
           buildSequentialTypedPresentationData(presentationData, slideIndex, visibleCharacters)
         );
-        await new Promise((resolve) => window.setTimeout(resolve, 24));
+        const humanDelay = 48 + Math.floor(Math.random() * 34);
+        await new Promise((resolve) => window.setTimeout(resolve, humanDelay));
       }
 
       setGeneratedPresentationData({
         ...presentationData,
         slides: presentationData.slides.slice(0, slideIndex + 1),
       });
-      await new Promise((resolve) => window.setTimeout(resolve, 320));
+      await new Promise((resolve) => window.setTimeout(resolve, 520));
     }
 
     if (runId !== generationRunRef.current) return;
