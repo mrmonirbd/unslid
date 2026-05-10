@@ -821,11 +821,15 @@ function makeTextElementsEditable(root: HTMLElement, onSelect: (element: HTMLEle
 function AdminEditableLayout({
   layout,
   templateId,
+  templateName,
+  templateDescription,
   onSaved,
   children,
 }: {
   layout: CustomTemplateLayout;
   templateId: string;
+  templateName?: string;
+  templateDescription?: string;
   onSaved?: () => void;
   children: React.ReactNode;
 }) {
@@ -892,16 +896,31 @@ function AdminEditableLayout({
     try {
       setSaving(true);
       const html = cleanEditedLayoutHtml(rootRef.current);
-      await api.put("/api/v1/ppt/template/update", {
-        id: templateId,
+      const normalizedTemplateId = templateId.replace(/^custom-/, "");
+      const layoutCode = buildStaticLayoutCode(layout, html);
+
+      await api.post("/api/v1/ppt/template-management/templates", {
+        id: normalizedTemplateId,
+        name: templateName || normalizedTemplateId,
+        description: templateDescription || "Admin editable template",
+      });
+
+      const data = await api.post<any>("/api/v1/ppt/template-management/save-templates", {
         layouts: [
           {
-            layout_id: layout.rawLayoutId,
+            presentation: normalizedTemplateId,
+            layout_id: layout.rawLayoutId || layout.layoutId,
             layout_name: layout.rawLayoutName || layout.layoutName || "Custom Layout",
-            layout_code: buildStaticLayoutCode(layout, html),
+            layout_code: layoutCode,
+            fonts: [] as string[],
           },
         ],
       });
+
+      if (data && data.success === false) {
+        throw new Error(data.message || "Failed to save layout");
+      }
+
       toast.success("Template layout saved");
       onSaved?.();
     } catch (error) {
@@ -2535,10 +2554,12 @@ const GroupLayoutPreview = () => {
                   </div>
 
                   <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
-                    {isAdmin && customTemplateId ? (
+                    {isAdmin && designerHtmlTemplate?.id ? (
                       <AdminEditableLayout
                         layout={layout}
-                        templateId={customTemplateId}
+                        templateId={designerHtmlTemplate.id}
+                        templateName={resolvedTemplateName}
+                        templateDescription={templateDescription}
                         onSaved={() => toast.success("Reload the page to see the saved compiled version")}
                       >
                         <div
@@ -2735,35 +2756,55 @@ const GroupLayoutPreview = () => {
                   </div>
 
                   <div className="bg-gray-100 p-6 flex justify-center overflow-x-auto">
-                    <StaticTemplateEditor
-                      key={`${templateParams}-${layout.layoutId}-${generatedPresentationVersion}`}
-                      storageKey={[
-                        "custom-template-preview-edits",
-                        user?.id || user?.email || "guest",
-                        templateParams,
-                        generatedPresentationVersion,
-                        layout.layoutId,
-                      ].join(":")}
-                      editorId={`${templateParams}-${layout.layoutId}-${index}`}
-                      onPanelStateChange={setStaticEditorPanelState}
-                      savedTemplateMeta={{
-                        userKey: String(user?.id || user?.email || "guest"),
-                        templateId: templateParams,
-                        name: resolvedTemplateName,
-                        description: templateDescription,
-                        layoutCount,
-                      }}
-                    >
-                      <div
-                        id={previewTargetId}
-                        data-template-preview-slide="true"
-                        className="relative flex-shrink-0"
-                        style={{ width: "1280px", height: "720px" }}
+                    {isAdmin && customTemplateId ? (
+                      <AdminEditableLayout
+                        layout={layout}
+                        templateId={customTemplateId}
+                        templateName={resolvedTemplateName}
+                        templateDescription={templateDescription}
+                        onSaved={() => toast.success("Reload the page to see the saved compiled version")}
                       >
-                        <SlideHoverToolbar onAi={() => setAiPromptModalOpen(true)} />
-                        <LayoutComponent data={generatedSlide?.content ?? layout.sampleData} />
-                      </div>
-                    </StaticTemplateEditor>
+                        <div
+                          id={previewTargetId}
+                          data-template-preview-slide="true"
+                          className="relative flex-shrink-0"
+                          style={{ width: "1280px", height: "720px" }}
+                        >
+                          <SlideHoverToolbar onAi={() => setAiPromptModalOpen(true)} />
+                          <LayoutComponent data={generatedSlide?.content ?? layout.sampleData} />
+                        </div>
+                      </AdminEditableLayout>
+                    ) : (
+                      <StaticTemplateEditor
+                        key={`${templateParams}-${layout.layoutId}-${generatedPresentationVersion}`}
+                        storageKey={[
+                          "custom-template-preview-edits",
+                          user?.id || user?.email || "guest",
+                          templateParams,
+                          generatedPresentationVersion,
+                          layout.layoutId,
+                        ].join(":")}
+                        editorId={`${templateParams}-${layout.layoutId}-${index}`}
+                        onPanelStateChange={setStaticEditorPanelState}
+                        savedTemplateMeta={{
+                          userKey: String(user?.id || user?.email || "guest"),
+                          templateId: templateParams,
+                          name: resolvedTemplateName,
+                          description: templateDescription,
+                          layoutCount,
+                        }}
+                      >
+                        <div
+                          id={previewTargetId}
+                          data-template-preview-slide="true"
+                          className="relative flex-shrink-0"
+                          style={{ width: "1280px", height: "720px" }}
+                        >
+                          <SlideHoverToolbar onAi={() => setAiPromptModalOpen(true)} />
+                          <LayoutComponent data={generatedSlide?.content ?? layout.sampleData} />
+                        </div>
+                      </StaticTemplateEditor>
+                    )}
                   </div>
                 </Card>
               );
