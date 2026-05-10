@@ -319,9 +319,9 @@ export default function Home() {
     //     </div>
     //   </div>
     // </div>
-    <div className="flex h-screen">
+    <div className="flex min-h-dvh">
       <OnBoardingSlidebar />
-      <main className="w-full pl-20 pr-8 max-w-[1440px] mx-auto relative z-10">
+      <main className="relative z-10 mx-auto w-full max-w-[1440px] px-4 sm:px-6 md:pl-20 md:pr-8">
         {step === 3 && (
           <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
             {FINAL_STEP_CONFETTI_PIECES.map((piece, index) => (

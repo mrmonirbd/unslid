@@ -218,10 +218,10 @@ const DocumentsPreviewPage: React.FC = () => {
     if (!isDocument) return null;
 
     return (
-      <div className="h-full mr-4">
+      <div className="h-full md:mr-4">
         <div className="overflow-y-auto custom_scrollbar h-full">
           <div className="h-full w-full max-w-full flex flex-col mb-5">
-            <h1 className="text-2xl font-medium mb-5">Content:</h1>
+            <h1 className="mb-5 text-xl font-medium sm:text-2xl">Content:</h1>
             {downloadingDocuments.includes(selectedDocument) ? (
               <Skeleton className="w-full h-full" />
             ) : (
@@ -239,8 +239,7 @@ const DocumentsPreviewPage: React.FC = () => {
     if (!isOpen) return null;
 
     return (
-      <div className={`border-r border-gray-200 fixed xl:relative w-full z-50 xl:z-auto
-        transition-all duration-300 bg-white ease-in-out max-w-[200px] md:max-w-[300px] h-[85vh] rounded-md p-5`}>
+      <div className={`fixed inset-y-4 left-4 z-50 w-[min(300px,calc(100vw-2rem))] rounded-md border-r border-gray-200 bg-white p-5 shadow-2xl transition-all duration-300 ease-in-out xl:relative xl:inset-auto xl:z-auto xl:h-[85vh] xl:max-w-[300px] xl:shadow-none`}>
         <X
           onClick={() => setIsOpen(false)}
           className="text-black mb-4 ml-auto mr-0 cursor-pointer hover:text-gray-600"
@@ -322,7 +321,7 @@ const DocumentsPreviewPage: React.FC = () => {
         duration={showLoading.duration}
       />
       <Header />
-      <div className="flex mt-6 gap-4 font-instrument_sans">
+      <div className="mt-4 flex gap-4 px-3 font-instrument_sans sm:px-4 md:mt-6">
         {!isOpen && (
           <div className="fixed left-4 top-1/2 -translate-y-1/2 z-50">
             <ToolTip content="Open Panel">
@@ -338,14 +337,14 @@ const DocumentsPreviewPage: React.FC = () => {
 
         {renderSidebar()}
 
-        <div className="bg-white w-full mx-2 sm:mx-4 h-[calc(100vh-100px)] custom_scrollbar rounded-md overflow-y-auto py-6 pl-6">
+        <div className="custom_scrollbar h-[calc(100dvh-170px)] w-full rounded-md bg-white px-4 py-5 sm:mx-4 sm:h-[calc(100vh-100px)] sm:py-6 sm:pl-6">
           {renderDocumentContent()}
         </div>
 
-        <div className="fixed bottom-5 right-5">
+        <div className="fixed inset-x-4 bottom-24 z-40 sm:inset-x-auto sm:bottom-5 sm:right-5">
           <Button
             onClick={handleCreatePresentation}
-            className="flex items-center gap-2 px-8 py-6 rounded-sm text-md bg-[#5146E5] hover:bg-[#5146E5]/90"
+            className="flex w-full items-center justify-center gap-2 rounded-sm bg-[#5146E5] px-8 py-6 text-md hover:bg-[#5146E5]/90 sm:w-auto"
           >
             <span className="text-white font-semibold">Next</span>
             <ChevronRight />

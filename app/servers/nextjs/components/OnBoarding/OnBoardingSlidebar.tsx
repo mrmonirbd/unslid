@@ -2,7 +2,7 @@ import React from 'react'
 
 const OnBoardingSlidebar = () => {
     return (
-        <div className='bg-[#F6F6F9] w-[300px] relative'>
+        <div className='relative hidden w-[300px] shrink-0 bg-[#F6F6F9] md:block'>
             <img src="/Logo.png" alt="Unslid logo" className="absolute top-0 left-0 w-[128px] m-6" />
             <svg xmlns="http://www.w3.org/2000/svg" width="296" height="591" viewBox="0 0 296 591" fill="none">
                 <path d="M291.5 183.5C311.916 183.5 328.5 200.271 328.5 221C328.5 241.729 311.916 258.5 291.5 258.5C271.084 258.5 254.5 241.729 254.5 221C254.5 200.271 271.084 183.5 291.5 183.5Z" stroke="#EDEEEF" strokeWidth="3" />

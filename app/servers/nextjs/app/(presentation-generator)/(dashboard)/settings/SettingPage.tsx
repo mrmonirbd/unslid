@@ -183,7 +183,7 @@ const SettingsPage = () => {
       : "No image provider";
 
   return (
-    <div className="h-screen font-syne flex flex-col overflow-hidden relative">
+    <div className="relative flex min-h-dvh flex-col overflow-hidden font-syne md:h-screen">
       <div
         className='fixed z-0 bottom-[-14.5rem] left-0 w-full h-full'
         style={{
@@ -193,15 +193,15 @@ const SettingsPage = () => {
         }}
       />
 
-      <main className="w-full mx-auto gap-6   overflow-hidden flex ">
+      <main className="mx-auto flex w-full flex-1 flex-col gap-4 overflow-y-auto px-4 pb-28 md:flex-row md:gap-6 md:overflow-hidden md:px-0">
         <SettingSideBar mode={mode} setMode={setMode} selectedProvider={selectedProvider} setSelectedProvider={setSelectedProvider} />
-        <div className="w-full">
-          <div className="sticky top-0 right-0 z-50 py-[28px]   backdrop-blur mb-4 ">
-            <div className="flex  gap-3 items-center ">
-              <h3 className=" text-[28px] tracking-[-0.84px] font-unbounded font-normal text-black flex items-center gap-2">
+        <div className="min-w-0 w-full md:overflow-y-auto md:pr-5">
+          <div className="sticky top-0 right-0 z-50 mb-4 py-4 backdrop-blur md:py-[28px]">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <h3 className="flex items-center gap-2 font-unbounded text-2xl font-normal tracking-[-0.84px] text-black sm:text-[28px]">
                 Settings
               </h3>
-              <p className="text-[10px] px-2.5 py-0.5 rounded-[50px] text-[#7A5AF8] border border-[#EDEEEF]  font-medium ">
+              <p className="w-fit max-w-full rounded-[50px] border border-[#EDEEEF] px-2.5 py-0.5 text-[10px] font-medium text-[#7A5AF8]">
                 {textSummary} · {imageSummary}
               </p>
 
@@ -228,7 +228,7 @@ const SettingsPage = () => {
       </main>
 
       {/* Fixed Bottom Button */}
-      <div className=" mx-auto fixed bottom-20 right-5 ">
+      <div className="fixed inset-x-4 bottom-24 z-50 mx-auto md:inset-x-auto md:bottom-20 md:right-5">
         <button
           onClick={handleSaveConfig}
           disabled={buttonState.isDisabled}

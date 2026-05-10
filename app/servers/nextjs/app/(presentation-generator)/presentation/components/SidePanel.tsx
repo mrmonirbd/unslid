@@ -123,39 +123,39 @@ const SidePanel = ({
   }
 
   return (
-    <div className="bg-[#F6F6F9] pt-8 px-4 w-[200px]">
+    <div className="w-full bg-[#F6F6F9] px-3 py-3 md:w-[200px] md:px-4 md:pt-8">
 
       <img onClick={() => {
         router.push("/dashboard");
-      }} src="/logo-with-bg.png" alt="" className="w-10 h-10 cursor-pointer object-contain" />
+      }} src="/logo-with-bg.png" alt="" className="hidden h-10 w-10 cursor-pointer object-contain md:block" />
 
-      <Separator orientation="horizontal" className="my-6 " />
+      <Separator orientation="horizontal" className="my-6 hidden md:block" />
       <div
         className={`
-          fixed xl:relative h-full z-50 xl:z-auto 
+          relative h-full z-50 xl:z-auto
           transition-all duration-300 ease-in-out
         `}
       >
         <div
 
-          className="w-full h-[calc(100vh-120px)]   hide-scrollbar overflow-hidden slide-theme "
+          className="slide-theme hide-scrollbar h-auto w-full overflow-hidden md:h-[calc(100vh-120px)]"
         >
 
-          <p className="text-xl font-normal pb-3.5 text-[#000000]">Slides</p>
+          <p className="pb-2 text-sm font-normal text-[#000000] md:pb-3.5 md:text-xl">Slides</p>
 
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
-            <div className=" overflow-y-auto hide-scrollbar h-[calc(100%-140px)] space-y-3.5">
+            <div className="hide-scrollbar flex max-w-full gap-3 overflow-x-auto pb-2 md:block md:h-[calc(100%-140px)] md:space-y-3.5 md:overflow-y-auto md:pb-0">
               {isStreaming ? (
                 presentationData &&
                 presentationData?.slides.map((slide: any, index: number) => (
                   <div
                     key={`${slide.id}-${index}`}
                     onClick={() => onSlideClick(index)}
-                    className={` cursor-pointer ring-2   rounded-[12px] transition-all duration-200 ${selectedSlide === index ? ' ring-[#5141e5]' : 'ring-gray-200'
+                    className={`w-32 shrink-0 cursor-pointer ring-2 rounded-[12px] transition-all duration-200 md:w-auto ${selectedSlide === index ? ' ring-[#5141e5]' : 'ring-gray-200'
                       }`}
                   >
                     <div className=" bg-white pointer-events-none  relative overflow-hidden aspect-video">
@@ -189,12 +189,12 @@ const SidePanel = ({
             </div>
 
           </DndContext>
-          <Separator orientation="horizontal" className=" " />
+          <Separator orientation="horizontal" className="hidden md:block" />
 
           <button
             type="button"
             onClick={handleAddSlideClick}
-            className="pt-6 gap-2 flex flex-col py-2 duration-300 items-center justify-center rounded-lg cursor-pointer mx-auto"
+            className="mx-auto flex flex-row items-center justify-center gap-2 rounded-lg px-3 py-2 duration-300 md:flex-col md:pt-6"
           >
             <Plus className="w-3.5 h-3.5" />
             <span className="text-[11px] font-normal text-[#000000]">Add Slide</span>

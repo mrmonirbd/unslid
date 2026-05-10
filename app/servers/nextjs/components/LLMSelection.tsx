@@ -218,15 +218,15 @@ export default function LLMProviderSelection({
 
 
   return (
-    <div className="h-full flex flex-col mt-10">
+    <div className="mt-4 flex h-full min-w-0 flex-col md:mt-10">
       {/* Provider Selection - Fixed Header */}
-      <div className="p-2 rounded-2xl border border-gray-200">
+      <div className="overflow-x-auto rounded-2xl border border-gray-200 p-2">
         <Tabs
           value={llmConfig.LLM || "openai"}
           onValueChange={handleProviderChange}
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-6 bg-transparent h-10">
+          <TabsList className="grid h-auto min-w-[620px] grid-cols-6 bg-transparent md:h-10 md:min-w-0 md:w-full">
             <TabsTrigger value="openai">OpenAI</TabsTrigger>
             <TabsTrigger value="google">Google</TabsTrigger>
             <TabsTrigger value="anthropic">Anthropic</TabsTrigger>
@@ -238,7 +238,7 @@ export default function LLMProviderSelection({
       </div>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto p-6 pt-0 custom_scrollbar">
+      <div className="custom_scrollbar flex-1 overflow-x-auto overflow-y-auto p-0 pt-0 sm:p-4 md:p-6 md:pt-0">
         <Tabs
           value={llmConfig.LLM || "openai"}
           onValueChange={handleProviderChange}

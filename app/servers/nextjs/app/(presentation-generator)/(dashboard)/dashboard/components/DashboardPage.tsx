@@ -109,13 +109,13 @@ const DashboardPage: React.FC = () => {
   const usagePct = monthlyLimit ? Math.min(100, (thisMonth / monthlyLimit) * 100) : 0;
 
   return (
-    <div className="min-h-full px-8 pb-12 font-syne">
+    <div className="min-h-full px-4 pb-8 font-syne sm:px-6 md:px-8 md:pb-12">
 
       {/* Page header */}
       <div className="pt-8 pb-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+        <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-start">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
               {getGreeting()}{userName ? `, ${userName}` : ""} 👋
             </h1>
             <p className="text-slate-500 text-sm mt-1">
@@ -124,11 +124,11 @@ const DashboardPage: React.FC = () => {
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
             <button
               onClick={() => importInputRef.current?.click()}
               disabled={importing}
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-slate-600 text-sm font-medium bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-150 disabled:opacity-50 shadow-sm"
+              className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-600 shadow-sm transition-all duration-150 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 sm:px-4"
             >
               <Upload className="w-4 h-4" />
               {importing ? "Importing…" : "Import .pptx"}
@@ -142,7 +142,7 @@ const DashboardPage: React.FC = () => {
             />
             <Link
               href="/upload"
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-white text-sm font-semibold bg-violet-600 hover:bg-violet-500 rounded-xl transition-all duration-150 shadow-sm shadow-violet-500/25"
+              className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl bg-violet-600 px-3 py-2.5 text-sm font-semibold text-white shadow-sm shadow-violet-500/25 transition-all duration-150 hover:bg-violet-500 sm:px-4"
             >
               <Plus className="w-4 h-4" />
               New Presentation
@@ -151,7 +151,7 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Stats row */}
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 max-w-lg">
+        <div className="mt-6 grid max-w-lg grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:grid-cols-3 sm:gap-4">
           <div className="bg-white/95 rounded-xl border border-violet-100 px-4 py-3 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
               <LayoutGrid className="w-4 h-4 text-violet-500" />
@@ -174,7 +174,7 @@ const DashboardPage: React.FC = () => {
 
           {/* Usage bar — only for free plan with limit */}
           {userPlan === "free" && monthlyLimit && (
-            <div className="bg-white/95 rounded-xl border border-violet-100 px-4 py-3 shadow-sm col-span-2 sm:col-span-1">
+            <div className="col-span-1 rounded-xl border border-violet-100 bg-white/95 px-4 py-3 shadow-sm min-[420px]:col-span-2 sm:col-span-1">
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-violet-500" />

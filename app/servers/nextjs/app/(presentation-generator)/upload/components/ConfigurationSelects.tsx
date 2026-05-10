@@ -69,7 +69,7 @@ const SlideCountSelect: React.FC<{
     return (
         <Select value={value || ""} onValueChange={onValueChange} name="slides">
             <SelectTrigger
-                className="w-[140px]  font-instrument_sans font-medium bg-white text-slate-700 hover:bg-slate-50 focus-visible:ring-[#5146E5]/30 flex items-center gap-2 h-10 rounded-xl px-3 ring-1 ring-inset ring-slate-200 shadow-sm"
+                className="h-10 w-full font-instrument_sans font-medium bg-white text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 focus-visible:ring-[#5146E5]/30 sm:w-[140px] flex items-center gap-2 rounded-xl px-3 shadow-sm"
                 data-testid="slides-select"
             >
                 <div className="flex items-center gap-2.5"><GalleryVertical className="w-4 h-4" /> <SelectValue placeholder="Select Slides" /></div>
@@ -147,7 +147,7 @@ const LanguageSelect: React.FC<{
                 name="language"
                 data-testid="language-select"
                 aria-expanded={open}
-                className="w-[180px] flex justify-between items-center gap-2 font-instrument_sans font-semibold overflow-hidden bg-white text-slate-700   h-10 rounded-xl px-3 ring-1 ring-inset ring-slate-200 shadow-sm"
+                className="flex h-10 w-full items-center justify-between gap-2 overflow-hidden rounded-xl bg-white px-3 font-instrument_sans font-semibold text-slate-700 ring-1 ring-inset ring-slate-200 shadow-sm sm:w-[180px]"
             >
                 <span className="flex justify-center items-center gap-2.5">
                     <span className="border border-slate-200  rounded-md p-1">
@@ -160,7 +160,7 @@ const LanguageSelect: React.FC<{
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[300px] p-0" align="end">
+        <PopoverContent className="w-[min(300px,calc(100vw-2rem))] p-0" align="end">
             <Command>
                 <CommandInput
                     placeholder="Search language..."
@@ -237,7 +237,7 @@ export function ConfigurationSelects({
     };
 
     return (
-        <div className="flex flex-wrap order-1 gap-4 items-center">
+        <div className="grid w-full grid-cols-1 items-center gap-3 sm:flex sm:flex-wrap sm:gap-4">
             <SlideCountSelect
                 value={config.slides}
                 onValueChange={(value) => onConfigChange("slides", value)}
@@ -255,7 +255,7 @@ export function ConfigurationSelects({
                     title="Advanced settings"
                     type="button"
                     onClick={() => handleOpenAdvancedChange(true)}
-                    className="ml-auto flex items-center gap-2 text-sm bg-white text-slate-700 hover:bg-slate-50 focus-visible:ring-[#5146E5]/30 h-10 rounded-xl px-3 ring-1 ring-inset ring-slate-200 shadow-sm font-instrument_sans font-medium"
+                    className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-white px-3 font-instrument_sans text-sm font-medium text-slate-700 ring-1 ring-inset ring-slate-200 shadow-sm hover:bg-slate-50 focus-visible:ring-[#5146E5]/30 sm:ml-auto sm:w-auto"
                     data-testid="advanced-settings-button"
                 >
                     <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
@@ -263,7 +263,7 @@ export function ConfigurationSelects({
             </ToolTip>
 
             <Dialog open={openAdvanced} onOpenChange={handleOpenAdvancedChange}>
-                <DialogContent className="max-w-2xl font-instrument_sans">
+                <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto font-instrument_sans">
                     <DialogHeader>
                         <DialogTitle>Advanced settings</DialogTitle>
                     </DialogHeader>

@@ -95,7 +95,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="rounded-2xl border border-violet-100 bg-white/95 p-8 shadow-[0_18px_50px_rgba(124,58,237,0.12)] backdrop-blur">
+    <div className="rounded-2xl border border-violet-100 bg-white/95 p-5 shadow-[0_18px_50px_rgba(124,58,237,0.12)] backdrop-blur sm:p-8">
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-6">
         <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold transition ${step === "details" ? "bg-slate-950 text-white" : "bg-emerald-500 text-white"}`}>
