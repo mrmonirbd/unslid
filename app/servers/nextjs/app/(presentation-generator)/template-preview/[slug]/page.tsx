@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRightFromLine, ArrowUpRight, Download, FileSpreadsheet, Home, Loader2, MessageSquare, Mic2, Minus, MoveDiagonal, Pencil, Plus, Save, Sparkles, Trash2, Type, Video } from "lucide-react";
+import { ArrowLeft, ArrowRightFromLine, ArrowUpRight, Download, FileSpreadsheet, Home, Loader2, MessageSquare, Mic2, Minus, MoveDiagonal, Palette, Pencil, Plus, Save, Sparkles, Trash2, Type, Video } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import html2canvas from "html2canvas";
 import { jsonrepair } from "jsonrepair";
 
@@ -31,6 +32,9 @@ import { useUser } from "@/app/hooks/useUser";
 import { createClient } from "@/lib/auth/client";
 import DesignerTemplateSlideRender from "../../components/DesignerTemplateSlideRender";
 import ImageEditor from "../../components/ImageEditor";
+import { DEFAULT_THEMES } from "../../(dashboard)/theme/components/ThemePanel/constants";
+import { loadFonts } from "../../hooks/useFontLoad";
+import ThemeApi from "../../services/api/theme";
 
 interface PptxDesignerTemplate {
   id: number;
@@ -223,6 +227,155 @@ function SlideHoverToolbar({ onAi }: { onAi: () => void }) {
         })}
       </div>
     </div>
+  );
+}
+
+const TEMPLATE_THEME_VARIABLES = [
+  "--primary-color",
+  "--background-color",
+  "--card-color",
+  "--stroke",
+  "--primary-text",
+  "--background-text",
+  "--graph-0",
+  "--graph-1",
+  "--graph-2",
+  "--graph-3",
+  "--graph-4",
+  "--graph-5",
+  "--graph-6",
+  "--graph-7",
+  "--graph-8",
+  "--graph-9",
+  "--heading-font-family",
+  "--body-font-family",
+];
+
+const applyTemplateThemeToElement = (element: HTMLElement | null, theme: any | null) => {
+  if (!element) return;
+
+  TEMPLATE_THEME_VARIABLES.forEach((variable) => element.style.removeProperty(variable));
+  element.removeAttribute("data-template-theme-active");
+  element.style.removeProperty("font-family");
+
+  if (!theme?.data?.colors) return;
+
+  const colors = theme.data.colors;
+  const cssVariables: Record<string, string | undefined> = {
+    "--primary-color": colors.primary,
+    "--background-color": colors.background,
+    "--card-color": colors.card,
+    "--stroke": colors.stroke,
+    "--primary-text": colors.primary_text,
+    "--background-text": colors.background_text,
+    "--graph-0": colors.graph_0,
+    "--graph-1": colors.graph_1,
+    "--graph-2": colors.graph_2,
+    "--graph-3": colors.graph_3,
+    "--graph-4": colors.graph_4,
+    "--graph-5": colors.graph_5,
+    "--graph-6": colors.graph_6,
+    "--graph-7": colors.graph_7,
+    "--graph-8": colors.graph_8,
+    "--graph-9": colors.graph_9,
+  };
+
+  Object.entries(cssVariables).forEach(([key, value]) => {
+    if (value) element.style.setProperty(key, value);
+  });
+
+  const textFont = theme.data.fonts?.textFont;
+  if (textFont?.name) {
+    if (textFont.url) loadFonts({ [textFont.name]: textFont.url });
+    element.style.setProperty("font-family", `"${textFont.name}", Inter, Arial, sans-serif`);
+    element.style.setProperty("--heading-font-family", `"${textFont.name}", Inter, Arial, sans-serif`);
+    element.style.setProperty("--body-font-family", `"${textFont.name}", Inter, Arial, sans-serif`);
+  }
+
+  element.setAttribute("data-template-theme-active", "true");
+};
+
+function TemplateThemeSelector({
+  themes,
+  selectedTheme,
+  loading,
+  onApply,
+  onReset,
+}: {
+  themes: any[];
+  selectedTheme: any | null;
+  loading: boolean;
+  onApply: (theme: any) => void;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" className="gap-2 rounded-full">
+          <Palette className="h-4 w-4" />
+          {selectedTheme?.name || "Theme"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[420px] max-h-[440px] overflow-y-auto rounded-2xl">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Preset themes</h3>
+            <p className="text-xs text-slate-500">Apply a saved theme to this preview.</p>
+          </div>
+          <Button type="button" variant="ghost" size="sm" onClick={onReset}>
+            Reset
+          </Button>
+        </div>
+        {loading ? (
+          <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-4 text-sm text-slate-500">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading themes...
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {themes.map((theme) => (
+              <button
+                key={theme.id}
+                type="button"
+                onClick={() => {
+                  onApply(theme);
+                  setOpen(false);
+                }}
+                className={`rounded-xl border bg-white p-2 text-left shadow-sm transition hover:border-blue-300 ${
+                  selectedTheme?.id === theme.id ? "border-blue-500 ring-2 ring-blue-100" : "border-slate-200"
+                }`}
+              >
+                <div
+                  className="rounded-lg p-2"
+                  style={{ backgroundColor: theme.data?.colors?.background || "#fff" }}
+                >
+                  <div
+                    className="rounded-md p-3"
+                    style={{ backgroundColor: theme.data?.colors?.card || "#f3f4f6" }}
+                  >
+                    <div
+                      className="mb-2 h-2 w-16 rounded-full"
+                      style={{ backgroundColor: theme.data?.colors?.background_text || "#111827" }}
+                    />
+                    <div
+                      className="mb-1 h-2 w-12 rounded-full"
+                      style={{ backgroundColor: theme.data?.colors?.background_text || "#111827" }}
+                    />
+                    <div
+                      className="h-3 w-9 rounded-full"
+                      style={{ backgroundColor: theme.data?.colors?.primary || "#2563eb" }}
+                    />
+                  </div>
+                </div>
+                <p className="mt-2 truncate text-xs font-semibold text-slate-700">{theme.name}</p>
+              </button>
+            ))}
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -1498,6 +1651,9 @@ const GroupLayoutPreview = () => {
   const [aiPromptModalOpen, setAiPromptModalOpen] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiGenerationMessage, setAiGenerationMessage] = useState("");
+  const [availableThemes, setAvailableThemes] = useState<any[]>(DEFAULT_THEMES);
+  const [themesLoading, setThemesLoading] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState<any | null>(null);
   const [rawGeneratedPresentationData, setRawGeneratedPresentationData] = useState<any | null>(null);
   const [generatedPresentationData, setGeneratedPresentationData] = useState<any | null>(null);
   const [generatedPresentationVersion, setGeneratedPresentationVersion] = useState("sample");
@@ -1509,6 +1665,9 @@ const GroupLayoutPreview = () => {
   const userStorageId = user?.id || user?.email ? String(user.id || user.email) : "";
   const generatedPreviewStorageKey = userStorageId
     ? `template-preview-ai-generated:${userStorageId}:${templateParams}`
+    : "";
+  const selectedThemeStorageKey = userStorageId
+    ? `template-preview-theme:${userStorageId}:${templateParams}`
     : "";
 
 
@@ -1707,6 +1866,44 @@ const GroupLayoutPreview = () => {
       router.replace(`/template-preview/${staticGroup.slug}`);
     }
   }, [isCustom, isDesigner, router, staticGroup?.id, staticGroup?.slug, templateParams]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadThemes = async () => {
+      setThemesLoading(true);
+      try {
+        const customThemes = await ThemeApi.getThemes();
+        if (cancelled) return;
+        const mergedThemes = [...DEFAULT_THEMES, ...(Array.isArray(customThemes) ? customThemes : [])]
+          .filter((theme, index, themes) => theme?.data?.colors && themes.findIndex((item) => item.id === theme.id) === index);
+        setAvailableThemes(mergedThemes);
+      } catch (error) {
+        console.error("Failed to load custom themes", error);
+        if (!cancelled) setAvailableThemes(DEFAULT_THEMES);
+      } finally {
+        if (!cancelled) setThemesLoading(false);
+      }
+    };
+
+    loadThemes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedThemeStorageKey || typeof window === "undefined" || !availableThemes.length) return;
+    const savedThemeId = window.localStorage.getItem(selectedThemeStorageKey);
+    if (!savedThemeId) return;
+    const savedTheme = availableThemes.find((theme) => theme.id === savedThemeId);
+    if (savedTheme) setSelectedTheme(savedTheme);
+  }, [availableThemes, selectedThemeStorageKey]);
+
+  useEffect(() => {
+    applyTemplateThemeToElement(document.getElementById("presentation-page"), selectedTheme);
+  }, [generatedPresentationData, selectedTheme]);
 
   useEffect(() => {
     if (!generatedPreviewStorageKey || typeof window === "undefined") return;
@@ -1964,6 +2161,23 @@ const GroupLayoutPreview = () => {
     };
   };
 
+  const handleApplyTheme = (theme: any) => {
+    setSelectedTheme(theme);
+    if (selectedThemeStorageKey && typeof window !== "undefined") {
+      window.localStorage.setItem(selectedThemeStorageKey, theme.id);
+    }
+    toast.success(`${theme.name} theme applied`);
+  };
+
+  const handleResetTheme = () => {
+    setSelectedTheme(null);
+    if (selectedThemeStorageKey && typeof window !== "undefined") {
+      window.localStorage.removeItem(selectedThemeStorageKey);
+    }
+    applyTemplateThemeToElement(document.getElementById("presentation-page"), null);
+    toast.success("Theme reset");
+  };
+
   const handleGenerateWithAi = async () => {
     if (!aiPrompt.trim()) {
       toast.error("Please enter a prompt");
@@ -2038,6 +2252,35 @@ const GroupLayoutPreview = () => {
 
   return (
     <TemplatePreviewShell>
+      <style>{`
+        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] > div:first-child {
+          background: var(--background-color) !important;
+          color: var(--background-text) !important;
+          font-family: var(--body-font-family) !important;
+        }
+        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] h1,
+        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] h2,
+        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] h3,
+        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] h4,
+        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] h5,
+        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] h6 {
+          color: var(--background-text) !important;
+          font-family: var(--heading-font-family) !important;
+        }
+        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] p,
+        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] span,
+        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] li,
+        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] strong,
+        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] em {
+          color: inherit !important;
+          font-family: var(--body-font-family) !important;
+        }
+        #presentation-page[data-template-theme-active="true"] [data-template-preview-slide="true"] button {
+          background: var(--primary-color) !important;
+          color: var(--primary-text) !important;
+          border-color: var(--stroke) !important;
+        }
+      `}</style>
       {/* Header */}
       <header className="bg-white shadow-sm border-b sticky top-0 z-30">
         <div className=" mx-auto px-6 py-6">
@@ -2111,6 +2354,13 @@ const GroupLayoutPreview = () => {
               )}
               Generate with AI
             </Button>
+            <TemplateThemeSelector
+              themes={availableThemes}
+              selectedTheme={selectedTheme}
+              loading={themesLoading}
+              onApply={handleApplyTheme}
+              onReset={handleResetTheme}
+            />
             <FullPreviewDownloadDropdown title={resolvedTemplateName} />
           </div>
 
