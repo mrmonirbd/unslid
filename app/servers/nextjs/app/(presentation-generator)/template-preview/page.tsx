@@ -162,10 +162,10 @@ const LayoutPreview = () => {
   const totalCustomLayouts = customTemplates.reduce((acc: number, t: CustomTemplates) => acc + t.layoutCount, 0);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex min-h-dvh bg-gray-50 pb-20 md:h-screen md:overflow-hidden md:pb-0">
       <DashboardSidebar />
-      <div className="flex-1 h-screen overflow-y-auto">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="min-w-0 flex-1 md:h-screen md:overflow-y-auto">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">All Templates</h1>
           <p className="text-gray-600 mt-2">

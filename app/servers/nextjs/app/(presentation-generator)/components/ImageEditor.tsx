@@ -305,7 +305,7 @@ const ImageEditor = ({
       <Sheet open={isOpen} onOpenChange={() => handleClose()}>
         <SheetContent
           side="right"
-          className="w-[600px]"
+          className="w-[50vw] max-w-[600px] overflow-y-auto p-3 sm:min-w-[360px] sm:p-6"
           onOpenAutoFocus={(e) => e.preventDefault()}
           onClick={(e) => e.stopPropagation()}
         >
@@ -313,21 +313,21 @@ const ImageEditor = ({
             <SheetTitle>Update Image</SheetTitle>
           </SheetHeader>
 
-          <div className="mt-6">
+          <div className="mt-5">
             <Tabs defaultValue="generate" className="w-full" onValueChange={handleTabChange}>
-              <TabsList className="grid bg-blue-100 border border-blue-300 w-full grid-cols-3 mx-auto">
-                <TabsTrigger className="font-medium" value="generate">
+              <TabsList className="mx-auto grid h-auto w-full grid-cols-1 border border-blue-300 bg-blue-100 sm:grid-cols-3">
+                <TabsTrigger className="text-xs font-medium sm:text-sm" value="generate">
                   AI Generate
                 </TabsTrigger>
-                <TabsTrigger className="font-medium" value="upload">
+                <TabsTrigger className="text-xs font-medium sm:text-sm" value="upload">
                   Upload
                 </TabsTrigger>
-                <TabsTrigger className="font-medium" value="edit">
+                <TabsTrigger className="text-xs font-medium sm:text-sm" value="edit">
                   Edit
                 </TabsTrigger>
               </TabsList>
               {/* Generate Tab */}
-              <TabsContent value="generate" className="mt-4 space-y-4 overflow-y-auto hide-scrollbar h-[85vh]">
+              <TabsContent value="generate" className="hide-scrollbar mt-4 h-auto max-h-[calc(100dvh-150px)] space-y-4 overflow-y-auto">
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-sm font-medium mb-1">Current Prompt</h3>
@@ -357,7 +357,7 @@ const ImageEditor = ({
 
                   {error && <p className="text-red-500 text-sm">{error}</p>}
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                     {isGenerating || !previewImages ? (
                       Array.from({ length: 4 }).map((_, index) => (
                         <Skeleton
@@ -385,7 +385,7 @@ const ImageEditor = ({
                       <h3 className="text-sm font-medium mb-2">
                         Previous Generated Images
                       </h3>
-                      <div className="grid grid-cols-2 gap-4  ">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                         {previousGeneratedImages.map((image) => (
                           <div
                             onClick={() =>
@@ -408,7 +408,7 @@ const ImageEditor = ({
               </TabsContent>
 
               {/* Upload Tab */}
-              <TabsContent value="upload" className="mt-4 space-y-4">
+              <TabsContent value="upload" className="mt-4 max-h-[calc(100dvh-150px)] space-y-4 overflow-y-auto">
                 <div className="space-y-4">
                   <div
                     className={cn(
@@ -497,7 +497,7 @@ const ImageEditor = ({
                   )}
                   <div>
                     <h3 className="text-sm font-medium mb-2">Uploaded Images:</h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                       {uploadedImagesLoading ? (
                         <div className="flex items-center justify-center">
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -535,7 +535,7 @@ const ImageEditor = ({
                   </div>
                 </div>
               </TabsContent>
-              <TabsContent value="edit" className="mt-4 space-y-4">
+              <TabsContent value="edit" className="mt-4 max-h-[calc(100dvh-150px)] space-y-4 overflow-y-auto">
                 <div className="space-y-4">
                   <h3 className="text-sm font-medium mb-2">Current Image</h3>
                   <div
