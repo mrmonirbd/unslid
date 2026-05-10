@@ -782,7 +782,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                     </div>
                 </div>
 
-                <main className="px-6 py-8 md:px-10">
+                <main className="px-4 pb-32 pt-8 sm:px-6 md:px-10 md:pb-8">
                     <section>
                         <div className="mb-4 flex items-center justify-between gap-4">
                             <h2 className="text-2xl font-bold tracking-[-0.01em]">Explore templates</h2>
@@ -834,7 +834,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                         ) : filteredCustomTemplates.length + filteredEditedStaticTemplates.length === 0 && (normalizedQuery || activeTag) ? (
                             <EmptyTemplates label="matching" />
                         ) : (
-                            <div className="grid grid-cols-1 gap-6 pb-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                            <div className="grid grid-cols-1 gap-6 pb-24 md:grid-cols-2 md:pb-3 xl:grid-cols-3 2xl:grid-cols-4">
                                 {!normalizedQuery && !activeTag && (
                                     <div className="w-full">
                                         <CreateCustomTemplate />
@@ -869,7 +869,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                 </div>
             </div>
 
-            <main className="px-6 py-8 md:px-10">
+            <main className="px-4 pb-32 pt-8 sm:px-6 md:px-10 md:pb-8">
                 <section>
                     <div className="mb-4 flex items-center justify-between gap-4">
                         <h2 className="text-2xl font-bold tracking-[-0.01em]">Explore templates</h2>
@@ -924,8 +924,8 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                         <div
                             className={
                                 isGridLayout
-                                    ? "grid grid-cols-1 gap-6 pb-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
-                                    : "flex gap-6 overflow-x-auto pb-3"
+                                    ? "grid grid-cols-1 gap-6 pb-24 md:grid-cols-2 md:pb-3 xl:grid-cols-3 2xl:grid-cols-4"
+                                    : "flex gap-6 overflow-x-auto pb-24 md:pb-3"
                             }
                         >
                             {!normalizedQuery && !activeTag && (
