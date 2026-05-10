@@ -811,6 +811,7 @@ type StaticEditorPanelState = {
     setColor: (color: string) => void;
     replaceImage: (url: string) => void;
     replaceImageFile: (file: File) => void;
+    updateImageProperties: (propertiesData: any) => void;
     setAnimation: (animation: string) => void;
     enableResize: () => void;
     moveSelected: (dx: number, dy: number) => void;
@@ -837,6 +838,33 @@ const STATIC_EDITOR_ANIMATIONS: Record<string, string> = {
 };
 
 const STATIC_TEMPLATE_EDIT_INDEX_PREFIX = "static-template-edits:index:";
+
+const parseImageFocusPoint = (element: HTMLImageElement) => {
+  const computed = getComputedStyle(element);
+  const objectPosition = element.style.objectPosition || computed.objectPosition || "50% 50%";
+  const [rawX = "50%", rawY = "50%"] = objectPosition.split(/\s+/);
+  const parsePositionValue = (value: string, fallback: number) => {
+    if (value === "left" || value === "top") return 0;
+    if (value === "center") return 50;
+    if (value === "right" || value === "bottom") return 100;
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : fallback;
+  };
+  return {
+    x: parsePositionValue(rawX, 50),
+    y: parsePositionValue(rawY, 50),
+  };
+};
+
+const getImageEditorProperties = (element?: HTMLElement | null) => {
+  if (!(element instanceof HTMLImageElement)) return null;
+  const computed = getComputedStyle(element);
+  const fit = element.style.objectFit || computed.objectFit || "cover";
+  return [{
+    initialObjectFit: ["cover", "contain", "fill"].includes(fit) ? fit : "cover",
+    initialFocusPoint: parseImageFocusPoint(element),
+  }];
+};
 
 function saveStaticTemplateEditIndex(meta: StaticEditorSavedTemplateMeta) {
   const indexKey = `${STATIC_TEMPLATE_EDIT_INDEX_PREFIX}${meta.userKey}`;
@@ -950,12 +978,13 @@ function StaticTemplateEditPanel({ state }: { state: StaticEditorPanelState }) {
           initialImage={state.imageUrl}
           slideIndex={0}
           promptContent={`A realistic, high-quality presentation-related image for ${selection.label}. Professional photography, natural lighting, relevant to the slide content.`}
-          properties={null}
+          properties={getImageEditorProperties(selection.element)}
           onClose={() => setShowImageEditor(false)}
           onImageChange={(newImageUrl) => {
             actions.replaceImage(newImageUrl);
             setShowImageEditor(false);
           }}
+          onFocusPointClick={(propertiesData) => actions.updateImageProperties(propertiesData)}
         />
       )}
     </div>
@@ -1144,6 +1173,14 @@ function StaticTemplateEditor({
     setTimeout(() => setSaveState("idle"), 1400);
   };
 
+  const scheduleAutoSave = () => {
+    window.setTimeout(() => {
+      persistEdits();
+      setSaveState("saved");
+      window.setTimeout(() => setSaveState("idle"), 1400);
+    }, 0);
+  };
+
   const resetEdits = () => {
     window.localStorage.removeItem(storageKey);
     window.location.reload();
@@ -1168,11 +1205,7 @@ function StaticTemplateEditor({
     if (!element || !(element instanceof HTMLImageElement) || !url.trim()) return;
     element.src = url.trim();
     setImageUrl(url.trim());
-    window.setTimeout(() => {
-      persistEdits();
-      setSaveState("saved");
-      window.setTimeout(() => setSaveState("idle"), 1400);
-    }, 0);
+    scheduleAutoSave();
   };
 
   const replaceImageFile = (file: File) => {
@@ -1202,6 +1235,23 @@ function StaticTemplateEditor({
     });
   };
 
+  const updateImageProperties = (propertiesData: any) => {
+    const fit = propertiesData?.initialObjectFit;
+    const focusPoint = propertiesData?.initialFocusPoint;
+
+    applyToSelected((element) => {
+      if (!(element instanceof HTMLImageElement)) return;
+      if (["cover", "contain", "fill"].includes(fit)) {
+        element.style.objectFit = fit;
+      }
+      if (focusPoint && Number.isFinite(focusPoint.x) && Number.isFinite(focusPoint.y)) {
+        element.style.objectPosition = `${focusPoint.x}% ${focusPoint.y}%`;
+      }
+    });
+
+    scheduleAutoSave();
+  };
+
   useEffect(() => {
     if (!selection) return;
     onPanelStateChange({
@@ -1222,6 +1272,7 @@ function StaticTemplateEditor({
         setColor: (color) => applyToSelected((element) => { element.style.color = color; }),
         replaceImage,
         replaceImageFile,
+        updateImageProperties,
         setAnimation: (nextAnimation) => {
           setAnimation(nextAnimation);
           applyToSelected((element) => { element.style.animation = STATIC_EDITOR_ANIMATIONS[nextAnimation]; });
@@ -1266,17 +1317,24 @@ function StaticTemplateEditor({
           initialImage={activeImageElement.src}
           slideIndex={0}
           promptContent={buildImagePrompt(activeImageElement)}
-          properties={null}
+          properties={getImageEditorProperties(activeImageElement)}
           onClose={() => setActiveImageElement(null)}
           onImageChange={(newImageUrl) => {
             activeImageElement.src = newImageUrl;
             setImageUrl(newImageUrl);
             setActiveImageElement(null);
-            window.setTimeout(() => {
-              persistEdits();
-              setSaveState("saved");
-              window.setTimeout(() => setSaveState("idle"), 1400);
-            }, 0);
+            scheduleAutoSave();
+          }}
+          onFocusPointClick={(propertiesData) => {
+            const fit = propertiesData?.initialObjectFit;
+            const focusPoint = propertiesData?.initialFocusPoint;
+            if (["cover", "contain", "fill"].includes(fit)) {
+              activeImageElement.style.objectFit = fit;
+            }
+            if (focusPoint && Number.isFinite(focusPoint.x) && Number.isFinite(focusPoint.y)) {
+              activeImageElement.style.objectPosition = `${focusPoint.x}% ${focusPoint.y}%`;
+            }
+            scheduleAutoSave();
           }}
         />
       )}

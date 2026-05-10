@@ -9,7 +9,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Wand2, Upload, Loader2, Delete, Trash } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Crosshair, Wand2, Upload, Loader2, Trash } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PresentationGenerationApi } from "../services/api/presentation-generation";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -163,9 +163,35 @@ const ImageEditor = ({
 
     if (imageRef.current) {
       imageRef.current.style.objectFit = fit;
+      imageRef.current.style.objectPosition = `${focusPoint.x}% ${focusPoint.y}%`;
     }
 
     saveImageProperties(fit, focusPoint);
+  };
+
+  const handlePositionChange = (dx: number, dy: number) => {
+    const nextFocusPoint = {
+      x: Math.max(0, Math.min(100, focusPoint.x + dx)),
+      y: Math.max(0, Math.min(100, focusPoint.y + dy)),
+    };
+    setFocusPoint(nextFocusPoint);
+
+    if (imageRef.current) {
+      imageRef.current.style.objectPosition = `${nextFocusPoint.x}% ${nextFocusPoint.y}%`;
+    }
+
+    saveImageProperties(objectFit, nextFocusPoint);
+  };
+
+  const resetPosition = () => {
+    const nextFocusPoint = { x: 50, y: 50 };
+    setFocusPoint(nextFocusPoint);
+
+    if (imageRef.current) {
+      imageRef.current.style.objectPosition = "50% 50%";
+    }
+
+    saveImageProperties(objectFit, nextFocusPoint);
   };
 
   /**
@@ -612,7 +638,65 @@ const ImageEditor = ({
                     </div>
                   }
                   {/* Focus Point */}
-                  {}
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <h3 className="text-sm font-medium">Image Position</h3>
+                      <span className="text-xs text-gray-500">
+                        X {Math.round(focusPoint.x)}% · Y {Math.round(focusPoint.y)}%
+                      </span>
+                    </div>
+                    <div className="grid w-44 grid-cols-3 gap-2">
+                      <div />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        title="Move image up"
+                        onClick={() => handlePositionChange(0, -5)}
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <div />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        title="Move image left"
+                        onClick={() => handlePositionChange(-5, 0)}
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        title="Center image"
+                        onClick={resetPosition}
+                      >
+                        <Crosshair className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        title="Move image right"
+                        onClick={() => handlePositionChange(5, 0)}
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                      <div />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        title="Move image down"
+                        onClick={() => handlePositionChange(0, 5)}
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                      <div />
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
             </Tabs>
