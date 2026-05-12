@@ -2312,7 +2312,7 @@ const GroupLayoutPreview = () => {
             </div>
           </div>
 
-          <div className="text-center">
+          <div className="hidden text-center sm:block">
             <div className="flex items-center justify-center gap-2 mb-2">
               <h1 className="text-3xl font-bold text-gray-900">{resolvedTemplateName}</h1>
               {isCustom && (
