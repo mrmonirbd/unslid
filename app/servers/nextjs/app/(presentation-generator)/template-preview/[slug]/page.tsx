@@ -91,6 +91,12 @@ const getTemplateScopedLayoutId = (templateId: string, layoutId: string) => {
 };
 
 const NON_TYPEWRITER_KEY_PATTERN = /(^|_)(url|href|src|id|slug|template|layout|color|font|icon|image)(_|\b)/i;
+const TYPEWRITER_SPEED_OPTIONS = {
+  slow: { label: "Slow", durationSlices: 320, intervalMs: 40, minCharactersPerTick: 4 },
+  normal: { label: "Normal", durationSlices: 220, intervalMs: 30, minCharactersPerTick: 8 },
+  fast: { label: "Fast", durationSlices: 150, intervalMs: 22, minCharactersPerTick: 12 },
+} as const;
+type TypewriterSpeed = keyof typeof TYPEWRITER_SPEED_OPTIONS;
 
 const countTypewriterCharacters = (value: any, key = ""): number => {
   if (typeof value === "string") {
@@ -1695,6 +1701,7 @@ const GroupLayoutPreview = () => {
   const [staticEditorPanelState, setStaticEditorPanelState] = useState<StaticEditorPanelState>(EMPTY_STATIC_EDITOR_PANEL_STATE);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLanguage, setAiLanguage] = useState<LanguageType>(LanguageType.English);
+  const [typewriterSpeed, setTypewriterSpeed] = useState<TypewriterSpeed>("slow");
   const [aiPromptModalOpen, setAiPromptModalOpen] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiGenerationMessage, setAiGenerationMessage] = useState("");
@@ -1772,7 +1779,11 @@ const GroupLayoutPreview = () => {
       return Promise.resolve();
     }
 
-    const charactersPerTick = Math.max(12, Math.ceil(totalCharacters / 180));
+    const speed = TYPEWRITER_SPEED_OPTIONS[typewriterSpeed];
+    const charactersPerTick = Math.max(
+      speed.minCharactersPerTick,
+      Math.ceil(totalCharacters / speed.durationSlices)
+    );
     let visibleCharacters = 0;
 
     setGeneratedPresentationData(revealTypewriterCharacters(data, { remaining: visibleCharacters }));
@@ -1794,7 +1805,7 @@ const GroupLayoutPreview = () => {
           setGeneratedPresentationData(data);
           resolve();
         }
-      }, 24);
+      }, speed.intervalMs);
     });
   };
 
@@ -2331,29 +2342,55 @@ const GroupLayoutPreview = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="flex flex-col gap-2 sm:max-w-xs">
-              <label className="text-sm font-semibold text-slate-700" htmlFor="template-ai-language">
-                Language
-              </label>
-              <Select
-                value={aiLanguage}
-                onValueChange={(value) => setAiLanguage(value as LanguageType)}
-                disabled={aiGenerating}
-              >
-                <SelectTrigger
-                  id="template-ai-language"
-                  className="h-10 w-full border-slate-200 bg-white text-sm font-medium focus:ring-indigo-100"
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700" htmlFor="template-ai-language">
+                  Language
+                </label>
+                <Select
+                  value={aiLanguage}
+                  onValueChange={(value) => setAiLanguage(value as LanguageType)}
+                  disabled={aiGenerating}
                 >
-                  <SelectValue placeholder="Select language" />
-                </SelectTrigger>
-                <SelectContent className="z-[80] max-h-72">
-                  {Object.values(LanguageType).map((language) => (
-                    <SelectItem key={language} value={language} className="text-sm">
-                      {language}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <SelectTrigger
+                    id="template-ai-language"
+                    className="h-10 w-full border-slate-200 bg-white text-sm font-medium focus:ring-indigo-100"
+                  >
+                    <SelectValue placeholder="Select language" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[80] max-h-72">
+                    {Object.values(LanguageType).map((language) => (
+                      <SelectItem key={language} value={language} className="text-sm">
+                        {language}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700" htmlFor="template-ai-typewriter-speed">
+                  Typewriter speed
+                </label>
+                <Select
+                  value={typewriterSpeed}
+                  onValueChange={(value) => setTypewriterSpeed(value as TypewriterSpeed)}
+                  disabled={aiGenerating}
+                >
+                  <SelectTrigger
+                    id="template-ai-typewriter-speed"
+                    className="h-10 w-full border-slate-200 bg-white text-sm font-medium focus:ring-indigo-100"
+                  >
+                    <SelectValue placeholder="Select speed" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[80]">
+                    {Object.entries(TYPEWRITER_SPEED_OPTIONS).map(([value, option]) => (
+                      <SelectItem key={value} value={value} className="text-sm">
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <textarea
               value={aiPrompt}
