@@ -178,12 +178,14 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
     flushSync(() => {
       root.render(<>{childrenRef.current}</>);
     });
+    const originalRenderedHtml = reactMount.innerHTML;
 
     const timer = setTimeout(() => replaceTextElements(reactMount), 100);
 
     return () => {
       clearTimeout(timer);
       cleanupEditorRoots();
+      reactMount.innerHTML = originalRenderedHtml;
       try {
         root.unmount();
       } catch {
