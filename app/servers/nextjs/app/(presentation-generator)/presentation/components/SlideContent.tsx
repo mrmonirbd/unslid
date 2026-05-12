@@ -26,9 +26,10 @@ interface SlideContentProps {
   slide: any;
   index: number;
   presentationId: string;
+  theme?: any;
 }
 
-const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
+const SlideContent = ({ slide, index, presentationId, theme }: SlideContentProps) => {
   const dispatch = useDispatch();
   const [isUpdating, setIsUpdating] = useState(false);
   const [showNewSlideSelection, setShowNewSlideSelection] = useState(false);
@@ -289,7 +290,7 @@ const SlideContent = ({ slide, index, presentationId }: SlideContentProps) => {
           data-group={slide.layout_group}
           className={` w-full  group font-syne  `}
         >
-          <V1ContentRender slide={slide} isEditMode={true} theme={null} />
+          <V1ContentRender slide={slide} isEditMode={true} theme={theme} />
           {!showNewSlideSelection && (
             <div className="group-hover:opacity-100 hidden md:block opacity-0 transition-opacity my-4 duration-300">
               <ToolTip content="Add new slide below">

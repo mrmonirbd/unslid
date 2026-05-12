@@ -162,6 +162,7 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
                         >
                             <LayoutComp data={{
                                 ...slide.content,
+                                __theme__: theme ?? null,
                                 _logo_url__: theme ? theme.logo_url : null,
                                 __companyName__: (theme && theme.company_name) ? theme.company_name : null,
                             }} />
@@ -182,6 +183,7 @@ export const V1ContentRender = ({ slide, isEditMode, theme }: { slide: any, isEd
         <div className="relative w-full h-full">
             <LayoutComp data={{
                 ...slide.content,
+                __theme__: theme ?? null,
                 _logo_url__: theme ? theme.logo_url : null,
                 __companyName__: (theme && theme.company_name) ? theme.company_name : null,
             }} />
