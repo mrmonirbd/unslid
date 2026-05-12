@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,6 +24,69 @@ import { usePresentationUndoRedo } from "../hooks/PresentationUndoRedo";
 import PresentationHeader from "./PresentationHeader";
 import { useCollaboration } from "../hooks/useCollaboration";
 import ToolTip from "@/components/ToolTip";
+import { loadFonts } from "../../hooks/useFontLoad";
+
+const applyThemeToSlidesWrapper = (theme: any) => {
+  const element = document.getElementById("presentation-slides-wrapper");
+  if (!element) return;
+
+  if (!theme?.data?.colors) {
+    [
+      "--primary-color",
+      "--background-color",
+      "--card-color",
+      "--stroke",
+      "--primary-text",
+      "--background-text",
+      "--graph-0",
+      "--graph-1",
+      "--graph-2",
+      "--graph-3",
+      "--graph-4",
+      "--graph-5",
+      "--graph-6",
+      "--graph-7",
+      "--graph-8",
+      "--graph-9",
+      "--heading-font-family",
+      "--body-font-family",
+    ].forEach((property) => element.style.removeProperty(property));
+    element.style.removeProperty("font-family");
+    return;
+  }
+
+  const colors = theme.data.colors;
+  const cssVariables: Record<string, string | undefined> = {
+    "--primary-color": colors.primary,
+    "--background-color": colors.background,
+    "--card-color": colors.card,
+    "--stroke": colors.stroke,
+    "--primary-text": colors.primary_text,
+    "--background-text": colors.background_text,
+    "--graph-0": colors.graph_0,
+    "--graph-1": colors.graph_1,
+    "--graph-2": colors.graph_2,
+    "--graph-3": colors.graph_3,
+    "--graph-4": colors.graph_4,
+    "--graph-5": colors.graph_5,
+    "--graph-6": colors.graph_6,
+    "--graph-7": colors.graph_7,
+    "--graph-8": colors.graph_8,
+    "--graph-9": colors.graph_9,
+  };
+
+  Object.entries(cssVariables).forEach(([key, value]) => {
+    if (value) element.style.setProperty(key, value);
+  });
+
+  const textFont = theme.data.fonts?.textFont;
+  if (textFont?.name) {
+    if (textFont.url) loadFonts({ [textFont.name]: textFont.url });
+    element.style.setProperty("font-family", `"${textFont.name}"`);
+    element.style.setProperty("--heading-font-family", `"${textFont.name}"`);
+    element.style.setProperty("--body-font-family", `"${textFont.name}"`);
+  }
+};
 
 const PresentationPage: React.FC<PresentationPageProps> = ({
   presentation_id,
@@ -39,6 +102,10 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   const { presentationData, isStreaming } = useSelector(
     (state: RootState) => state.presentationGeneration
   );
+
+  useEffect(() => {
+    applyThemeToSlidesWrapper(presentationData?.theme);
+  }, [presentationData?.theme, loading]);
 
   // Auto-save functionality
   const { isSaving } = useAutoSave({
@@ -210,6 +277,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
                         slide={slide}
                         index={index}
                         presentationId={presentation_id}
+                        theme={presentationData?.theme}
                       />
                     ))}
                 </>

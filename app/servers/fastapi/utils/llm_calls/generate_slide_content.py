@@ -98,6 +98,53 @@ def get_messages(
     ]
 
 
+def _schema_contains_image_prompt(schema: dict) -> bool:
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        return False
+    if "__image_prompt__" in properties:
+        return True
+    return any(
+        isinstance(child_schema, dict) and _schema_contains_image_prompt(child_schema)
+        for child_schema in properties.values()
+    )
+
+
+def _fallback_image_prompt(content: dict, outline: str) -> str:
+    title = content.get("title") if isinstance(content.get("title"), str) else ""
+    subtitle = content.get("subtitle") if isinstance(content.get("subtitle"), str) else ""
+    context = " ".join(part for part in [title, subtitle] if part).strip()
+    if not context:
+        context = outline.replace("\n", " ").strip()
+    return f"Realistic presentation photo matching this slide: {context[:150]}".strip()[:100]
+
+
+def _fill_missing_image_prompts(content: dict, schema: dict, outline: str) -> None:
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        return
+
+    for key, child_schema in properties.items():
+        if not isinstance(child_schema, dict):
+            continue
+
+        child_properties = child_schema.get("properties")
+        if isinstance(child_properties, dict) and "__image_prompt__" in child_properties:
+            current_value = content.get(key)
+            if not isinstance(current_value, dict):
+                current_value = {}
+                content[key] = current_value
+            if not isinstance(current_value.get("__image_prompt__"), str) or not current_value.get("__image_prompt__", "").strip():
+                default_value = child_schema.get("default")
+                default_prompt = default_value.get("__image_prompt__") if isinstance(default_value, dict) else None
+                current_value["__image_prompt__"] = _fallback_image_prompt(content, outline) or default_prompt
+            continue
+
+        nested_value = content.get(key)
+        if isinstance(nested_value, dict) and _schema_contains_image_prompt(child_schema):
+            _fill_missing_image_prompts(nested_value, child_schema, outline)
+
+
 async def get_slide_content_from_type_and_outline(
     slide_layout: SlideLayoutModel,
     outline: SlideOutlineModel,
@@ -145,6 +192,8 @@ async def get_slide_content_from_type_and_outline(
         print(
             f"get_slide_content_from_type_and_outline: response is None={response is None} keys={list(response.keys())[:6] if isinstance(response, dict) else None}"
         )
+        if isinstance(response, dict):
+            _fill_missing_image_prompts(response, response_schema, outline.content)
         return response
 
     except Exception as e:
