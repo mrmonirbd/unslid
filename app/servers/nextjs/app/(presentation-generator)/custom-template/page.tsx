@@ -82,11 +82,11 @@ const CustomTemplatePage = () => {
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="flex h-dvh flex-col-reverse overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 md:flex-row">
       <DashboardSidebar />
-      <div className="flex-1 h-screen overflow-y-auto">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto md:h-screen">
         {/* <Header /> */}
-        <div className="max-w-[1440px] aspect-video mx-auto px-6">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-6">
         {/* Header */}
         <div className="text-center space-y-2 my-6">
           <h1 className="text-4xl font-bold text-gray-900">

@@ -44,11 +44,11 @@ export const metadata: Metadata = {
 
 const page = () => {
   return (
-    <div className="flex min-h-screen bg-[#fbf9ff]">
+    <div className="flex h-dvh flex-col-reverse overflow-hidden bg-[#fbf9ff] md:flex-row">
       <DashboardSidebar />
-      <div className="relative flex-1">
+      <div className="relative min-h-0 min-w-0 flex-1 overflow-y-auto">
         {/* <Header /> */}
-        <div className="mb-8 mt-8 flex flex-col items-center justify-center">
+        <div className="mb-8 mt-8 flex flex-col items-center justify-center px-4 text-center">
           {/* <h1 className="font-unbounded text-[64px] font-normal text-[#101323]">Unslid</h1> */}
           <p className="font-syne text-xl text-[#101323CC]">
             Choose a design, set preferences, and generate polished slides.
