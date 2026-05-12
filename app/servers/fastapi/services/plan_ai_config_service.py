@@ -153,8 +153,26 @@ def build_plan_context_dict(cfg: Optional[PlanAIConfig], plan: str) -> dict:
 
     provider = cfg.llm_provider
     image_provider = cfg.image_provider or defaults["image_provider"]
-    llm_key = _key(cfg.llm_api_key)
-    img_key = _key(cfg.image_api_key)
+    llm_key = _key(
+        cfg.llm_api_key,
+        {
+            "openai": os.getenv("OPENAI_API_KEY", ""),
+            "google": os.getenv("GOOGLE_API_KEY", ""),
+            "anthropic": os.getenv("ANTHROPIC_API_KEY", ""),
+            "custom": os.getenv("CUSTOM_LLM_API_KEY", ""),
+        }.get(provider, ""),
+    )
+    img_key = _key(
+        cfg.image_api_key,
+        {
+            "dall-e-3": os.getenv("OPENAI_API_KEY", ""),
+            "gpt-image-1.5": os.getenv("OPENAI_API_KEY", ""),
+            "gemini_flash": os.getenv("GOOGLE_API_KEY", ""),
+            "nanobanana_pro": os.getenv("GOOGLE_API_KEY", ""),
+            "pexels": os.getenv("PEXELS_API_KEY", ""),
+            "pixabay": os.getenv("PIXABAY_API_KEY", ""),
+        }.get(image_provider, ""),
+    )
     openai_key = llm_key if provider == "openai" else os.getenv("OPENAI_API_KEY", "")
     google_key = llm_key if provider == "google" else os.getenv("GOOGLE_API_KEY", "")
     if img_key and image_provider in {"dall-e-3", "gpt-image-1.5"}:
