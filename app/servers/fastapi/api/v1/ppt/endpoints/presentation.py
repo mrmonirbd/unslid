@@ -113,6 +113,16 @@ def _build_designer_text_schema(text_boxes: list[dict]) -> dict:
     }
 
 
+class TemplateContentGenerateRequest(PydanticBaseModel):
+    content: str
+    layout: PresentationLayoutModel
+    language: str = "English"
+    tone: Tone = Tone.DEFAULT
+    verbosity: Verbosity = Verbosity.STANDARD
+    instructions: Optional[str] = None
+    pptx_template_id: Optional[int] = None
+
+
 async def _resolve_designer_generation_layout(
     presentation: PresentationModel,
     layout: PresentationLayoutModel,
@@ -155,6 +165,75 @@ async def _resolve_designer_generation_layout(
             for slide in designer_slides
         ],
     )
+
+
+@PRESENTATION_ROUTER.post("/template-content/generate")
+async def generate_template_content(
+    request: TemplateContentGenerateRequest,
+    current_user: UserModel = Depends(get_current_user),
+):
+    if not request.layout.slides:
+        raise HTTPException(status_code=400, detail="Layout slides are required")
+
+    presentation_id = uuid.uuid4()
+    image_generation_service = ImageGenerationService(get_images_directory())
+
+    async def generate_slide(index: int, slide_layout: SlideLayoutModel) -> Tuple[SlideModel, list]:
+        outline = SlideOutlineModel(
+            content=(
+                f"User prompt: {request.content}\n\n"
+                f"Template page {index + 1} of {len(request.layout.slides)}.\n"
+                f"Layout name: {slide_layout.name}.\n"
+                f"Layout description: {slide_layout.description or ''}\n"
+                "Generate content directly for this exact template page. "
+                "Do not create a separate presentation outline."
+            )
+        )
+        slide_content = await get_slide_content_from_type_and_outline(
+            slide_layout,
+            outline,
+            request.language,
+            request.tone.value,
+            request.verbosity.value,
+            request.instructions,
+        )
+        slide = SlideModel(
+            presentation=presentation_id,
+            layout_group=request.layout.name,
+            layout=slide_layout.id,
+            index=index,
+            speaker_note=slide_content.get("__speaker_note__", ""),
+            content=slide_content,
+        )
+        process_slide_add_placeholder_assets(slide)
+        assets = await process_slide_and_fetch_assets(image_generation_service, slide)
+        return slide, assets
+
+    try:
+        generated = await asyncio.gather(
+            *[
+                generate_slide(index, slide_layout)
+                for index, slide_layout in enumerate(request.layout.slides)
+            ]
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=str(e) or "Template content generation failed",
+        )
+
+    slides = [slide for slide, _assets in generated]
+    title = request.content.strip().splitlines()[0][:80] or "Generated Template"
+    return {
+        "id": str(presentation_id),
+        "title": title,
+        "pptx_template_id": request.pptx_template_id,
+        "layout": request.layout.model_dump(mode="json"),
+        "slides": [slide.model_dump(mode="json") for slide in slides],
+    }
 
 
 @PRESENTATION_ROUTER.get("/all", response_model=List[PresentationWithSlides])

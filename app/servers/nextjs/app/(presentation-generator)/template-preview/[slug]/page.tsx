@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import html2canvas from "html2canvas";
-import { jsonrepair } from "jsonrepair";
 
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import TemplateService from "../../services/api/template";
@@ -29,7 +28,6 @@ import {
 import { getTemplateGroupByRouteId, getTemplatesByTemplateName } from "@/app/presentation-templates";
 import { api } from "@/lib/api";
 import { useUser } from "@/app/hooks/useUser";
-import { createClient } from "@/lib/auth/client";
 import DesignerTemplateSlideRender from "../../components/DesignerTemplateSlideRender";
 import ImageEditor from "../../components/ImageEditor";
 import { DEFAULT_THEMES } from "../../(dashboard)/theme/components/ThemePanel/constants";
@@ -123,68 +121,6 @@ const buildDesignerSlideSchema = (slide: DesignerPreviewSlideForGeneration) => {
       },
     },
   };
-};
-
-const shouldTypeString = (key: string, value: string) => {
-  if (!value) return false;
-  const normalizedKey = key.toLowerCase();
-  if (["id", "presentation", "layout", "layout_group", "type", "created_at", "updated_at"].includes(normalizedKey)) return false;
-  if (normalizedKey.includes("url")) return false;
-  if (normalizedKey.includes("color")) return false;
-  if (normalizedKey.includes("font")) return false;
-  if (normalizedKey.includes("prompt")) return false;
-  return true;
-};
-
-const countTypableCharacters = (value: unknown, key = ""): number => {
-  if (typeof value === "string") {
-    return shouldTypeString(key, value) ? value.length : 0;
-  }
-  if (Array.isArray(value)) {
-    return value.reduce((total, item) => total + countTypableCharacters(item, key), 0);
-  }
-  if (value && typeof value === "object") {
-    return Object.entries(value as Record<string, unknown>).reduce(
-      (total, [childKey, childValue]) => total + countTypableCharacters(childValue, childKey),
-      0
-    );
-  }
-  return 0;
-};
-
-const revealTypableText = (value: unknown, characterBudget: { remaining: number }, key = ""): unknown => {
-  if (typeof value === "string") {
-    if (!shouldTypeString(key, value)) return value;
-    const visibleLength = Math.max(0, Math.min(value.length, characterBudget.remaining));
-    characterBudget.remaining -= visibleLength;
-    return value.slice(0, visibleLength);
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => revealTypableText(item, characterBudget, key));
-  }
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([childKey, childValue]) => [
-        childKey,
-        revealTypableText(childValue, characterBudget, childKey),
-      ])
-    );
-  }
-  return value;
-};
-
-const buildSequentialTypedPresentationData = (
-  presentationData: any,
-  activeSlideIndex: number,
-  visibleCharacters: number
-) => {
-  if (!presentationData?.slides?.length) return presentationData;
-  const nextPresentation = structuredClone(presentationData);
-  nextPresentation.slides = presentationData.slides.slice(0, activeSlideIndex + 1).map((slide: any, index: number) => {
-    if (index < activeSlideIndex) return structuredClone(slide);
-    return revealTypableText(structuredClone(slide), { remaining: visibleCharacters });
-  });
-  return nextPresentation;
 };
 
 function SlideHoverToolbar({ onAi }: { onAi: () => void }) {
@@ -1722,12 +1658,8 @@ const GroupLayoutPreview = () => {
   const [availableThemes, setAvailableThemes] = useState<any[]>(DEFAULT_THEMES);
   const [themesLoading, setThemesLoading] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState<any | null>(null);
-  const [rawGeneratedPresentationData, setRawGeneratedPresentationData] = useState<any | null>(null);
   const [generatedPresentationData, setGeneratedPresentationData] = useState<any | null>(null);
   const [generatedPresentationVersion, setGeneratedPresentationVersion] = useState("sample");
-  const [, setActiveUpdatingSlideIndex] = useState<number | null>(null);
-  const typedVisibleCharactersRef = useRef(0);
-  const generationRunRef = useRef(0);
   const { user } = useUser();
   const isAdmin = !!user?.is_admin;
   const userStorageId = user?.id || user?.email ? String(user.id || user.email) : "";
@@ -1778,147 +1710,6 @@ const GroupLayoutPreview = () => {
     );
     return updatedAt;
   };
-
-  const revealPresentationSequentially = async (presentationData: any) => {
-    if (!presentationData?.slides?.length) return;
-
-    const runId = ++generationRunRef.current;
-    setRawGeneratedPresentationData(presentationData);
-    setGeneratedPresentationData({ ...presentationData, slides: [] });
-    typedVisibleCharactersRef.current = 0;
-
-    for (let slideIndex = 0; slideIndex < presentationData.slides.length; slideIndex += 1) {
-      if (runId !== generationRunRef.current) return;
-
-      const slide = presentationData.slides[slideIndex];
-      const totalCharacters = countTypableCharacters(slide);
-      const step = Math.max(1, Math.ceil(Math.max(totalCharacters, 1) / 260));
-      let visibleCharacters = totalCharacters === 0 ? 1 : 0;
-
-      setActiveUpdatingSlideIndex(slideIndex);
-      setAiGenerationMessage(`Updating slide ${slideIndex + 1} of ${presentationData.slides.length}...`);
-      scrollToPreviewSlide(slideIndex);
-
-      while (visibleCharacters < Math.max(totalCharacters, 1)) {
-        if (runId !== generationRunRef.current) return;
-
-        visibleCharacters = Math.min(Math.max(totalCharacters, 1), visibleCharacters + step);
-        typedVisibleCharactersRef.current += step;
-        setGeneratedPresentationData(
-          buildSequentialTypedPresentationData(presentationData, slideIndex, visibleCharacters)
-        );
-        const humanDelay = 48 + Math.floor(Math.random() * 34);
-        await new Promise((resolve) => window.setTimeout(resolve, humanDelay));
-      }
-
-      setGeneratedPresentationData({
-        ...presentationData,
-        slides: presentationData.slides.slice(0, slideIndex + 1),
-      });
-      await new Promise((resolve) => window.setTimeout(resolve, 520));
-    }
-
-    if (runId !== generationRunRef.current) return;
-    typedVisibleCharactersRef.current = countTypableCharacters(presentationData);
-    setGeneratedPresentationData(presentationData);
-    setActiveUpdatingSlideIndex(null);
-  };
-
-  const streamGeneratedOutlines = async (presentationId: string) => {
-    const authClient = createClient();
-    const { data: { session } } = await authClient.auth.getSession();
-    const token = session?.access_token ?? "";
-    const url = `/api/v1/ppt/outlines/stream/${presentationId}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
-
-    return await new Promise<{ content: string }[]>((resolve, reject) => {
-      const eventSource = new EventSource(url);
-
-      eventSource.addEventListener("response", (event) => {
-        const data = JSON.parse(event.data);
-
-        if (data.type === "status") {
-          setAiGenerationMessage(data.status || "Generating outline...");
-          return;
-        }
-
-        if (data.type === "complete") {
-          eventSource.close();
-          const slides = data.presentation?.outlines?.slides || [];
-          resolve(slides);
-          return;
-        }
-
-        if (data.type === "error") {
-          eventSource.close();
-          reject(new Error(data.detail || "Failed to generate outline"));
-        }
-      });
-
-      eventSource.onerror = () => {
-        eventSource.close();
-        reject(new Error("Failed to connect to outline generator"));
-      };
-    });
-  };
-
-  const streamPreparedPresentation = async (presentationId: string) => {
-    const authClient = createClient();
-    const { data: { session } } = await authClient.auth.getSession();
-    const token = session?.access_token ?? "";
-    const url = `/api/v1/ppt/presentation/stream/${presentationId}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
-
-    return await new Promise<any>((resolve, reject) => {
-      const eventSource = new EventSource(url);
-      let accumulatedChunks = "";
-
-      let isSettled = false;
-
-      eventSource.addEventListener("response", (event) => {
-        const data = JSON.parse(event.data);
-
-        if (data.type === "chunk") {
-          accumulatedChunks += data.chunk;
-          try {
-            const partialData = JSON.parse(jsonrepair(accumulatedChunks));
-            if (partialData?.slides?.length) {
-              setAiGenerationMessage(`Generating slide ${partialData.slides.length}...`);
-            }
-          } catch {
-            // Wait for enough stream chunks to form valid JSON.
-          }
-          return;
-        }
-
-        if (data.type === "complete" || data.type === "closing") {
-          if (isSettled) return;
-          isSettled = true;
-          eventSource.close();
-          const finalIndex = Math.max((data.presentation?.slides?.length || 1) - 1, 0);
-          const updatedAt = saveGeneratedPreviewData(data.presentation);
-          revealPresentationSequentially(data.presentation)
-            .then(() => {
-              setGeneratedPresentationVersion(updatedAt ? `saved-${updatedAt}` : `generated-${Date.now()}`);
-              scrollToPreviewSlide(finalIndex);
-              resolve(data.presentation);
-            })
-            .catch(reject);
-          return;
-        }
-
-        if (data.type === "error") {
-          eventSource.close();
-          reject(new Error(data.detail || "Failed to generate presentation"));
-        }
-      });
-
-      eventSource.onerror = () => {
-        eventSource.close();
-        reject(new Error("Failed to connect to presentation generator"));
-      };
-    });
-  };
-
-
 
   useEffect(() => {
     const existingScript = document.querySelector('script[src*="tailwindcss.com"]');
@@ -1985,21 +1776,12 @@ const GroupLayoutPreview = () => {
       const savedData = parsed?.data;
       if (!savedData?.slides?.length) return;
 
-      typedVisibleCharactersRef.current = countTypableCharacters(savedData);
-      setRawGeneratedPresentationData(savedData);
       setGeneratedPresentationData(savedData);
       setGeneratedPresentationVersion(`saved-${parsed?.updatedAt || "local"}`);
     } catch {
       window.localStorage.removeItem(generatedPreviewStorageKey);
     }
   }, [generatedPreviewStorageKey]);
-
-  useEffect(() => {
-    if (!rawGeneratedPresentationData) {
-      typedVisibleCharactersRef.current = 0;
-      setGeneratedPresentationData(null);
-    }
-  }, [rawGeneratedPresentationData]);
 
   useEffect(() => {
     if (!isDesigner || !designerTemplateId) return;
@@ -2262,18 +2044,13 @@ const GroupLayoutPreview = () => {
     try {
       setAiPromptModalOpen(false);
       setAiGenerating(true);
-      generationRunRef.current += 1;
       setGeneratedPresentationVersion(`generating-${Date.now()}`);
-      typedVisibleCharactersRef.current = 0;
-      setRawGeneratedPresentationData(null);
       setGeneratedPresentationData(null);
-      setActiveUpdatingSlideIndex(null);
-      setAiGenerationMessage("Creating presentation...");
+      setAiGenerationMessage("Updating template content...");
 
-      const createResponse = await PresentationGenerationApi.createPresentation({
+      const generatedTemplate = await PresentationGenerationApi.generateTemplateContent({
         content: aiPrompt,
-        n_slides: layout.slides.length,
-        file_paths: [],
+        layout,
         language: "English",
         tone: "default",
         verbosity: "standard",
@@ -2283,24 +2060,13 @@ const GroupLayoutPreview = () => {
           "Avoid abstract, cartoon, logo, icon-only, blurry, or generic stock-looking image prompts unless the user explicitly asks for them.",
           "Image prompts should be directly relevant to the user's topic and the slide's message.",
         ].join(" "),
-        include_table_of_contents: false,
-        include_title_slide: true,
-        web_search: false,
-      });
-
-      setAiGenerationMessage("Generating outline...");
-      const outlines = await streamGeneratedOutlines(createResponse.id);
-
-      setAiGenerationMessage("Preparing template content...");
-      await PresentationGenerationApi.presentationPrepare({
-        presentation_id: createResponse.id,
-        outlines,
-        layout,
         pptx_template_id: pptxTemplateId,
       });
 
-      setAiGenerationMessage("Generating slide content and images...");
-      await streamPreparedPresentation(createResponse.id);
+      const updatedAt = saveGeneratedPreviewData(generatedTemplate);
+      setGeneratedPresentationData(generatedTemplate);
+      setGeneratedPresentationVersion(updatedAt ? `saved-${updatedAt}` : `generated-${Date.now()}`);
+      scrollToPreviewSlide(Math.max((generatedTemplate?.slides?.length || 1) - 1, 0));
       toast.success("Template updated with AI content");
     } catch (error: any) {
       console.error("Template AI generation failed", error);
@@ -2515,9 +2281,7 @@ const GroupLayoutPreview = () => {
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                        <span className="max-w-full truncate rounded bg-gray-100 px-3 py-1 font-mono text-sm text-gray-600">
-                          {template.layoutId}
-                        </span>
+        
                         <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
                           #{index + 1}
                         </span>
