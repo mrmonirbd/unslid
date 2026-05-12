@@ -68,6 +68,15 @@ const baseRows = [
   { label: "Risk", value: "Managed", note: "Mitigations in place" },
 ];
 
+const baseChartData = [
+  { label: "Q1", value: 42, note: "Baseline" },
+  { label: "Q2", value: 68, note: "Adoption" },
+  { label: "Q3", value: 52, note: "Optimization" },
+  { label: "Q4", value: 86, note: "Expansion" },
+  { label: "Q5", value: 74, note: "Retention" },
+  { label: "Q6", value: 94, note: "Scale" },
+];
+
 function makeSchema(title: string, imageUrl: string, subtitle: string, quote: string) {
   return z.object({
     title: z.string().max(120).default(title),
@@ -95,6 +104,11 @@ function makeSchema(title: string, imageUrl: string, subtitle: string, quote: st
       value: z.string().max(42),
       note: z.string().max(100),
     })).default(baseRows),
+    chartData: z.array(z.object({
+      label: z.string().max(24).describe("Short chart axis or segment label, such as Q1, Mobile, Enterprise, or Retention."),
+      value: z.number().min(1).max(100).describe("Numeric chart value from 1 to 100. This directly controls bar height, line position, and pie slice size."),
+      note: z.string().max(80).describe("Short context for this chart point."),
+    })).min(4).max(6).describe("Chart values that must match the slide topic. Generate fresh values for chart, pie chart, and dashboard slides.").default(baseChartData),
   });
 }
 
@@ -118,6 +132,37 @@ const isMissingImageUrl = (value: unknown) => {
 const firstUsableImageUrl = (...urls: unknown[]) => {
   const usable = urls.find((url) => !isMissingImageUrl(url));
   return typeof usable === "string" ? usable : "";
+};
+
+const parseChartValue = (value: unknown, fallback: number) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.min(100, Math.max(1, Math.round(value)));
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(/[^\d.-]/g, ""));
+    if (Number.isFinite(parsed)) {
+      return Math.min(100, Math.max(1, Math.round(parsed)));
+    }
+  }
+  return fallback;
+};
+
+const buildTrendPath = (chartData: typeof baseChartData) => {
+  const points = chartData.slice(0, 6);
+  if (!points.length) return "M0 78 C90 12 145 84 225 38 C310 -10 360 72 430 28 C470 4 500 15 520 8";
+  const maxIndex = Math.max(points.length - 1, 1);
+  const coordinates = points.map((point, index) => ({
+    x: (index / maxIndex) * 520,
+    y: 96 - point.value * 0.88,
+  }));
+  return coordinates
+    .map((point, index) => {
+      if (index === 0) return `M${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+      const previous = coordinates[index - 1];
+      const midX = (previous.x + point.x) / 2;
+      return `C${midX.toFixed(1)} ${previous.y.toFixed(1)} ${midX.toFixed(1)} ${point.y.toFixed(1)} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+    })
+    .join(" ");
 };
 
 const normalizeMegaData = (data: unknown) => {
@@ -177,6 +222,19 @@ const normalizeMegaData = (data: unknown) => {
           };
         })
       : source.rows,
+    chartData: Array.isArray(source.chartData)
+      ? source.chartData.map((point, index) => {
+          const fallback = baseChartData[index % baseChartData.length];
+          if (!point || typeof point !== "object" || Array.isArray(point)) return fallback;
+          const record = point as Record<string, unknown>;
+          return {
+            ...record,
+            label: clampText(record.label, 24, fallback.label),
+            value: parseChartValue(record.value, fallback.value),
+            note: clampText(record.note, 80, fallback.note),
+          };
+        }).concat(baseChartData).slice(0, 6)
+      : source.chartData,
   };
 };
 
@@ -236,24 +294,34 @@ const MetricCard = ({ metric, cfg }: { metric: { label: string; value: string; n
   </div>
 );
 
-const MiniBars = ({ cfg }: { cfg: MegaConfig }) => (
+const MiniBars = ({ cfg, chartData }: { cfg: MegaConfig; chartData: typeof baseChartData }) => (
   <div className="flex h-56 items-end gap-4">
-    {[42, 68, 52, 86, 74, 94].map((value, index) => (
+    {chartData.slice(0, 6).map((point, index) => (
       <div key={index} className="flex flex-1 flex-col items-center gap-3">
-        <div className="w-full rounded-t-md" style={{ height: `${value}%`, background: index % 2 ? getMegaTheme(cfg).accent : getMegaTheme(cfg).soft }} />
-        <span className="text-xs font-semibold opacity-70">Q{index + 1}</span>
+        <div className="w-full rounded-t-md" style={{ height: `${point.value}%`, background: index % 2 ? getMegaTheme(cfg).accent : getMegaTheme(cfg).soft }} />
+        <span className="text-xs font-semibold opacity-70">{point.label}</span>
       </div>
     ))}
   </div>
 );
 
-const MiniPie = ({ cfg }: { cfg: MegaConfig }) => {
+const MiniPie = ({ cfg, chartData }: { cfg: MegaConfig; chartData: typeof baseChartData }) => {
   const darkSlice = cfg.fg === "#f9fafb" ? "#f8fafc" : "#0f172a";
+  const points = chartData.slice(0, 4);
+  const total = points.reduce((sum, point) => sum + point.value, 0) || 1;
+  let cursor = 0;
+  const colors = [getMegaTheme(cfg).accent, getMegaTheme(cfg).soft, darkSlice, "rgba(255,255,255,.72)"];
+  const gradient = points.map((point, index) => {
+    const start = cursor;
+    cursor += (point.value / total) * 100;
+    return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+  }).join(", ");
+  const primaryPercent = Math.round((points[0]?.value ?? 0) / total * 100);
   return (
-    <div className="relative mx-auto flex h-72 w-72 items-center justify-center rounded-full" style={{ background: `conic-gradient(${getMegaTheme(cfg).accent} 0 42%, ${getMegaTheme(cfg).soft} 42% 68%, ${darkSlice} 68% 84%, rgba(255,255,255,.72) 84% 100%)` }}>
+    <div className="relative mx-auto flex h-72 w-72 items-center justify-center rounded-full" style={{ background: `conic-gradient(${gradient})` }}>
       <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full text-center shadow-sm" style={{ background: getMegaTheme(cfg).bg, color: getMegaTheme(cfg).fg }}>
-        <span className="text-4xl font-black">42%</span>
-        <span className="text-xs font-bold uppercase opacity-65">Primary</span>
+        <span className="text-4xl font-black">{primaryPercent}%</span>
+        <span className="text-xs font-bold uppercase opacity-65">{points[0]?.label || "Primary"}</span>
       </div>
     </div>
   );
@@ -266,6 +334,8 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
   const items = data.items?.length ? data.items : baseItems;
   const metrics = data.metrics?.length ? data.metrics : baseMetrics;
   const rows = data.rows?.length ? data.rows : baseRows;
+  const chartData = data.chartData?.length ? data.chartData : baseChartData;
+  const trendPath = buildTrendPath(chartData);
   const imageUrl = firstUsableImageUrl(data.image?.__image_url__, data.imageUrl, cfg.imageUrl);
   const theme = getMegaTheme(cfg);
 
@@ -806,9 +876,9 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               </div>
             </div>
             <div className="rounded-xl p-8" style={{ background: theme.soft }}>
-              <MiniBars cfg={cfg} />
+              <MiniBars cfg={cfg} chartData={chartData} />
               <svg className="mt-6 h-20 w-full" viewBox="0 0 520 100" preserveAspectRatio="none">
-                <path d="M0 78 C90 12 145 84 225 38 C310 -10 360 72 430 28 C470 4 500 15 520 8" fill="none" stroke={theme.accent} strokeWidth="8" strokeLinecap="round" />
+                <path d={trendPath} fill="none" stroke={theme.accent} strokeWidth="8" strokeLinecap="round" />
               </svg>
             </div>
           </div>
@@ -825,16 +895,16 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
                 {rows.slice(0, 4).map((row, index) => (
                   <div key={row.label} className="rounded-xl p-4" style={{ background: index % 2 ? theme.soft : theme.bg }}>
                     <div className="text-sm font-bold opacity-65">{row.label}</div>
-                    <div className="mt-2 text-2xl font-black">{["42%", "26%", "16%", "16%"][index]}</div>
+                    <div className="mt-2 text-2xl font-black">{chartData[index]?.value ?? baseChartData[index]?.value}%</div>
                   </div>
                 ))}
               </div>
             </div>
             <div className="flex flex-col justify-center rounded-[36px] p-10" style={{ background: theme.soft }}>
-              <MiniPie cfg={cfg} />
+              <MiniPie cfg={cfg} chartData={chartData} />
               <div className="mt-8 grid grid-cols-4 gap-3 text-center text-xs font-bold">
-                {["Core", "Upsell", "Retain", "New"].map((label, index) => (
-                  <div key={label} className="rounded-full px-3 py-2" style={{ background: index === 0 ? theme.accent : theme.bg, color: index === 0 ? theme.primaryText : theme.fg }}>{label}</div>
+                {chartData.slice(0, 4).map((point, index) => (
+                  <div key={point.label} className="rounded-full px-3 py-2" style={{ background: index === 0 ? theme.accent : theme.bg, color: index === 0 ? theme.primaryText : theme.fg }}>{point.label}</div>
                 ))}
               </div>
             </div>
@@ -853,9 +923,9 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               </div>
             </div>
             <div className="rounded-xl p-8" style={{ background: theme.soft }}>
-              <MiniBars cfg={cfg} />
+              <MiniBars cfg={cfg} chartData={chartData} />
               <svg className="mt-6 h-20 w-full" viewBox="0 0 520 100" preserveAspectRatio="none">
-                <path d="M0 78 C90 12 145 84 225 38 C310 -10 360 72 430 28 C470 4 500 15 520 8" fill="none" stroke={theme.accent} strokeWidth="8" strokeLinecap="round" />
+                <path d={trendPath} fill="none" stroke={theme.accent} strokeWidth="8" strokeLinecap="round" />
               </svg>
               <div className="mt-8 grid grid-cols-3 gap-4">
                 {rows.slice(0, 3).map((row) => <div key={row.label}><div className="text-sm opacity-60">{row.label}</div><div className="text-2xl font-black">{row.value}</div></div>)}
