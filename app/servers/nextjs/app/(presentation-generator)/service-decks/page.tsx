@@ -5,17 +5,17 @@ import DashboardSidebar from "../(dashboard)/Components/DashboardSidebar";
 
 export default function ServiceDecksPage() {
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-dvh flex-col-reverse overflow-hidden bg-slate-50 md:flex-row">
       <DashboardSidebar />
-      <main className="flex-1 overflow-y-auto">
-        <header className="sticky top-0 z-20 border-b bg-white px-8 py-6">
+      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+        <header className="sticky top-0 z-20 border-b bg-white px-4 py-6 sm:px-8">
           <h1 className="text-3xl font-bold text-slate-950">100 Ready Presentation Service Decks</h1>
           <p className="mt-2 text-slate-600">
             Eye-catching 7-page deck concepts for selling online presentation services.
           </p>
         </header>
 
-        <div className="grid gap-6 p-8">
+        <div className="grid gap-6 p-4 sm:p-8">
           {onlinePresentationServiceDecks.map((deck, index) => (
             <section key={deck.id} className="overflow-hidden rounded-xl border bg-white shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-4 border-b px-6 py-5">
