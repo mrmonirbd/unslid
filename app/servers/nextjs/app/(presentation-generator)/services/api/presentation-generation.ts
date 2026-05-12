@@ -211,6 +211,31 @@ export class PresentationGenerationApi {
       throw error;
     }
   }
+
+  static async generateTemplateContent(templateContentData: any) {
+    try {
+      const response = await fetch(
+        `/api/v1/ppt/presentation/template-content/generate`,
+        {
+          method: "POST",
+          headers: await getHeader(),
+          body: JSON.stringify(templateContentData),
+          cache: "no-cache",
+        }
+      );
+
+      if (response.status === 404) {
+        throw new Error(
+          "Template generation API not found. Rebuild/restart the FastAPI and Next.js containers so the latest backend route is loaded."
+        );
+      }
+
+      return await ApiResponseHandler.handleResponse(response, "Failed to generate template content");
+    } catch (error) {
+      console.error("error in template content generation", error);
+      throw error;
+    }
+  }
   
   // IMAGE AND ICON SEARCH
   
