@@ -753,7 +753,7 @@ function FullPreviewDownloadDropdown({
         <ArrowRightFromLine className="h-3.5 w-3.5" />
       </button>
       {open && (
-        <div className="absolute right-0 top-12 z-50 w-[min(200px,calc(100vw-2rem))] rounded-[18px] border border-slate-200 bg-white p-5 text-sm shadow-xl">
+        <div className="absolute left-0 top-12 z-50 w-48 max-w-[calc(100vw-2rem)] rounded-[18px] border border-slate-200 bg-white p-5 text-sm shadow-xl sm:left-auto sm:right-0">
           <p className="text-sm font-medium text-[#19001F]">Export as</p>
           <div className="my-[18px] h-[1px] bg-[#E8E8E8]" />
           <div className="space-y-3">
@@ -1110,7 +1110,7 @@ function StaticTemplateEditPanel({ state }: { state: StaticEditorPanelState }) {
   return (
     <div
       data-static-editor-panel="true"
-      className="fixed inset-x-3 bottom-24 z-[80] mx-auto flex max-h-[42dvh] w-auto max-w-[1440px] flex-wrap items-center gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-2xl backdrop-blur md:bottom-auto md:left-[88px] md:right-4 md:top-4 md:max-h-[calc(100dvh-2rem)]"
+      className="fixed inset-x-3 top-3 z-[80] mx-auto flex max-h-[42dvh] w-auto max-w-[1440px] flex-wrap items-center gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-2xl backdrop-blur md:left-[88px] md:right-4 md:top-4 md:max-h-[calc(100dvh-2rem)]"
     >
       <span className="max-w-[240px] truncate rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
         {selection.type}: {selection.label}
