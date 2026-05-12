@@ -77,6 +77,8 @@ import uuid
 
 
 PRESENTATION_ROUTER = APIRouter(prefix="/presentation", tags=["Presentation"])
+TEMPLATE_CONTENT_GENERATION_TIMEOUT_SECONDS = 180
+TEMPLATE_CONTENT_GENERATION_CONCURRENCY = 3
 
 
 def _build_designer_text_schema(text_boxes: list[dict]) -> dict:
@@ -177,44 +179,54 @@ async def generate_template_content(
 
     presentation_id = uuid.uuid4()
     image_generation_service = ImageGenerationService(get_images_directory())
+    generation_semaphore = asyncio.Semaphore(TEMPLATE_CONTENT_GENERATION_CONCURRENCY)
 
     async def generate_slide(index: int, slide_layout: SlideLayoutModel) -> Tuple[SlideModel, list]:
-        outline = SlideOutlineModel(
-            content=(
-                f"User prompt: {request.content}\n\n"
-                f"Template page {index + 1} of {len(request.layout.slides)}.\n"
-                f"Layout name: {slide_layout.name}.\n"
-                f"Layout description: {slide_layout.description or ''}\n"
-                "Generate content directly for this exact template page. "
-                "Do not create a separate presentation outline."
+        async with generation_semaphore:
+            outline = SlideOutlineModel(
+                content=(
+                    f"User prompt: {request.content}\n\n"
+                    f"Template page {index + 1} of {len(request.layout.slides)}.\n"
+                    f"Layout name: {slide_layout.name}.\n"
+                    f"Layout description: {slide_layout.description or ''}\n"
+                    "Generate content directly for this exact template page. "
+                    "Do not create a separate presentation outline."
+                )
             )
-        )
-        slide_content = await get_slide_content_from_type_and_outline(
-            slide_layout,
-            outline,
-            request.language,
-            request.tone.value,
-            request.verbosity.value,
-            request.instructions,
-        )
-        slide = SlideModel(
-            presentation=presentation_id,
-            layout_group=request.layout.name,
-            layout=slide_layout.id,
-            index=index,
-            speaker_note=slide_content.get("__speaker_note__", ""),
-            content=slide_content,
-        )
-        process_slide_add_placeholder_assets(slide)
-        assets = await process_slide_and_fetch_assets(image_generation_service, slide)
-        return slide, assets
+            slide_content = await get_slide_content_from_type_and_outline(
+                slide_layout,
+                outline,
+                request.language,
+                request.tone.value,
+                request.verbosity.value,
+                request.instructions,
+            )
+            slide = SlideModel(
+                presentation=presentation_id,
+                layout_group=request.layout.name,
+                layout=slide_layout.id,
+                index=index,
+                speaker_note=slide_content.get("__speaker_note__", ""),
+                content=slide_content,
+            )
+            process_slide_add_placeholder_assets(slide)
+            assets = await process_slide_and_fetch_assets(image_generation_service, slide)
+            return slide, assets
 
     try:
-        generated = await asyncio.gather(
-            *[
-                generate_slide(index, slide_layout)
-                for index, slide_layout in enumerate(request.layout.slides)
-            ]
+        generated = await asyncio.wait_for(
+            asyncio.gather(
+                *[
+                    generate_slide(index, slide_layout)
+                    for index, slide_layout in enumerate(request.layout.slides)
+                ]
+            ),
+            timeout=TEMPLATE_CONTENT_GENERATION_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail="Template content generation timed out. Please try again with a shorter prompt or fewer pages.",
         )
     except HTTPException:
         raise

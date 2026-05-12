@@ -1619,13 +1619,53 @@ const quoteTemplates = [
   (cfg: MegaConfig) => `${cfg.name} is built to feel polished, practical, and ready for real sales conversations.`,
 ];
 
+const redEditorialDefaultTitles: Record<string, string> = {
+  cover: "Brand Messages",
+  audience: "Target Audience",
+  positioning: "Brand Positioning",
+  timeline: "Project Timeline",
+  campaign: "Campaign Menu",
+  thanks: "Thank You",
+  brief: "Creative Brief",
+  strategy: "Brand Strategy",
+  style: "Visual Style",
+  summary: "Summarize",
+};
+
+const redEditorialDefaultSubtitles: Record<string, string> = {
+  cover: "A bold campaign system for sharper launch messaging.",
+  audience: "Define who the campaign is speaking to and why they care.",
+  positioning: "Clarify the promise, proof, and market role of the brand.",
+  timeline: "A focused rollout from creative direction to campaign launch.",
+  campaign: "Key campaign chapters arranged for fast editorial scanning.",
+  thanks: "Ready to turn the brand story into a campaign people remember.",
+  brief: "A concise creative direction for the team, channel, and story.",
+  strategy: "The strategic choices that shape message, audience, and media.",
+  style: "A visual direction built around contrast, rhythm, and red signals.",
+  summary: "The core decisions to carry into production and launch.",
+};
+
+const getDefaultTitle = (cfg: MegaConfig, page: PagePlan) => {
+  if (cfg.kind === "redEditorial") {
+    return redEditorialDefaultTitles[page.suffix] || page.name;
+  }
+  return `${cfg.name} ${page.name}`;
+};
+
+const getDefaultSubtitle = (cfg: MegaConfig, page: PagePlan, groupIndex: number, pageIndex: number) => {
+  if (cfg.kind === "redEditorial") {
+    return redEditorialDefaultSubtitles[page.suffix] || page.description;
+  }
+  return subtitleTemplates[(groupIndex + pageIndex) % subtitleTemplates.length](cfg, page);
+};
+
 const createMegaTemplate = (
   cfg: MegaConfig,
   page: PagePlan,
   pageIndex: number,
   groupIndex: number
 ) => {
-  const imageUrl = cfg.id === "mega-featured-vision-mission" || groupIndex === 5
+  const imageUrl = cfg.id === "mega-featured-vision-mission" || cfg.kind === "redEditorial" || groupIndex === 5
     ? getImageVariant(cfg.imageUrl, `${page.suffix}-${pageIndex}`, 900, 700)
     : cfg.imageUrl;
   const pageConfig: MegaConfig = {
@@ -1637,9 +1677,10 @@ const createMegaTemplate = (
     imageUrl,
     curve: cfg.curve + pageIndex,
   };
-  const subtitle = subtitleTemplates[(groupIndex + pageIndex) % subtitleTemplates.length](cfg, page);
+  const defaultTitle = getDefaultTitle(cfg, page);
+  const subtitle = getDefaultSubtitle(cfg, page, groupIndex, pageIndex);
   const quote = quoteTemplates[(groupIndex + pageIndex) % quoteTemplates.length](cfg);
-  const Schema = makeSchema(pageConfig.name, pageConfig.imageUrl, subtitle, quote);
+  const Schema = makeSchema(defaultTitle, pageConfig.imageUrl, subtitle, quote);
   const groupId = `mega-${String(groupIndex + 1).padStart(3, "0")}`;
   return createTemplateEntry(
     createMegaComponent(pageConfig, Schema),
