@@ -35,6 +35,7 @@ import { DEFAULT_THEMES } from "../../(dashboard)/theme/components/ThemePanel/co
 import { loadFonts } from "../../hooks/useFontLoad";
 import ThemeApi from "../../services/api/theme";
 import { LanguageType } from "../../upload/type";
+import { checkPresentationGenerationLimit } from "../../utils/presentationLimit";
 
 interface PptxDesignerTemplate {
   id: number;
@@ -2137,6 +2138,14 @@ const GroupLayoutPreview = () => {
   const handleGenerateWithAi = async () => {
     if (!aiPrompt.trim()) {
       toast.error("Please enter a prompt");
+      return;
+    }
+
+    const limitCheck = await checkPresentationGenerationLimit();
+    if (!limitCheck.allowed) {
+      toast.error("Presentation limit reached", {
+        description: limitCheck.message,
+      });
       return;
     }
 

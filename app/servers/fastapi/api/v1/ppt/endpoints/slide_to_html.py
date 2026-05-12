@@ -22,6 +22,7 @@ from .prompts import (
     HTML_EDIT_SYSTEM_PROMPT,
 )
 from models.sql.template import TemplateModel
+from utils.template_generation_limits import get_template_generation_limits
 
 
 # Create separate routers for each functionality
@@ -136,6 +137,34 @@ def _template_payload(template: TemplateModel) -> dict:
         "created_at": template.created_at,
         "user_id": template.user_id,
     }
+
+
+async def _enforce_template_generation_limit(
+    current_user: UserModel,
+    session: AsyncSession,
+) -> None:
+    if current_user.is_admin:
+        return
+
+    plan = current_user.plan or "free"
+    limits = await get_template_generation_limits(session)
+    limit = limits.get(plan, limits["free"])
+    if limit < 0:
+        return
+
+    existing_count = await session.scalar(
+        select(func.count(TemplateModel.id)).where(
+            TemplateModel.user_id == current_user.id
+        )
+    )
+    if (existing_count or 0) >= limit:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"{plan.title()} plan can generate up to {limit} templates. "
+                "Delete an existing template or upgrade your plan."
+            ),
+        )
 
 
 class TemplateInfo(BaseModel):
@@ -994,6 +1023,7 @@ async def create_template(
             if existing.user_id is None:
                 existing.user_id = current_user.id
         else:
+            await _enforce_template_generation_limit(current_user, session)
             session.add(
                 TemplateModel(
                     id=request.id,

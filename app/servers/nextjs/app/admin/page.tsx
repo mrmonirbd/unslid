@@ -71,6 +71,12 @@ interface TrialConfig {
   features: string[];
 }
 
+interface TemplateGenerationLimits {
+  free: number;
+  pro: number;
+  team: number;
+}
+
 interface UsageMonitorUser {
   id: number;
   email: string;
@@ -128,6 +134,12 @@ const DEFAULT_PLAN_PRICING: PlanPricing = {
   free: { price_monthly: 0, price_annual: 0, currency: "USD", stripe_price_id_monthly: "", stripe_price_id_annual: "", features: ["5 presentations / month", "1 concurrent generation", "All templates", "PDF & PPTX export", "Community support"] },
   pro:  { price_monthly: 19, price_annual: 190, currency: "USD", stripe_price_id_monthly: "", stripe_price_id_annual: "", features: ["Unlimited presentations", "3 concurrent generations", "All templates", "PDF & PPTX export", "API access", "Priority support"] },
   team: { price_monthly: 49, price_annual: 490, currency: "USD", stripe_price_id_monthly: "", stripe_price_id_annual: "", features: ["Unlimited presentations", "5 concurrent generations", "All templates", "PDF & PPTX export", "Team workspace", "API access", "Dedicated support"] },
+};
+
+const DEFAULT_TEMPLATE_GENERATION_LIMITS: TemplateGenerationLimits = {
+  free: 1,
+  pro: -1,
+  team: -1,
 };
 
 const PLAN_BADGE: Record<string, string> = {
@@ -645,6 +657,9 @@ export default function AdminPage() {
   const [planPricing, setPlanPricing] = useState<PlanPricing>(DEFAULT_PLAN_PRICING);
   const [pricingSaving, setPricingSaving] = useState(false);
   const [pricingSaved, setPricingSaved] = useState(false);
+  const [templateGenerationLimits, setTemplateGenerationLimits] = useState<TemplateGenerationLimits>(DEFAULT_TEMPLATE_GENERATION_LIMITS);
+  const [templateLimitSaving, setTemplateLimitSaving] = useState(false);
+  const [templateLimitSaved, setTemplateLimitSaved] = useState(false);
   const [trialConfig, setTrialConfig] = useState<TrialConfig>(DEFAULT_TRIAL_CONFIG);
   const [trialSaving, setTrialSaving] = useState(false);
   const [trialSaved, setTrialSaved] = useState(false);
@@ -708,8 +723,9 @@ export default function AdminPage() {
           api.get<TemplateTierEntry[]>("/api/v1/admin/template-tiers"),
           api.get<PptxDesignerTemplate[]>("/api/v1/admin/pptx-templates"),
           api.get<TrialConfig>("/api/v1/admin/trial-config"),
+          api.get<TemplateGenerationLimits>("/api/v1/admin/presentation-generation-limits"),
           api.get<any>("/api/v1/admin/mailgun-config"),
-        ]).then(([statsRes, usersRes, aiRes, pricingRes, catalogRes, billingStatsRes, failedRes, stripeRes, tierRes, pptxRes, trialRes, mailgunRes]) => {
+        ]).then(([statsRes, usersRes, aiRes, pricingRes, catalogRes, billingStatsRes, failedRes, stripeRes, tierRes, pptxRes, trialRes, templateLimitRes, mailgunRes]) => {
           if (statsRes.status === "fulfilled") setStats(statsRes.value);
           if (usersRes.status === "fulfilled") setUsers(usersRes.value);
           if (pricingRes.status === "fulfilled") setPlanPricing(pricingRes.value);
@@ -725,6 +741,7 @@ export default function AdminPage() {
           if (tierRes.status === "fulfilled") setTemplateTiers(tierRes.value);
           if (pptxRes.status === "fulfilled") setPptxTemplates(pptxRes.value);
           if (trialRes.status === "fulfilled") setTrialConfig(trialRes.value);
+          if (templateLimitRes.status === "fulfilled") setTemplateGenerationLimits(templateLimitRes.value);
           if (mailgunRes.status === "fulfilled") {
             const mg = mailgunRes.value;
             setMailgunConfig(mg);
@@ -903,6 +920,23 @@ export default function AdminPage() {
       alert("Failed to save pricing. Please try again.");
     } finally {
       setPricingSaving(false);
+    }
+  };
+
+  const handleSaveTemplateGenerationLimits = async () => {
+    setTemplateLimitSaving(true);
+    try {
+      const updated = await api.put<TemplateGenerationLimits>(
+        "/api/v1/admin/presentation-generation-limits",
+        templateGenerationLimits
+      );
+      setTemplateGenerationLimits(updated);
+      setTemplateLimitSaved(true);
+      setTimeout(() => setTemplateLimitSaved(false), 2500);
+    } catch {
+      alert("Failed to save presentation generation limits. Please try again.");
+    } finally {
+      setTemplateLimitSaving(false);
     }
   };
 
@@ -1210,6 +1244,64 @@ export default function AdminPage() {
             </a>{" "}
             to copy the IDs from Products → Pricing.
           </p>
+        </div>
+
+        {/* ── Presentation Generation Limits ──────────────────────────────── */}
+        <div className="bg-white border border-slate-200 rounded-xl p-6">
+          <div className="mb-5 flex items-end justify-between gap-4">
+            <div>
+              <h2 className="font-semibold text-slate-800 text-lg">Presentation Generation Limits</h2>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Set how many presentations each package can generate per month. Use <code className="bg-slate-100 px-1 rounded">-1</code> for unlimited.
+              </p>
+            </div>
+            <button
+              onClick={handleSaveTemplateGenerationLimits}
+              disabled={templateLimitSaving}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+                templateLimitSaved
+                  ? "bg-green-600 text-white"
+                  : "bg-indigo-600 hover:bg-indigo-500 text-white"
+              } disabled:opacity-50`}
+            >
+              <Save className="h-4 w-4" />
+              {templateLimitSaving ? "Saving…" : templateLimitSaved ? "Saved!" : "Save Limits"}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {(["free", "pro", "team"] as const).map((planKey) => (
+              <div key={planKey} className="border border-slate-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${PLAN_BADGE[planKey]}`}>
+                    {PLAN_LABELS[planKey]}
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    {templateGenerationLimits[planKey] < 0 ? "Unlimited" : `${templateGenerationLimits[planKey]} / month`}
+                  </span>
+                </div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Monthly presentation limit
+                </label>
+                <input
+                  type="number"
+                  min={-1}
+                  value={templateGenerationLimits[planKey]}
+                  onChange={(e) => {
+                    const nextValue = Number.parseInt(e.target.value, 10);
+                    setTemplateGenerationLimits((prev) => ({
+                      ...prev,
+                      [planKey]: Number.isFinite(nextValue) ? Math.max(-1, nextValue) : 0,
+                    }));
+                  }}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Blocks new presentation generation once this month&apos;s count reaches the limit.
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* ── Trial Package (Spark) Settings ───────────────────────────────── */}

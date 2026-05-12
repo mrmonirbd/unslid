@@ -73,6 +73,7 @@ from utils.process_slides import (
     process_slide_add_placeholder_assets,
     process_slide_and_fetch_assets,
 )
+from utils.presentation_generation_limits import enforce_presentation_generation_limit
 import uuid
 
 
@@ -379,6 +380,8 @@ async def create_presentation(
     current_user: UserModel = Depends(get_current_user),
     sql_session: AsyncSession = Depends(get_async_session),
 ):
+    await enforce_presentation_generation_limit(current_user, sql_session)
+
     # Free plan: allow exactly 1 active presentation (delete it to make a new one)
     if current_user.plan == "free":
         from sqlalchemy import func
@@ -876,6 +879,7 @@ async def generate_presentation_handler(
     request: GeneratePresentationRequest,
     presentation_id: uuid.UUID,
     async_status: Optional[AsyncPresentationGenerationTaskModel],
+    user_id: Optional[int] = None,
     sql_session: AsyncSession = Depends(get_async_session),
 ):
     try:
@@ -1036,6 +1040,7 @@ async def generate_presentation_handler(
         # Create PresentationModel
         presentation = PresentationModel(
             id=presentation_id,
+            user_id=user_id,
             content=request.content,
             n_slides=request.n_slides,
             language=request.language,
@@ -1193,6 +1198,8 @@ async def generate_presentation_sync(
     sql_session: AsyncSession = Depends(get_async_session),
 ):
     try:
+        await enforce_presentation_generation_limit(current_user, sql_session)
+
         # Free plan: 1 active presentation slot
         if current_user.plan == "free":
             from sqlalchemy import func
@@ -1223,7 +1230,7 @@ async def generate_presentation_sync(
             )
         (presentation_id,) = await check_if_api_request_is_valid(request, sql_session)
         return await generate_presentation_handler(
-            request, presentation_id, None, sql_session
+            request, presentation_id, None, current_user.id, sql_session
         )
     except HTTPException:
         raise
@@ -1242,6 +1249,8 @@ async def generate_presentation_async(
     sql_session: AsyncSession = Depends(get_async_session),
 ):
     try:
+        await enforce_presentation_generation_limit(current_user, sql_session)
+
         # Free plan: 1 active presentation slot
         if current_user.plan == "free":
             from sqlalchemy import func
@@ -1285,8 +1294,9 @@ async def generate_presentation_async(
             generate_presentation_handler,
             request,
             presentation_id,
-            async_status=async_status,
-            sql_session=sql_session,
+            async_status,
+            current_user.id,
+            sql_session,
         )
         return async_status
 

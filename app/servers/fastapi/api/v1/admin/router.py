@@ -34,6 +34,14 @@ from models.sql.template import TemplateModel
 from models.sql.template_tier import TemplateTierModel
 from services.database import get_async_session
 from services.plan_ai_config_service import get_all_plan_configs, upsert_plan_ai_config
+from utils.template_generation_limits import (
+    get_template_generation_limits,
+    save_template_generation_limits,
+)
+from utils.presentation_generation_limits import (
+    get_presentation_generation_limits,
+    save_presentation_generation_limits,
+)
 
 STRIPE_CONFIG_KEY = "stripe_config"
 MAILGUN_CONFIG_KEY = "mailgun_config"
@@ -831,6 +839,66 @@ async def get_trial_config_public(
 ):
     """Public endpoint — trial config for billing page (no auth needed)."""
     return await _get_trial_config(session)
+
+
+# ─── Generated Template Limits ────────────────────────────────────────────────
+
+class TemplateGenerationLimitsRequest(BaseModel):
+    free: int = 5
+    pro: int = -1
+    team: int = -1
+
+
+@ADMIN_ROUTER.get("/template-generation-limits")
+async def get_generated_template_limits(
+    admin: UserModel = Depends(require_admin),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Return per-plan limits for generated/custom templates. -1 means unlimited."""
+    return await get_template_generation_limits(session)
+
+
+@ADMIN_ROUTER.put("/template-generation-limits")
+async def update_generated_template_limits(
+    body: TemplateGenerationLimitsRequest,
+    admin: UserModel = Depends(require_admin),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Save per-plan limits for generated/custom templates. -1 means unlimited."""
+    limits = body.model_dump()
+    if any(value < -1 for value in limits.values()):
+        raise HTTPException(status_code=400, detail="Limits must be -1 or greater")
+    return await save_template_generation_limits(limits, session)
+
+
+# ─── Presentation Generation Limits ──────────────────────────────────────────
+
+class PresentationGenerationLimitsRequest(BaseModel):
+    free: int = 1
+    pro: int = -1
+    team: int = -1
+
+
+@ADMIN_ROUTER.get("/presentation-generation-limits")
+async def get_generated_presentation_limits(
+    admin: UserModel = Depends(require_admin),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Return monthly per-plan presentation generation limits. -1 means unlimited."""
+    return await get_presentation_generation_limits(session)
+
+
+@ADMIN_ROUTER.put("/presentation-generation-limits")
+async def update_generated_presentation_limits(
+    body: PresentationGenerationLimitsRequest,
+    admin: UserModel = Depends(require_admin),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Save monthly per-plan presentation generation limits. -1 means unlimited."""
+    limits = body.model_dump()
+    if any(value < -1 for value in limits.values()):
+        raise HTTPException(status_code=400, detail="Limits must be -1 or greater")
+    return await save_presentation_generation_limits(limits, session)
 
 
 # ─── Billing Stats & Failed Payments ─────────────────────────────────────────

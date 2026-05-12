@@ -33,6 +33,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { checkPresentationGenerationLimit } from "../../utils/presentationLimit";
 
 // Types for loading state
 interface LoadingState {
@@ -104,6 +105,14 @@ const UploadPage = () => {
     if (!validateConfiguration()) return;
 
     try {
+      const limitCheck = await checkPresentationGenerationLimit();
+      if (!limitCheck.allowed) {
+        toast.error("Presentation limit reached", {
+          description: limitCheck.message,
+        });
+        return;
+      }
+
       const hasUploadedAssets = files.length > 0;
 
       if (hasUploadedAssets) {
