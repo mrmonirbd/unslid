@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, ReactNode, useCallback } from "react";
+import { flushSync } from "react-dom";
 import ReactDOM from "react-dom/client";
 import TiptapText from "./TiptapText";
 
@@ -33,10 +34,12 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
   const slideDataRef = useRef(slideData);
   const slideIndexRef = useRef(slideIndex);
   const onContentChangeRef = useRef(onContentChange);
+  const childrenRef = useRef(children);
 
   slideDataRef.current = slideData;
   slideIndexRef.current = slideIndex;
   onContentChangeRef.current = onContentChange;
+  childrenRef.current = children;
 
   // Track created React roots to update content when slideData changes
   const rootsRef = useRef<
@@ -164,25 +167,19 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
     const container = containerRef.current;
     cleanupEditorRoots();
 
-    if (isolatedRootRef.current) {
-      try {
-        isolatedRootRef.current.unmount();
-      } catch {
-        // The old isolated root may already have been removed.
-      }
-      isolatedRootRef.current = null;
-    }
+    container.replaceChildren();
 
-    container.innerHTML = "";
-    const mount = document.createElement("div");
-    mount.className = "tiptap-isolated-render w-full h-full";
-    container.appendChild(mount);
+    const reactMount = document.createElement("div");
+    reactMount.className = "tiptap-isolated-render w-full h-full";
+    container.appendChild(reactMount);
 
-    const root = ReactDOM.createRoot(mount);
+    const root = ReactDOM.createRoot(reactMount);
     isolatedRootRef.current = root;
-    root.render(<>{children}</>);
+    flushSync(() => {
+      root.render(<>{childrenRef.current}</>);
+    });
 
-    const timer = setTimeout(() => replaceTextElements(container), 100);
+    const timer = setTimeout(() => replaceTextElements(reactMount), 100);
 
     return () => {
       clearTimeout(timer);
@@ -199,6 +196,7 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
   }, [
     isolated,
     renderKey,
+    children,
     cleanupEditorRoots,
     replaceTextElements,
   ]);

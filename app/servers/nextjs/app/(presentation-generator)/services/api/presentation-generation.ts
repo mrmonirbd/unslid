@@ -212,7 +212,7 @@ export class PresentationGenerationApi {
     }
   }
 
-  static async generateTemplateContent(templateContentData: any) {
+  static async generateTemplateContent(templateContentData: any, options?: { signal?: AbortSignal }) {
     try {
       const response = await fetch(
         `/api/v1/ppt/presentation/template-content/generate`,
@@ -221,6 +221,7 @@ export class PresentationGenerationApi {
           headers: await getHeader(),
           body: JSON.stringify(templateContentData),
           cache: "no-cache",
+          signal: options?.signal,
         }
       );
 

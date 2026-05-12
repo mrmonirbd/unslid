@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import html2canvas from "html2canvas";
 
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
@@ -33,6 +34,7 @@ import ImageEditor from "../../components/ImageEditor";
 import { DEFAULT_THEMES } from "../../(dashboard)/theme/components/ThemePanel/constants";
 import { loadFonts } from "../../hooks/useFontLoad";
 import ThemeApi from "../../services/api/theme";
+import { LanguageType } from "../../upload/type";
 
 interface PptxDesignerTemplate {
   id: number;
@@ -86,6 +88,46 @@ interface DesignerPreviewSlideForGeneration {
 const getTemplateScopedLayoutId = (templateId: string, layoutId: string) => {
   const rawLayoutId = layoutId.split(":").pop() || layoutId;
   return `${templateId}:${rawLayoutId}`;
+};
+
+const NON_TYPEWRITER_KEY_PATTERN = /(^|_)(url|href|src|id|slug|template|layout|color|font|icon|image)(_|\b)/i;
+
+const countTypewriterCharacters = (value: any, key = ""): number => {
+  if (typeof value === "string") {
+    return NON_TYPEWRITER_KEY_PATTERN.test(key) ? 0 : value.length;
+  }
+  if (Array.isArray(value)) {
+    return value.reduce((total, item) => total + countTypewriterCharacters(item), 0);
+  }
+  if (value && typeof value === "object") {
+    return Object.entries(value).reduce(
+      (total, [childKey, childValue]) => total + countTypewriterCharacters(childValue, childKey),
+      0
+    );
+  }
+  return 0;
+};
+
+const revealTypewriterCharacters = (value: any, characters: { remaining: number }, key = ""): any => {
+  if (typeof value === "string") {
+    if (NON_TYPEWRITER_KEY_PATTERN.test(key)) return value;
+    if (characters.remaining <= 0) return "";
+    const visibleCharacters = Math.min(value.length, characters.remaining);
+    characters.remaining -= visibleCharacters;
+    return value.slice(0, visibleCharacters);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => revealTypewriterCharacters(item, characters));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([childKey, childValue]) => [
+        childKey,
+        revealTypewriterCharacters(childValue, characters, childKey),
+      ])
+    );
+  }
+  return value;
 };
 
 const buildDesignerSlideSchema = (slide: DesignerPreviewSlideForGeneration) => {
@@ -365,9 +407,9 @@ function ResponsivePreviewFrame({
 
 function TemplatePreviewShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-dvh bg-gray-50 pb-20 md:h-screen md:overflow-hidden md:pb-0">
+    <div className="flex h-dvh flex-col-reverse overflow-hidden bg-gray-50 md:flex-row">
       <DashboardSidebar />
-      <div className="min-w-0 flex-1 md:h-screen md:overflow-y-auto">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto md:h-screen">
         {children}
       </div>
     </div>
@@ -1652,6 +1694,7 @@ const GroupLayoutPreview = () => {
   const [designerError, setDesignerError] = useState<string | null>(null);
   const [staticEditorPanelState, setStaticEditorPanelState] = useState<StaticEditorPanelState>(EMPTY_STATIC_EDITOR_PANEL_STATE);
   const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLanguage, setAiLanguage] = useState<LanguageType>(LanguageType.English);
   const [aiPromptModalOpen, setAiPromptModalOpen] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiGenerationMessage, setAiGenerationMessage] = useState("");
@@ -1660,6 +1703,9 @@ const GroupLayoutPreview = () => {
   const [selectedTheme, setSelectedTheme] = useState<any | null>(null);
   const [generatedPresentationData, setGeneratedPresentationData] = useState<any | null>(null);
   const [generatedPresentationVersion, setGeneratedPresentationVersion] = useState("sample");
+  const generationRequestIdRef = useRef(0);
+  const generationAbortRef = useRef<AbortController | null>(null);
+  const generationTypewriterRef = useRef<number | null>(null);
   const { user } = useUser();
   const isAdmin = !!user?.is_admin;
   const userStorageId = user?.id || user?.email ? String(user.id || user.email) : "";
@@ -1711,6 +1757,47 @@ const GroupLayoutPreview = () => {
     return updatedAt;
   };
 
+  const stopGenerationTypewriter = () => {
+    if (generationTypewriterRef.current !== null) {
+      window.clearInterval(generationTypewriterRef.current);
+      generationTypewriterRef.current = null;
+    }
+  };
+
+  const playGeneratedDataTypewriter = (data: any, requestId: number) => {
+    stopGenerationTypewriter();
+    const totalCharacters = countTypewriterCharacters(data);
+    if (!totalCharacters) {
+      setGeneratedPresentationData(data);
+      return Promise.resolve();
+    }
+
+    const charactersPerTick = Math.max(12, Math.ceil(totalCharacters / 180));
+    let visibleCharacters = 0;
+
+    setGeneratedPresentationData(revealTypewriterCharacters(data, { remaining: visibleCharacters }));
+    setAiGenerationMessage("Writing generated content into the preview...");
+
+    return new Promise<void>((resolve) => {
+      generationTypewriterRef.current = window.setInterval(() => {
+        if (generationRequestIdRef.current !== requestId) {
+          stopGenerationTypewriter();
+          resolve();
+          return;
+        }
+
+        visibleCharacters = Math.min(totalCharacters, visibleCharacters + charactersPerTick);
+        setGeneratedPresentationData(revealTypewriterCharacters(data, { remaining: visibleCharacters }));
+
+        if (visibleCharacters >= totalCharacters) {
+          stopGenerationTypewriter();
+          setGeneratedPresentationData(data);
+          resolve();
+        }
+      }, 24);
+    });
+  };
+
   useEffect(() => {
     const existingScript = document.querySelector('script[src*="tailwindcss.com"]');
     if (!existingScript) {
@@ -1720,6 +1807,13 @@ const GroupLayoutPreview = () => {
       document.head.appendChild(script);
     }
   }, [templateParams]);
+
+  useEffect(() => {
+    return () => {
+      stopGenerationTypewriter();
+      generationAbortRef.current?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     if (!isCustom && !isDesigner && staticGroup?.slug && templateParams === staticGroup.id) {
@@ -2041,6 +2135,16 @@ const GroupLayoutPreview = () => {
       return;
     }
 
+    const requestId = generationRequestIdRef.current + 1;
+    generationRequestIdRef.current = requestId;
+    generationAbortRef.current?.abort();
+    stopGenerationTypewriter();
+    const abortController = new AbortController();
+    generationAbortRef.current = abortController;
+    const timeoutId = window.setTimeout(() => abortController.abort(), 180000);
+    const previousGeneratedData = generatedPresentationData;
+    const previousGeneratedVersion = generatedPresentationVersion;
+
     try {
       setAiPromptModalOpen(false);
       setAiGenerating(true);
@@ -2051,7 +2155,7 @@ const GroupLayoutPreview = () => {
       const generatedTemplate = await PresentationGenerationApi.generateTemplateContent({
         content: aiPrompt,
         layout,
-        language: "English",
+        language: aiLanguage,
         tone: "default",
         verbosity: "standard",
         instructions: [
@@ -2061,21 +2165,37 @@ const GroupLayoutPreview = () => {
           "Image prompts should be directly relevant to the user's topic and the slide's message.",
         ].join(" "),
         pptx_template_id: pptxTemplateId,
+      }, {
+        signal: abortController.signal,
       });
 
+      if (generationRequestIdRef.current !== requestId) return;
+
       const updatedAt = saveGeneratedPreviewData(generatedTemplate);
-      setGeneratedPresentationData(generatedTemplate);
+      setGeneratedPresentationVersion(`typing-${Date.now()}`);
+      scrollToPreviewSlide(0);
+      await playGeneratedDataTypewriter(generatedTemplate, requestId);
+      if (generationRequestIdRef.current !== requestId) return;
       setGeneratedPresentationVersion(updatedAt ? `saved-${updatedAt}` : `generated-${Date.now()}`);
       scrollToPreviewSlide(Math.max((generatedTemplate?.slides?.length || 1) - 1, 0));
       toast.success("Template updated with AI content");
     } catch (error: any) {
+      if (generationRequestIdRef.current !== requestId) return;
       console.error("Template AI generation failed", error);
+      setGeneratedPresentationData(previousGeneratedData);
+      setGeneratedPresentationVersion(previousGeneratedVersion);
       toast.error("Generation Error", {
-        description: error?.message || "Failed to generate content for this template.",
+        description: error?.name === "AbortError"
+          ? "Generation took too long and was stopped. Please try again with a shorter prompt or fewer pages."
+          : error?.message || "Failed to generate content for this template.",
       });
     } finally {
-      setAiGenerating(false);
-      setAiGenerationMessage("");
+      window.clearTimeout(timeoutId);
+      if (generationRequestIdRef.current === requestId) {
+        setAiGenerating(false);
+        setAiGenerationMessage("");
+        generationAbortRef.current = null;
+      }
     }
   };
 
@@ -2211,6 +2331,30 @@ const GroupLayoutPreview = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            <div className="flex flex-col gap-2 sm:max-w-xs">
+              <label className="text-sm font-semibold text-slate-700" htmlFor="template-ai-language">
+                Language
+              </label>
+              <Select
+                value={aiLanguage}
+                onValueChange={(value) => setAiLanguage(value as LanguageType)}
+                disabled={aiGenerating}
+              >
+                <SelectTrigger
+                  id="template-ai-language"
+                  className="h-10 w-full border-slate-200 bg-white text-sm font-medium focus:ring-indigo-100"
+                >
+                  <SelectValue placeholder="Select language" />
+                </SelectTrigger>
+                <SelectContent className="z-[80] max-h-72">
+                  {Object.values(LanguageType).map((language) => (
+                    <SelectItem key={language} value={language} className="text-sm">
+                      {language}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <textarea
               value={aiPrompt}
               onChange={(event) => setAiPrompt(event.target.value)}
