@@ -25,6 +25,10 @@ from models.sql.user import UserModel
 from models.sql.key_value import KeyValueSqlModel
 from services.database import get_async_session
 from utils.rate_limit import get_user_usage
+from utils.presentation_generation_limits import (
+    get_monthly_presentation_count,
+    get_presentation_generation_limits,
+)
 
 PLAN_PRICING_KEY = "plan_pricing"
 TRIAL_CONFIG_KEY = "trial_config"
@@ -268,6 +272,16 @@ async def get_billing_status(
 ):
     """Return current plan, usage stats, available price IDs, plan pricing, and trial config."""
     usage = await get_user_usage(current_user.id, current_user.plan)
+    presentation_limits = await get_presentation_generation_limits(session)
+    usage["presentations_this_month"] = await get_monthly_presentation_count(
+        current_user.id,
+        session,
+    )
+    monthly_limit = presentation_limits.get(
+        current_user.plan,
+        presentation_limits["free"],
+    )
+    usage["monthly_limit"] = monthly_limit if monthly_limit >= 0 else None
     plan_pricing = await _load_plan_pricing(session)
     trial_config = await _load_trial_config(session)
 
