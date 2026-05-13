@@ -19,6 +19,21 @@ type FormState = {
   country: string;
 };
 
+type PlanKey = "free" | "pro" | "team";
+
+type PlanPricingEntry = {
+  price_monthly: number;
+  price_annual: number;
+  currency: string;
+  stripe_price_id_monthly: string;
+  stripe_price_id_annual: string;
+};
+
+type BillingStatusForCheckout = {
+  prices?: Record<string, string>;
+  plan_pricing?: Record<PlanKey, PlanPricingEntry>;
+};
+
 declare global {
   interface Window {
     Stripe?: (publishableKey: string) => any;
@@ -28,6 +43,30 @@ declare global {
 const initialForm: FormState = {
   name: "",
   country: "United States",
+};
+
+const DEFAULT_PLAN_PRICING: Record<PlanKey, PlanPricingEntry> = {
+  free: {
+    price_monthly: 0,
+    price_annual: 0,
+    currency: "USD",
+    stripe_price_id_monthly: "",
+    stripe_price_id_annual: "",
+  },
+  pro: {
+    price_monthly: 19,
+    price_annual: 190,
+    currency: "USD",
+    stripe_price_id_monthly: "",
+    stripe_price_id_annual: "",
+  },
+  team: {
+    price_monthly: 49,
+    price_annual: 490,
+    currency: "USD",
+    stripe_price_id_monthly: "",
+    stripe_price_id_annual: "",
+  },
 };
 
 function inputClass(extra = "") {
@@ -42,6 +81,55 @@ function stripeFieldClass() {
   return "rounded-lg border border-slate-300 bg-white px-3 py-3";
 }
 
+function unmountStripeElements(elements: any[]) {
+  elements.forEach((element) => {
+    try {
+      element.unmount();
+    } catch {
+      // Stripe may already have detached the iframe during React dev remounts.
+    }
+  });
+}
+
+function isPlanKey(value: string): value is PlanKey {
+  return value === "free" || value === "pro" || value === "team";
+}
+
+function formatPrice(amount: number, currency: string, cadence: "monthly" | "annual") {
+  const formatted = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency || "USD",
+    maximumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+  }).format(amount);
+
+  return `${formatted}/${cadence === "annual" ? "yr" : "mo"}`;
+}
+
+function resolvePriceDisplay(
+  status: BillingStatusForCheckout,
+  selectedPriceId: string,
+  productKey: string
+) {
+  const pricing = status.plan_pricing ?? DEFAULT_PLAN_PRICING;
+
+  for (const planKey of ["pro", "team"] as const) {
+    const entry = pricing[planKey];
+    if (entry.stripe_price_id_monthly === selectedPriceId || status.prices?.[`${planKey}_monthly`] === selectedPriceId) {
+      return formatPrice(entry.price_monthly, entry.currency, "monthly");
+    }
+    if (entry.stripe_price_id_annual === selectedPriceId || status.prices?.[`${planKey}_annual`] === selectedPriceId) {
+      return formatPrice(entry.price_annual, entry.currency, "annual");
+    }
+  }
+
+  if (isPlanKey(productKey)) {
+    const entry = pricing[productKey];
+    return formatPrice(entry.price_monthly, entry.currency, "monthly");
+  }
+
+  return null;
+}
+
 export default function GetStartedCheckoutPage() {
   const params = useParams<{ priceId: string; productId: string }>();
   const router = useRouter();
@@ -53,6 +141,7 @@ export default function GetStartedCheckoutPage() {
   const [cardReady, setCardReady] = useState(false);
   const [stripe, setStripe] = useState<any>(null);
   const [cardNumber, setCardNumber] = useState<any>(null);
+  const [priceDisplay, setPriceDisplay] = useState<string | null>(null);
 
   const cardNumberRef = useRef<HTMLDivElement | null>(null);
   const expiryRef = useRef<HTMLDivElement | null>(null);
@@ -62,6 +151,10 @@ export default function GetStartedCheckoutPage() {
   const priceId = useMemo(
     () => decodeURIComponent(String(params?.priceId ?? "")),
     [params?.priceId]
+  );
+  const productKey = useMemo(
+    () => decodeURIComponent(String(params?.productId ?? "")),
+    [params?.productId]
   );
 
   const update = (key: keyof FormState, value: string) => {
@@ -133,7 +226,7 @@ export default function GetStartedCheckoutPage() {
       throw new Error("Payment fields are not ready.");
     }
 
-    mountedElementsRef.current.forEach((element) => element.unmount());
+    unmountStripeElements(mountedElementsRef.current);
     mountedElementsRef.current = [];
     cardNumberRef.current.innerHTML = "";
     expiryRef.current.innerHTML = "";
@@ -211,12 +304,33 @@ export default function GetStartedCheckoutPage() {
 
     return () => {
       cancelled = true;
-      mountedElementsRef.current.forEach((element) => element.unmount());
+      unmountStripeElements(mountedElementsRef.current);
       mountedElementsRef.current = [];
     };
     // prepareCardFields intentionally runs once per price id to mount Stripe Elements.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [priceId]);
+
+  useEffect(() => {
+    if (!priceId) return;
+
+    let cancelled = false;
+    api.get<BillingStatusForCheckout>("/api/v1/billing/status")
+      .then((status) => {
+        if (!cancelled) {
+          setPriceDisplay(resolvePriceDisplay(status, priceId, productKey));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPriceDisplay(resolvePriceDisplay({}, priceId, productKey));
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [priceId, productKey]);
 
   return (
     <main className="min-h-screen bg-[#f4f4f5] text-slate-950">
@@ -245,9 +359,7 @@ export default function GetStartedCheckoutPage() {
                 Secure card payment, instant access <span className="font-bold text-amber-500">5.0 rating</span>
               </p>
             </div>
-            <div className="hidden h-20 w-20 items-center justify-center rounded-full bg-red-50 md:flex">
-              <Sparkles className="h-10 w-10 text-red-500" strokeWidth={2.5} />
-            </div>
+           
           </div>
 
           {error && (
@@ -271,7 +383,7 @@ export default function GetStartedCheckoutPage() {
             <div>
               <label className="text-sm font-bold">Card Number</label>
               <div className={`${stripeFieldClass()} mt-3 min-h-11`}>
-                <div ref={cardNumberRef}>{!cardReady && <span className="text-sm text-slate-400">Card Number</span>}</div>
+                <div ref={cardNumberRef} />
               </div>
             </div>
 
@@ -279,13 +391,13 @@ export default function GetStartedCheckoutPage() {
               <div>
                 <label className="text-sm font-bold">Expiration date</label>
                 <div className={`${stripeFieldClass()} mt-3 min-h-11`}>
-                  <div ref={expiryRef}>{!cardReady && <span className="text-sm text-slate-400">MM / YY</span>}</div>
+                  <div ref={expiryRef} />
                 </div>
               </div>
               <div>
                 <label className="text-sm font-bold">CVC</label>
                 <div className={`${stripeFieldClass()} mt-3 min-h-11`}>
-                  <div ref={cvcRef}>{!cardReady && <span className="text-sm text-slate-400">CVV / CVC</span>}</div>
+                  <div ref={cvcRef} />
                 </div>
               </div>
             </div>
@@ -308,9 +420,13 @@ export default function GetStartedCheckoutPage() {
             <button
               type="submit"
               disabled={loading}
-              className="h-8 w-full rounded-lg bg-violet-600 text-sm font-black tracking-wide text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+              className="h-8 w-full rounded-lg bg-violet-600 text-sm font-black tracking-wide text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading ? "PROCESSING..." : cardReady ? "PAY & ACTIVATE" : "LOADING SECURE CARD FORM..."}
+              {loading
+                ? "PROCESSING..."
+                : cardReady
+                  ? `PAY${priceDisplay ? ` ${priceDisplay}` : ""} & ACTIVATE`
+                  : "LOADING SECURE CARD FORM..."}
             </button>
 
             <p className="flex items-center justify-center gap-2 text-center text-xs text-slate-400">
