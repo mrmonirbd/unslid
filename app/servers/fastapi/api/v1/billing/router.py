@@ -95,6 +95,19 @@ PRICE_IDS = {
 STRIPE_CONFIG_KEY = "stripe_config"
 
 
+def _stripe_object_to_dict(obj):
+    """Normalize Stripe SDK objects across stripe-python versions."""
+    if isinstance(obj, dict):
+        return obj
+    if hasattr(obj, "to_dict_recursive"):
+        return obj.to_dict_recursive()
+    if hasattr(obj, "to_dict"):
+        return obj.to_dict()
+    if hasattr(obj, "to_json"):
+        return json.loads(obj.to_json())
+    return dict(obj)
+
+
 async def _get_stripe_secrets_from_db(session: AsyncSession) -> dict:
     """Load decrypted Stripe secrets from DB; fall back to env vars."""
     from utils.crypto import decrypt_value
@@ -415,7 +428,7 @@ async def stripe_webhook(
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
 
     event_type = event["type"]
-    data = event["data"]["object"].to_dict_recursive()
+    data = _stripe_object_to_dict(event["data"]["object"])
 
     logger.info(f"Stripe webhook: {event_type}")
 
@@ -459,7 +472,7 @@ async def _handle_subscription_change(session: AsyncSession, data: dict, event_t
     if subscription_id:
         secrets = await _get_stripe_secrets_from_db(session)
         stripe.api_key = secrets["secret_key"]
-        subscription = stripe.Subscription.retrieve(subscription_id).to_dict_recursive()
+        subscription = _stripe_object_to_dict(stripe.Subscription.retrieve(subscription_id))
         price_id = subscription["items"]["data"][0]["price"]["id"]
         new_plan = _price_id_to_plan(price_id)
         # Sync cancel_at_period_end
