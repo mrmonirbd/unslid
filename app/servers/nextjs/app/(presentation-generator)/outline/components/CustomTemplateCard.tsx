@@ -30,17 +30,20 @@ export const CustomTemplateCard = memo(({ template, onSelectTemplate, selectedTe
 
     const { previewLayouts, loading: customLoading, totalLayouts } = useCustomTemplatePreview(template.id);
     const isSelected = selectedTemplate === template.id;
+    const canSelect = !customLoading && previewLayouts.length > 0;
 
     return (
 
         <Card
-            className={`${isSelected ? 'border-2 border-blue-500' : ''} font-syne cursor-pointer flex flex-col justify-between relative hover:shadow-lg transition-all duration-200 group overflow-hidden`}
-            onClick={() => onSelectTemplate(template.id)}
+            className={`${isSelected ? 'border-2 border-blue-500' : ''} ${canSelect ? 'cursor-pointer hover:shadow-lg' : 'cursor-not-allowed opacity-60'} font-syne flex flex-col justify-between relative transition-all duration-200 group overflow-hidden`}
+            onClick={() => {
+                if (canSelect) onSelectTemplate(template.id);
+            }}
         >
 
             <img src="/card_bg.svg" alt="" className="absolute top-0 left-0 w-full h-full object-cover" />
             <span className="text-xs font-syne absolute top-2 flex gap-1 capitalize  items-center left-2 rounded-[100px]  px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold  z-40">
-                Layouts- {totalLayouts}
+                {canSelect || customLoading ? `Layouts- ${totalLayouts}` : "Unavailable"}
             </span>
             <div className="p-5">
 
@@ -91,4 +94,3 @@ export const CustomTemplateCard = memo(({ template, onSelectTemplate, selectedTe
     );
 });
 CustomTemplateCard.displayName = 'CustomTemplateCard';
-

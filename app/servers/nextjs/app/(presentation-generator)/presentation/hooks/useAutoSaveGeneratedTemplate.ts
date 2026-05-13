@@ -100,6 +100,60 @@ const tokenizeSlideHtml = (html: string): { html: string; textTokens: TextToken[
   };
 };
 
+const getSlideHtmlForTemplate = (element: HTMLElement) => {
+  const clone = element.cloneNode(true) as HTMLElement;
+  const isolatedRender = clone.querySelector<HTMLElement>(".tiptap-isolated-render");
+  const source = isolatedRender ?? clone;
+
+  source.querySelectorAll("[aria-hidden='true'], .tiptap-text-editor").forEach((node) => {
+    node.remove();
+  });
+
+  return source.innerHTML;
+};
+
+const hasMeaningfulTemplateHtml = (html: string) => {
+  if (typeof document === "undefined") return html.trim().length > 0;
+
+  const container = document.createElement("div");
+  container.innerHTML = html;
+
+  const text = (container.textContent || "").replace(/\s+/g, " ").trim();
+  if (text.length > 8) return true;
+
+  return Boolean(
+    container.querySelector(
+      "img[src]:not([src*='placeholder']):not([src^='{{']), svg, canvas, table"
+    )
+  );
+};
+
+const collectRenderedSlideHtml = () => {
+  const slideElements = Array.from(
+    document.querySelectorAll<HTMLElement>("[id^='slide-'] [data-slide-content='true']")
+  );
+
+  return slideElements.map((element) => getSlideHtmlForTemplate(element));
+};
+
+const waitForRenderedSlides = async (expectedSlides: number, maxAttempts = 20) => {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const slideHtml = collectRenderedSlideHtml();
+    const hasAllSlides = slideHtml.length >= expectedSlides;
+    const hasOnlyRenderableSlides = slideHtml
+      .slice(0, expectedSlides)
+      .every((html) => hasMeaningfulTemplateHtml(html));
+
+    if (hasAllSlides && hasOnlyRenderableSlides) {
+      return slideHtml.slice(0, expectedSlides);
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, 500));
+  }
+
+  return [];
+};
+
 const buildStaticLayoutCode = (slideIndex: number, html: string) => `
 const layoutId = "${slideIndex + 1}";
 const layoutName = "Slide ${slideIndex + 1}";
@@ -228,19 +282,15 @@ export const useAutoSaveGeneratedTemplate = ({
       if (savingRef.current) return;
 
       try {
-        const slideElements = Array.from(
-          document.querySelectorAll<HTMLElement>("[id^='slide-'] [data-slide-content='true']")
-        );
+        const slideHtml = await waitForRenderedSlides(presentationData.slides.length);
+        if (!slideHtml.length || cancelled) return;
 
-        if (!slideElements.length || cancelled) return;
-
-        const layouts = slideElements.map((element, index) => {
-          const clone = element.cloneNode(true) as HTMLElement;
+        const layouts = slideHtml.map((html, index) => {
           return {
             presentation: presentationId,
             layout_id: `${index + 1}`,
             layout_name: `Slide ${index + 1}`,
-            layout_code: buildStaticLayoutCode(index, clone.innerHTML),
+            layout_code: buildStaticLayoutCode(index, html),
             fonts: [] as string[],
           };
         });
