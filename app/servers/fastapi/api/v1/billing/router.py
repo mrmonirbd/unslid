@@ -153,12 +153,29 @@ def get_app_url() -> str:
     return f"https://{APP_DOMAIN}"
 
 
+def _append_checkout_session_id(url: str) -> str:
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}session_id={{CHECKOUT_SESSION_ID}}"
+
+
 # ─── Checkout ────────────────────────────────────────────────────────────────
 
 class CheckoutRequest(BaseModel):
     price_id: str
     success_path: str = "/settings/billing?success=true"
     cancel_path: str = "/settings/billing?cancelled=true"
+
+
+class CheckoutSyncRequest(BaseModel):
+    session_id: str
+
+
+class SubscriptionIntentRequest(BaseModel):
+    price_id: str
+
+
+class SubscriptionSyncRequest(BaseModel):
+    subscription_id: str
 
 
 @BILLING_ROUTER.post("/checkout")
@@ -188,11 +205,146 @@ async def create_checkout_session(
         payment_method_types=["card"],
         line_items=[{"price": body.price_id, "quantity": 1}],
         mode="subscription",
-        success_url=f"{base_url}{body.success_path}",
+        success_url=_append_checkout_session_id(f"{base_url}{body.success_path}"),
         cancel_url=f"{base_url}{body.cancel_path}",
         metadata={"user_id": str(current_user.id)},
     )
     return {"url": checkout.url}
+
+
+def _get_subscription_plan(subscription: dict, plan_pricing: dict | None = None) -> str:
+    price_id = subscription["items"]["data"][0]["price"]["id"]
+    return _price_id_to_plan(price_id, plan_pricing)
+
+
+def _subscription_client_secret(subscription: dict) -> str | None:
+    invoice = subscription.get("latest_invoice")
+    if isinstance(invoice, dict):
+        payment_intent = invoice.get("payment_intent")
+        if isinstance(payment_intent, dict):
+            return payment_intent.get("client_secret")
+        confirmation_secret = invoice.get("confirmation_secret")
+        if isinstance(confirmation_secret, dict):
+            return confirmation_secret.get("client_secret")
+    return None
+
+
+@BILLING_ROUTER.post("/subscription-intent")
+async def create_subscription_intent(
+    body: SubscriptionIntentRequest,
+    current_user: UserModel = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Create an incomplete subscription for in-page Stripe Payment Element confirmation."""
+    s = await get_stripe_async(session)
+    secrets = await _get_stripe_secrets_from_db(session)
+
+    if not current_user.stripe_customer_id:
+        customer = s.Customer.create(
+            email=current_user.email,
+            name=current_user.full_name,
+            metadata={"user_id": str(current_user.id)},
+        )
+        current_user.stripe_customer_id = customer.id
+        current_user.updated_at = datetime.now(timezone.utc)
+        session.add(current_user)
+        await session.commit()
+
+    subscription = _stripe_object_to_dict(
+        s.Subscription.create(
+            customer=current_user.stripe_customer_id,
+            items=[{"price": body.price_id}],
+            payment_behavior="default_incomplete",
+            payment_settings={"save_default_payment_method": "on_subscription"},
+            metadata={"user_id": str(current_user.id)},
+            expand=["latest_invoice.payment_intent", "latest_invoice.confirmation_secret"],
+        )
+    )
+
+    client_secret = _subscription_client_secret(subscription)
+    if not client_secret:
+        raise HTTPException(status_code=502, detail="Stripe did not return a payment intent for this subscription.")
+
+    return {
+        "client_secret": client_secret,
+        "subscription_id": subscription["id"],
+        "publishable_key": secrets["publishable_key"],
+    }
+
+
+@BILLING_ROUTER.post("/subscription/sync")
+async def sync_subscription(
+    body: SubscriptionSyncRequest,
+    current_user: UserModel = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Sync a Stripe subscription after in-page Payment Element confirmation."""
+    s = await get_stripe_async(session)
+    subscription = _stripe_object_to_dict(
+        s.Subscription.retrieve(body.subscription_id, expand=["latest_invoice.payment_intent", "latest_invoice.confirmation_secret"])
+    )
+
+    if subscription.get("customer") != current_user.stripe_customer_id:
+        raise HTTPException(status_code=403, detail="Subscription does not belong to this user.")
+
+    status = subscription.get("status")
+    if status not in ("active", "trialing"):
+        return {"synced": False, "plan": current_user.plan, "status": status}
+
+    plan_pricing = await _load_plan_pricing(session)
+    current_user.plan = _get_subscription_plan(subscription, plan_pricing)
+    current_user.subscription_status = "active"
+    current_user.cancel_at_period_end = bool(subscription.get("cancel_at_period_end", False))
+    cancel_at = subscription.get("cancel_at")
+    current_user.subscription_ends_at = (
+        datetime.fromtimestamp(cancel_at, tz=timezone.utc) if cancel_at else None
+    )
+    current_user.updated_at = datetime.now(timezone.utc)
+    session.add(current_user)
+    await session.commit()
+    return {"synced": True, "plan": current_user.plan, "status": current_user.subscription_status}
+
+
+@BILLING_ROUTER.post("/checkout/sync")
+async def sync_checkout_session(
+    body: CheckoutSyncRequest,
+    current_user: UserModel = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Verify a completed Checkout session and sync the user plan.
+
+    Stripe webhooks remain the source of truth in production, but local/dev flows
+    often return to the app before the webhook is delivered or without webhook
+    forwarding at all. This endpoint makes the success return path deterministic.
+    """
+    s = await get_stripe_async(session)
+
+    checkout_session = _stripe_object_to_dict(
+        s.checkout.Session.retrieve(body.session_id)
+    )
+    customer_id = checkout_session.get("customer")
+    metadata = checkout_session.get("metadata", {}) or {}
+    user_id_meta = metadata.get("user_id")
+
+    belongs_to_current_user = (
+        (customer_id and customer_id == current_user.stripe_customer_id)
+        or (user_id_meta and str(user_id_meta) == str(current_user.id))
+    )
+    if not belongs_to_current_user:
+        raise HTTPException(status_code=403, detail="Checkout session does not belong to this user.")
+
+    if checkout_session.get("payment_status") not in ("paid", "no_payment_required"):
+        return {"synced": False, "plan": current_user.plan, "status": checkout_session.get("payment_status")}
+
+    mode = checkout_session.get("mode")
+    if mode == "payment" and metadata.get("type") == "trial":
+        await _handle_trial_payment_completed(session, checkout_session)
+    elif mode == "subscription":
+        await _handle_subscription_change(session, checkout_session, "checkout.session.sync")
+
+    await session.refresh(current_user)
+    return {"synced": True, "plan": current_user.plan, "status": current_user.subscription_status}
 
 
 # ─── Trial Checkout (one-time payment) ───────────────────────────────────────
@@ -242,7 +394,7 @@ async def create_trial_checkout_session(
         payment_method_types=["card"],
         line_items=[{"price": price_id, "quantity": 1}],
         mode="payment",
-        success_url=f"{base_url}/settings/billing?trial_success=1",
+        success_url=_append_checkout_session_id(f"{base_url}/settings/billing?trial_success=1"),
         cancel_url=f"{base_url}/settings/billing?cancelled=true",
         metadata={
             "user_id": str(current_user.id),
@@ -474,7 +626,8 @@ async def _handle_subscription_change(session: AsyncSession, data: dict, event_t
         stripe.api_key = secrets["secret_key"]
         subscription = _stripe_object_to_dict(stripe.Subscription.retrieve(subscription_id))
         price_id = subscription["items"]["data"][0]["price"]["id"]
-        new_plan = _price_id_to_plan(price_id)
+        plan_pricing = await _load_plan_pricing(session)
+        new_plan = _price_id_to_plan(price_id, plan_pricing)
         # Sync cancel_at_period_end
         user.cancel_at_period_end = bool(subscription.get("cancel_at_period_end", False))
         cancel_at = subscription.get("cancel_at")
@@ -590,8 +743,14 @@ async def _handle_trial_payment_completed(session: AsyncSession, data: dict):
     )
 
 
-def _price_id_to_plan(price_id: str) -> str:
+def _price_id_to_plan(price_id: str, plan_pricing: dict | None = None) -> str:
     """Map a Stripe price ID to a plan name."""
+    if plan_pricing:
+        for plan_key in ("pro", "team"):
+            for cadence in ("monthly", "annual"):
+                if plan_pricing.get(plan_key, {}).get(f"stripe_price_id_{cadence}") == price_id:
+                    return plan_key
+
     for plan_key, pid in PRICE_IDS.items():
         if pid == price_id:
             if "team" in plan_key:
