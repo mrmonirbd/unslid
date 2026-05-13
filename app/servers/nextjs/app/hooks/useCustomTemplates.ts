@@ -62,6 +62,43 @@ function normalizeCustomTemplateId(id: string): string {
     return id.startsWith("custom-") ? id.slice("custom-".length) : id;
 }
 
+function getGeneratedSlideHtml(layoutCode: string): string | null {
+    const marker = "const generatedSlideHtml = ";
+    const start = layoutCode.indexOf(marker);
+    if (start < 0) return null;
+
+    const valueStart = start + marker.length;
+    const valueEnd = layoutCode.indexOf(";\n", valueStart);
+    if (valueEnd < 0) return null;
+
+    try {
+        return JSON.parse(layoutCode.slice(valueStart, valueEnd));
+    } catch {
+        return null;
+    }
+}
+
+function isBlankAutoSavedLayout(layoutCode: string): boolean {
+    const generatedHtml = getGeneratedSlideHtml(layoutCode);
+    if (generatedHtml === null) return false;
+
+    if (typeof document !== "undefined") {
+        const container = document.createElement("div");
+        container.innerHTML = generatedHtml;
+        const text = (container.textContent || "").replace(/\s+/g, " ").trim();
+        if (text.length > 8) return false;
+        return !container.querySelector("img[src], svg, canvas, table");
+    }
+
+    const textOnly = generatedHtml.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    return textOnly.length <= 8 && !/(<img\b|<svg\b|<canvas\b|<table\b)/i.test(generatedHtml);
+}
+
+function compileUsableCustomLayout(layoutCode: string): CompiledLayout | null {
+    if (isBlankAutoSavedLayout(layoutCode)) return null;
+    return compileCustomLayout(layoutCode);
+}
+
 /**
  * Fetch + compile ONLY the first layout for a custom template.
  * Accepts either a raw presentationId or a "custom-..." id.
@@ -79,7 +116,7 @@ export async function getCustomTemplateFirstSlidePreview(
         if (!firstLayout?.layout_code) {
             return null;
         }
-        return compileCustomLayout(firstLayout.layout_code);
+        return compileUsableCustomLayout(firstLayout.layout_code);
     } catch (err) {
         console.error("Error fetching first-slide preview:", err);
         return null;
@@ -108,7 +145,7 @@ export async function getCustomTemplateDetails(
 
         for (const layout of data.layouts) {
             try {
-                const compiled = compileCustomLayout(layout.layout_code);
+                const compiled = compileUsableCustomLayout(layout.layout_code);
 
                 if (compiled) {
                     compiledLayouts.push({
@@ -266,7 +303,7 @@ export function useCustomTemplatePreview(presentationId: string, enabled = true)
 
                 for (const layout of layoutsToPreview) {
                     try {
-                        const result = compileCustomLayout(layout.layout_code);
+                        const result = compileUsableCustomLayout(layout.layout_code);
                         if (result) {
                             compiled.push(result);
                         }
