@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api, BillingStatus } from "@/lib/api";
 import { Check, AlertTriangle, Download, CreditCard as CardIcon, ExternalLink, Zap, Clock } from "lucide-react";
 
@@ -107,10 +107,12 @@ const FALLBACK_BILLING_STATUS: BillingStatusExtended = {
 };
 
 export default function BillingPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const success = searchParams.get("success");
   const cancelled = searchParams.get("cancelled");
   const trialSuccess = searchParams.get("trial_success");
+  const checkoutSessionId = searchParams.get("session_id");
 
   const [status, setStatus] = useState<BillingStatusExtended | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,12 +122,27 @@ export default function BillingPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [billingError, setBillingError] = useState<string | null>(null);
+  const [checkoutSyncing, setCheckoutSyncing] = useState(false);
 
   useEffect(() => {
     let mounted = true;
 
-    api.get<BillingStatusExtended>("/api/v1/billing/status")
-      .then((s) => {
+    const loadBilling = async () => {
+      if ((success || trialSuccess) && checkoutSessionId) {
+        setCheckoutSyncing(true);
+        try {
+          await api.post("/api/v1/billing/checkout/sync", { session_id: checkoutSessionId });
+        } catch (error: any) {
+          if (mounted) {
+            setBillingError(error?.message ?? "Payment succeeded, but plan sync is still pending.");
+          }
+        } finally {
+          if (mounted) setCheckoutSyncing(false);
+        }
+      }
+
+      try {
+        const s = await api.get<BillingStatusExtended>("/api/v1/billing/status");
         if (!mounted) return;
         setStatus({ ...s, plan_pricing: s.plan_pricing ?? DEFAULT_PLAN_PRICING });
         if (s.has_billing) {
@@ -136,20 +153,21 @@ export default function BillingPage() {
             if (mounted && pm) setPaymentMethod(pm);
           }).catch(() => {});
         }
-      })
-      .catch((error: any) => {
+      } catch (error: any) {
         if (!mounted) return;
         setBillingError(error?.message ?? "Billing is unavailable right now.");
         setStatus(FALLBACK_BILLING_STATUS);
-      })
-      .finally(() => {
+      } finally {
         if (mounted) setLoading(false);
-      });
+      }
+    };
+
+    loadBilling();
 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [checkoutSessionId, success, trialSuccess]);
 
   const handleTrialCheckout = async () => {
     setCheckoutLoading("trial");
@@ -168,15 +186,7 @@ export default function BillingPage() {
       alert("Billing is not configured yet. Please contact support or check back soon.");
       return;
     }
-    setCheckoutLoading(planKey);
-    try {
-      const { url } = await api.post<{ url: string }>("/api/v1/billing/checkout", { price_id: priceId });
-      window.location.href = url;
-    } catch {
-      alert("Could not start checkout. Please try again.");
-    } finally {
-      setCheckoutLoading(null);
-    }
+    router.push(`/get-started/${encodeURIComponent(priceId)}/${encodeURIComponent(planKey)}`);
   };
 
   const handlePortal = async () => {
@@ -232,7 +242,15 @@ export default function BillingPage() {
           </span>
         </div>
       )}
-      {success && (
+      {success && currentPlan === "free" && (
+        <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl text-amber-800 text-sm font-medium flex items-center gap-3">
+          <Clock className="h-4 w-4 shrink-0" />
+          <span>
+            Payment received. {checkoutSyncing ? "Syncing your subscription…" : "Your plan is being verified. Refresh in a moment if it does not update."}
+          </span>
+        </div>
+      )}
+      {success && currentPlan !== "free" && (
         <div className="p-4 bg-green-50 border border-green-300 rounded-xl text-green-800 text-sm font-medium flex items-center gap-2">
           <Check className="h-4 w-4" /> Your subscription is now active. Welcome to the {PLAN_LABELS[currentPlan]} plan!
         </div>
