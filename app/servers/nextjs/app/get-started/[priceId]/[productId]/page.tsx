@@ -382,6 +382,12 @@ function resolvePriceDisplay(
   return null;
 }
 
+function isMissingSubscriptionIntentEndpoint(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.trim().toLowerCase();
+  return message === "not found" || message === "404 not found";
+}
+
 export default function GetStartedCheckoutPage() {
   const params = useParams<{ priceId: string; productId: string }>();
   const router = useRouter();
@@ -539,6 +545,20 @@ export default function GetStartedCheckoutPage() {
       await api.post("/api/v1/billing/subscription/sync", { subscription_id: intent.subscription_id });
       router.push("/settings/billing?success=true");
     } catch (err: any) {
+      if (isMissingSubscriptionIntentEndpoint(err)) {
+        try {
+          const { url } = await api.post<{ url: string }>("/api/v1/billing/checkout", {
+            price_id: priceId,
+          });
+          window.location.href = url;
+          return;
+        } catch (checkoutErr: any) {
+          setError(checkoutErr?.message ?? "Could not start checkout. Please try again.");
+          setLoading(false);
+          return;
+        }
+      }
+
       setError(err?.message ?? "Could not complete checkout. Please try again.");
       setLoading(false);
     }
