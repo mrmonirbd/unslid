@@ -338,6 +338,15 @@ def _pdf_date(timestamp: int | None) -> str:
     return datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%b %d, %Y")
 
 
+def _is_trial_active(current_user: UserModel) -> bool:
+    if not current_user.trial_expires_at:
+        return False
+    trial_expires_at = current_user.trial_expires_at
+    if trial_expires_at.tzinfo is not None:
+        trial_expires_at = trial_expires_at.replace(tzinfo=None)
+    return trial_expires_at > datetime.utcnow()
+
+
 def _build_pdf(objects: list[bytes]) -> bytes:
     output = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
     offsets = [0]
@@ -730,12 +739,68 @@ async def _build_billing_status_response(current_user: UserModel, session: Async
     }
 
 
+async def _sync_user_subscription_from_stripe(current_user: UserModel, session: AsyncSession) -> None:
+    """Keep local DB aligned even if a Stripe webhook is delayed or missed."""
+    if not current_user.stripe_customer_id or _is_trial_active(current_user):
+        return
+
+    try:
+        s = await get_stripe_async(session)
+        subscription = _first_active_subscription(s, current_user.stripe_customer_id)
+    except Exception as e:
+        logger.warning(f"Could not sync billing status from Stripe: {e}")
+        return
+
+    changed = False
+    if subscription:
+        plan_pricing = await _load_plan_pricing(session)
+        next_plan = _get_subscription_plan(subscription, plan_pricing)
+        next_status = subscription.get("status", current_user.subscription_status)
+        next_cancel_at_period_end = bool(subscription.get("cancel_at_period_end", False))
+        period_end = subscription.get("cancel_at") or (
+            subscription.get("current_period_end") if next_cancel_at_period_end else None
+        )
+        next_subscription_ends_at = (
+            datetime.fromtimestamp(period_end, tz=timezone.utc).replace(tzinfo=None)
+            if period_end
+            else None
+        )
+
+        updates = {
+            "plan": next_plan,
+            "subscription_status": next_status,
+            "cancel_at_period_end": next_cancel_at_period_end,
+            "subscription_ends_at": next_subscription_ends_at,
+        }
+    elif current_user.plan != "free":
+        updates = {
+            "plan": "free",
+            "subscription_status": "cancelled",
+            "cancel_at_period_end": False,
+            "subscription_ends_at": current_user.subscription_ends_at or datetime.utcnow(),
+        }
+    else:
+        updates = {}
+
+    for key, value in updates.items():
+        if getattr(current_user, key) != value:
+            setattr(current_user, key, value)
+            changed = True
+
+    if changed:
+        current_user.updated_at = datetime.utcnow()
+        session.add(current_user)
+        await session.commit()
+        await session.refresh(current_user)
+
+
 @BILLING_ROUTER.get("/status")
 async def get_billing_status(
     current_user: UserModel = Depends(get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ):
     """Return current plan, usage stats, available price IDs, plan pricing, and trial config."""
+    await _sync_user_subscription_from_stripe(current_user, session)
     return await _build_billing_status_response(current_user, session)
 
 
