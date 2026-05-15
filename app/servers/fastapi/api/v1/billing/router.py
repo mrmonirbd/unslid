@@ -11,10 +11,12 @@ Endpoints:
 import os
 import json
 import logging
+import unicodedata
 from datetime import datetime, timezone, timedelta
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request, Header
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -319,6 +321,167 @@ def _payment_method_from_subscription(stripe_client, subscription: dict | None) 
     return None
 
 
+def _amount_from_cents(amount: int | float | None) -> str:
+    value = (amount or 0) / 100
+    return f"${value:,.2f}"
+
+
+def _pdf_text(value) -> str:
+    text = unicodedata.normalize("NFKD", str(value or ""))
+    text = text.encode("latin-1", "ignore").decode("latin-1")
+    return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def _pdf_date(timestamp: int | None) -> str:
+    if not timestamp:
+        return "N/A"
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%b %d, %Y")
+
+
+def _build_pdf(objects: list[bytes]) -> bytes:
+    output = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets = [0]
+    for index, obj in enumerate(objects, start=1):
+        offsets.append(len(output))
+        output.extend(f"{index} 0 obj\n".encode())
+        output.extend(obj)
+        output.extend(b"\nendobj\n")
+
+    xref_offset = len(output)
+    output.extend(f"xref\n0 {len(objects) + 1}\n".encode())
+    output.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        output.extend(f"{offset:010d} 00000 n \n".encode())
+    output.extend(
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n".encode()
+    )
+    return bytes(output)
+
+
+def _custom_invoice_pdf(invoice: dict, current_user: UserModel) -> bytes:
+    currency = invoice.get("currency", "usd")
+    lines = invoice.get("lines", {}).get("data", [])
+    customer_email = invoice.get("customer_email") or current_user.email
+    customer_name = invoice.get("customer_name") or current_user.full_name or current_user.email
+    invoice_number = invoice.get("number") or invoice.get("id", "")
+    invoice_date = _pdf_date(invoice.get("created"))
+    due_date = _pdf_date(invoice.get("due_date") or invoice.get("created"))
+    subtotal = invoice.get("subtotal", invoice.get("amount_paid"))
+    tax_amounts = invoice.get("total_tax_amounts") or []
+    tax = invoice.get("tax") or (tax_amounts[0].get("amount", 0) if tax_amounts else 0)
+    total = invoice.get("total", invoice.get("amount_paid"))
+    amount_paid = invoice.get("amount_paid", total)
+    title_number = invoice_number.replace("in_", "")[-12:]
+
+    ops: list[str] = [
+        "1 1 1 rg 0 0 612 792 re f",
+        "0.23 0.31 0.35 rg",
+        f"BT /F2 30 Tf 42 724 Td ({_pdf_text('INVOICE')}) Tj ET",
+        f"BT /F2 17 Tf 190 726 Td ({_pdf_text(f'#{title_number}')}) Tj ET",
+        f"BT /F2 11 Tf 42 700 Td ({_pdf_text('Subscription Invoice')}) Tj ET",
+        "0.31 0.27 0.90 rg 386 704 36 36 re f",
+        "1 1 1 rg 399 722 15 11 re f",
+        "1 1 1 rg 394 715 15 11 re f",
+        "0.96 0.62 0.04 rg 415 728 8 8 re f",
+        "0.49 0.23 0.93 rg",
+        f"BT /F2 28 Tf 442 724 Td ({_pdf_text('unslid')}) Tj ET",
+        "0.90 0.93 0.94 rg 0 558 612 128 re f",
+        "0.34 0.48 0.54 rg",
+        f"BT /F2 10 Tf 42 636 Td ({_pdf_text('FROM')}) Tj ET",
+        "0.30 0.30 0.32 rg",
+        f"BT /F2 11 Tf 42 604 Td ({_pdf_text('Unslid')}) Tj ET",
+        f"BT /F1 10 Tf 42 582 Td ({_pdf_text('Subscription Billing')}) Tj ET",
+        f"BT /F1 10 Tf 42 564 Td ({_pdf_text('Online payment')}) Tj ET",
+        "0.34 0.48 0.54 rg",
+        f"BT /F2 10 Tf 218 636 Td ({_pdf_text('TO')}) Tj ET",
+        "0.30 0.30 0.32 rg",
+        f"BT /F2 11 Tf 218 604 Td ({_pdf_text(customer_name)}) Tj ET",
+        f"BT /F1 10 Tf 218 582 Td ({_pdf_text(customer_email)}) Tj ET",
+        "0.34 0.48 0.54 rg",
+        f"BT /F2 10 Tf 402 636 Td ({_pdf_text('INVOICE NO.')}) Tj ET",
+        "0.30 0.30 0.32 rg",
+        f"BT /F1 10 Tf 520 636 Td ({_pdf_text(title_number)}) Tj ET",
+        "0.34 0.48 0.54 rg",
+        f"BT /F2 10 Tf 402 610 Td ({_pdf_text('INVOICE DATE')}) Tj ET",
+        "0.30 0.30 0.32 rg",
+        f"BT /F1 10 Tf 512 610 Td ({_pdf_text(invoice_date)}) Tj ET",
+        "0.34 0.48 0.54 rg",
+        f"BT /F2 10 Tf 402 584 Td ({_pdf_text('PAYMENT DUE')}) Tj ET",
+        "0.30 0.30 0.32 rg",
+        f"BT /F1 10 Tf 512 584 Td ({_pdf_text(due_date)}) Tj ET",
+        "0.34 0.48 0.54 rg",
+        f"BT /F2 10 Tf 42 510 Td ({_pdf_text('SUMMARY')}) Tj ET",
+        "0.30 0.30 0.32 rg",
+        f"BT /F2 10 Tf 42 484 Td ({_pdf_text('Payment Instructions')}) Tj ET",
+        f"BT /F1 10 Tf 42 466 Td ({_pdf_text('Paid online through Stripe. Thank you for your payment.')}) Tj ET",
+        "0.90 0.93 0.94 rg 0 370 612 42 re f",
+        "0.34 0.48 0.54 rg",
+        f"BT /F2 10 Tf 42 386 Td ({_pdf_text('DESCRIPTION')}) Tj ET",
+        f"BT /F2 10 Tf 334 386 Td ({_pdf_text('QTY')}) Tj ET",
+        f"BT /F2 10 Tf 414 386 Td ({_pdf_text('UNIT PRICE')}) Tj ET",
+        f"BT /F2 10 Tf 508 386 Td ({_pdf_text('TOTAL PRICE')}) Tj ET",
+        "0.23 0.31 0.35 RG 0 370 m 612 370 l S",
+    ]
+
+    y = 340
+    if lines:
+        for item in lines[:5]:
+            description = item.get("description") or "Subscription"
+            quantity = item.get("quantity") or 1
+            amount = item.get("amount") if item.get("amount") is not None else item.get("amount_excluding_tax")
+            unit_amount = (amount or 0) / quantity if quantity else amount
+            ops.extend(
+                [
+                    "0.30 0.30 0.32 rg",
+                    f"BT /F1 11 Tf 42 {y} Td ({_pdf_text(description[:58])}) Tj ET",
+                    f"BT /F1 11 Tf 348 {y} Td ({_pdf_text(quantity)}) Tj ET",
+                    f"BT /F1 11 Tf 430 {y} Td ({_pdf_text(_amount_from_cents(unit_amount))}) Tj ET",
+                    f"BT /F1 11 Tf 520 {y} Td ({_pdf_text(_amount_from_cents(amount))}) Tj ET",
+                    f"0.93 0.93 0.94 RG 0 {y - 18} m 612 {y - 18} l S",
+                ]
+            )
+            y -= 42
+    else:
+        ops.extend(
+            [
+                "0.30 0.30 0.32 rg",
+                f"BT /F1 11 Tf 42 {y} Td ({_pdf_text('Subscription payment')}) Tj ET",
+                f"BT /F1 11 Tf 348 {y} Td ({_pdf_text('1')}) Tj ET",
+                f"BT /F1 11 Tf 430 {y} Td ({_pdf_text(_amount_from_cents(amount_paid))}) Tj ET",
+                f"BT /F1 11 Tf 520 {y} Td ({_pdf_text(_amount_from_cents(amount_paid))}) Tj ET",
+            ]
+        )
+
+    ops.extend(
+        [
+            "0.30 0.30 0.32 rg",
+            f"BT /F1 11 Tf 390 170 Td ({_pdf_text('Invoice Subtotal')}) Tj ET",
+            f"BT /F1 11 Tf 520 170 Td ({_pdf_text(_amount_from_cents(subtotal))}) Tj ET",
+            f"BT /F1 11 Tf 390 144 Td ({_pdf_text('Invoice Tax')}) Tj ET",
+            f"BT /F1 11 Tf 520 144 Td ({_pdf_text(_amount_from_cents(tax))}) Tj ET",
+            "0.90 0.93 0.94 rg 304 94 308 42 re f",
+            "0.23 0.31 0.35 RG 304 94 m 612 94 l S",
+            "0.34 0.48 0.54 rg",
+            f"BT /F2 12 Tf 430 110 Td ({_pdf_text('Total Due')}) Tj ET",
+            "0.49 0.23 0.93 rg",
+            f"BT /F2 12 Tf 508 110 Td ({_pdf_text(f'{currency.upper()} {_amount_from_cents(amount_paid)}')}) Tj ET",
+            "0.30 0.30 0.32 rg",
+            f"BT /F1 8 Tf 42 54 Td ({_pdf_text('Generated by Unslid from verified billing records.')}) Tj ET",
+        ]
+    )
+
+    content = "\n".join(ops).encode("latin-1")
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
+        b"<< /Length " + str(len(content)).encode() + b" >>\nstream\n" + content + b"\nendstream",
+    ]
+    return _build_pdf(objects)
+
+
 @BILLING_ROUTER.post("/subscription-intent")
 async def create_subscription_intent(
     body: SubscriptionIntentRequest,
@@ -600,10 +763,44 @@ async def get_invoices(
             "amount": inv.amount_paid / 100,
             "currency": inv.currency.upper(),
             "status": inv.status,
-            "pdf_url": inv.invoice_pdf,
+            "pdf_url": f"/api/v1/billing/invoices/{inv.id}/pdf",
             "hosted_url": inv.hosted_invoice_url,
         })
     return result
+
+
+@BILLING_ROUTER.get("/invoices/{invoice_id}/pdf")
+async def download_invoice_pdf(
+    invoice_id: str,
+    current_user: UserModel = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Download a branded invoice PDF generated from verified Stripe invoice data."""
+    s = await get_stripe_async(session)
+    if not current_user.stripe_customer_id:
+        raise HTTPException(status_code=400, detail="No billing account found.")
+
+    try:
+        invoice = _stripe_object_to_dict(
+            s.Invoice.retrieve(invoice_id, expand=["lines.data.price.product"])
+        )
+    except Exception as e:
+        logger.warning(f"Could not retrieve invoice {invoice_id}: {e}")
+        raise HTTPException(status_code=404, detail="Invoice not found.")
+
+    if invoice.get("customer") != current_user.stripe_customer_id:
+        raise HTTPException(status_code=404, detail="Invoice not found.")
+
+    pdf = _custom_invoice_pdf(invoice, current_user)
+    filename = f"unslid-invoice-{invoice.get('number') or invoice_id}.pdf"
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "private, no-store",
+        },
+    )
 
 
 @BILLING_ROUTER.get("/payment-method")
