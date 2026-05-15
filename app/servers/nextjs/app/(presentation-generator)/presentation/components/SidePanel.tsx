@@ -21,7 +21,6 @@ import { setPresentationData } from "@/store/slices/presentationGeneration";
 import { SortableSlide } from "./SortableSlide";
 import SlideScale from "../../components/PresentationRender";
 import { Separator } from "@/components/ui/separator";
-import { useRouter } from "next/navigation";
 import NewSlide from "./NewSlide";
 
 interface SidePanelProps {
@@ -40,7 +39,6 @@ const SidePanel = ({
   loading,
 }: SidePanelProps) => {
 
-  const router = useRouter();
   const [showNewSlideSelection, setShowNewSlideSelection] = useState(false);
 
   const { presentationData, isStreaming } = useSelector(
@@ -125,11 +123,6 @@ const SidePanel = ({
   return (
     <div className="w-full bg-[#F6F6F9] px-3 py-3 md:w-[200px] md:px-4 md:pt-8">
 
-      <img onClick={() => {
-        router.push("/dashboard");
-      }} src="/logo-with-bg.png" alt="" className="hidden h-10 w-10 cursor-pointer object-contain md:block" />
-
-      <Separator orientation="horizontal" className="my-6 hidden md:block" />
       <div
         className={`
           relative h-full z-50 xl:z-auto

@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useCallback, memo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
 import { templates } from "@/app/presentation-templates";
@@ -9,7 +10,9 @@ import { CustomTemplates, useCustomTemplateSummaries } from "@/app/hooks/useCust
 import { FileDown, Loader2, Lock } from "lucide-react";
 import { CustomTemplateCard } from "./CustomTemplateCard";
 import CreateCustomTemplate from "../../(dashboard)/templates/components/CreateCustomTemplate";
-import { api } from "@/lib/api";
+import { api, UserProfile } from "@/lib/api";
+
+const FREE_BUILT_IN_TEMPLATE_LIMIT = 10;
 
 export interface DesignerTemplateSelection {
   type: "designer";
@@ -52,19 +55,37 @@ const BuiltInLayoutPreview = memo(({ layout, templateId, index }: {
 BuiltInLayoutPreview.displayName = 'BuiltInLayoutPreview';
 
 // Memoized built-in template card
-const BuiltInTemplateCard = memo(({ template, isSelected, onSelect }: {
+const BuiltInTemplateCard = memo(({ template, isSelected, locked, onSelect, onLockedSelect }: {
   template: TemplateLayoutsWithSettings;
   isSelected: boolean;
+  locked?: boolean;
   onSelect: (template: TemplateLayoutsWithSettings) => void;
+  onLockedSelect: () => void;
 }) => {
   const previewLayouts = useMemo(() => template.layouts.slice(0, 4), [template.layouts]);
-  const handleClick = useCallback(() => onSelect(template), [onSelect, template]);
+  const handleClick = useCallback(() => {
+    if (locked) {
+      onLockedSelect();
+      return;
+    }
+    onSelect(template);
+  }, [locked, onLockedSelect, onSelect, template]);
 
   return (
     <Card
-      className={`${isSelected ? 'border-2 border-blue-500' : ''} cursor-pointer relative hover:shadow-lg transition-all duration-200 group overflow-hidden`}
+      className={`${isSelected ? 'border-2 border-blue-500' : ''} cursor-pointer relative hover:shadow-lg transition-all duration-200 group overflow-hidden ${locked ? "opacity-80" : ""}`}
       onClick={handleClick}
     >
+      {locked && (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-black/40">
+          <div className="rounded-full bg-white/90 p-2.5 shadow">
+            <Lock className="h-5 w-5 text-amber-600" />
+          </div>
+          <span className="rounded-full bg-amber-600/90 px-3 py-1 text-xs font-semibold text-white shadow">
+            Paid — Upgrade to unlock
+          </span>
+        </div>
+      )}
       <span className="text-xs font-syne absolute top-2 flex gap-1 capitalize items-center left-2 rounded-[100px] px-2.5 py-1 bg-[#3A3A3AF5] text-white font-semibold z-40">
         Layouts- {template.layouts.length}
       </span>
@@ -85,6 +106,7 @@ const BuiltInTemplateCard = memo(({ template, isSelected, onSelect }: {
         <div>
           <h3 className="text-sm font-bold text-gray-900 capitalize font-syne">
             {template.name}
+            {locked && <Lock className="ml-1 inline h-3 w-3 text-amber-500" />}
           </h3>
           <p className="text-xs text-gray-600  line-clamp-2 font-syne">
             {template.description}
@@ -105,6 +127,7 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
   selectedTemplate,
   onSelectTemplate
 }) => {
+  const router = useRouter();
   useEffect(() => {
     const existingScript = document.querySelector(
       'script[src*="tailwindcss.com"]'
@@ -118,8 +141,17 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
   }, []);
 
   const { templates: customTemplates, loading: customLoading } = useCustomTemplateSummaries();
+  const [plan, setPlan] = useState<string>("free");
+  const [planLoaded, setPlanLoaded] = useState(false);
   const [designerTemplates, setDesignerTemplates] = useState<PptxDesignerTemplate[]>([]);
   const [designerLoading, setDesignerLoading] = useState(false);
+
+  useEffect(() => {
+    api.get<UserProfile>("/api/v1/account/me")
+      .then((user) => setPlan(user.plan ?? "free"))
+      .catch(() => setPlan("free"))
+      .finally(() => setPlanLoaded(true));
+  }, []);
 
   useEffect(() => {
     setDesignerLoading(true);
@@ -141,6 +173,19 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
   const handleBuiltInSelect = useCallback(
     (template: TemplateLayoutsWithSettings) => onSelectTemplate(template),
     [onSelectTemplate]
+  );
+
+  const handleLockedSelect = useCallback(() => {
+    router.push("/settings/billing");
+  }, [router]);
+
+  const isBuiltInTemplateLocked = useCallback(
+    (templateIndex: number) => {
+      if (!planLoaded) return false;
+      if (plan === "pro" || plan === "team") return false;
+      return templateIndex >= FREE_BUILT_IN_TEMPLATE_LIMIT;
+    },
+    [plan, planLoaded]
   );
 
   // Derive the selected custom template id only when selectedTemplate changes
@@ -195,15 +240,17 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
   // Memoize the built-in templates list
   const builtInTemplateCards = useMemo(
     () =>
-      templates.map((template: TemplateLayoutsWithSettings) => (
+      templates.map((template: TemplateLayoutsWithSettings, index) => (
         <BuiltInTemplateCard
           key={template.id}
           template={template}
           isSelected={selectedBuiltInId === template.id}
+          locked={isBuiltInTemplateLocked(index)}
           onSelect={handleBuiltInSelect}
+          onLockedSelect={handleLockedSelect}
         />
       )),
-    [selectedBuiltInId, handleBuiltInSelect]
+    [handleBuiltInSelect, handleLockedSelect, isBuiltInTemplateLocked, selectedBuiltInId]
   );
 
   const designerTemplateCards = useMemo(() => {

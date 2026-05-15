@@ -15,7 +15,6 @@ import {
   usePresentationData,
   usePresentationNavigation,
   useAutoSave,
-  useAutoSaveGeneratedTemplate,
 } from "../hooks";
 import { PresentationPageProps } from "../types";
 import LoadingState from "./LoadingState";
@@ -25,6 +24,7 @@ import PresentationHeader from "./PresentationHeader";
 import { useCollaboration } from "../hooks/useCollaboration";
 import ToolTip from "@/components/ToolTip";
 import { loadFonts } from "../../hooks/useFontLoad";
+import DashboardSidebar from "../../(dashboard)/Components/DashboardSidebar";
 
 const applyThemeToSlidesWrapper = (theme: any) => {
   const element = document.getElementById("presentation-slides-wrapper");
@@ -111,13 +111,6 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   const { isSaving } = useAutoSave({
     debounceMs: 2000,
     enabled: !!presentationData && !isStreaming,
-  });
-
-  useAutoSaveGeneratedTemplate({
-    presentationId: presentation_id,
-    presentationData,
-    isStreaming: Boolean(isStreaming),
-    loading,
   });
 
   // Custom hooks
@@ -208,6 +201,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
         }}
         className="relative flex min-h-dvh flex-col gap-0 md:h-screen md:min-h-0 md:flex-row md:gap-6"
       >
+        <DashboardSidebar />
         <div className="w-full md:w-[200px] md:shrink-0">
           <SidePanel
             selectedSlide={selectedSlide}
