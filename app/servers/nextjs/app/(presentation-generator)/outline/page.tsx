@@ -1,5 +1,6 @@
 import React from 'react'
 import Header from '@/app/(presentation-generator)/(dashboard)/dashboard/components/Header'
+import DashboardSidebar from '@/app/(presentation-generator)/(dashboard)/Components/DashboardSidebar'
 import { Metadata } from 'next'
 import OutlinePage from './components/OutlinePage'
 export const metadata: Metadata = {
@@ -23,18 +24,20 @@ export const metadata: Metadata = {
 }
 const page = () => {
   return (
-    <div className='relative min-h-screen'>
-      <Header />
-      <div
-        className='fixed z-[-10] bottom-5 left-1/2 -translate-x-1/2 w-full h-full'
-        style={{
-          height: "341px",
-          width: "86%",
-          borderRadius: '1440px',
-          background: 'radial-gradient(5.92% 104.69% at 50% 100%, rgba(122, 90, 248, 0.00) 0%, rgba(255, 255, 255, 0.00) 100%), radial-gradient(50% 50% at 50% 50%, rgba(122, 90, 248, 0.80) 0%, rgba(122, 90, 248, 0.00) 100%)',
-        }}
-      />
-      <OutlinePage />
+    <div className='flex h-dvh flex-col-reverse overflow-hidden bg-[#fbf9ff] md:flex-row'>
+      <DashboardSidebar />
+      <div className='relative min-h-0 min-w-0 flex-1 overflow-y-auto'>
+        <div
+          className='fixed z-[-10] bottom-5 left-1/2 -translate-x-1/2 w-full h-full'
+          style={{
+            height: "341px",
+            width: "86%",
+            borderRadius: '1440px',
+            background: 'radial-gradient(5.92% 104.69% at 50% 100%, rgba(122, 90, 248, 0.00) 0%, rgba(255, 255, 255, 0.00) 100%), radial-gradient(50% 50% at 50% 50%, rgba(122, 90, 248, 0.80) 0%, rgba(122, 90, 248, 0.00) 100%)',
+          }}
+        />
+        <OutlinePage />
+      </div>
     </div>
   )
 }
