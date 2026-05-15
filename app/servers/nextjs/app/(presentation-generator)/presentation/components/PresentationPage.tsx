@@ -273,7 +273,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
                     presentationData.slides.length > 0 &&
                     presentationData.slides.map((slide: any, index: number) => (
                       <SlideContent
-                        key={`${slide.type}-${index}-${slide.index}`}
+                        key={`${slide.id}-${index}-${slide.index}`}
                         slide={slide}
                         index={index}
                         presentationId={presentation_id}

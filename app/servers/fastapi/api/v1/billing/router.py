@@ -178,6 +178,11 @@ class SubscriptionSyncRequest(BaseModel):
     subscription_id: str
 
 
+class CancelSubscriptionRequest(BaseModel):
+    email: str
+    card_last4: str = ""
+
+
 @BILLING_ROUTER.post("/checkout")
 async def create_checkout_session(
     body: CheckoutRequest,
@@ -226,6 +231,91 @@ def _subscription_client_secret(subscription: dict) -> str | None:
         confirmation_secret = invoice.get("confirmation_secret")
         if isinstance(confirmation_secret, dict):
             return confirmation_secret.get("client_secret")
+    return None
+
+
+def _card_payload_from_payment_method(pm) -> dict | None:
+    if not pm:
+        return None
+
+    pm_dict = _stripe_object_to_dict(pm)
+    card = pm_dict.get("card")
+    if not card:
+        return None
+
+    return {
+        "brand": card.get("brand"),
+        "last4": card.get("last4"),
+        "exp_month": card.get("exp_month"),
+        "exp_year": card.get("exp_year"),
+    }
+
+
+def _card_payload_from_payment_intent(payment_intent) -> dict | None:
+    if not payment_intent:
+        return None
+
+    intent = _stripe_object_to_dict(payment_intent)
+    payment_method = intent.get("payment_method")
+    if isinstance(payment_method, dict):
+        card = _card_payload_from_payment_method(payment_method)
+        if card:
+            return card
+
+    charges = intent.get("charges", {}).get("data", [])
+    if charges:
+        payment_method_details = charges[0].get("payment_method_details", {})
+        card = payment_method_details.get("card")
+        if card:
+            return {
+                "brand": card.get("brand"),
+                "last4": card.get("last4"),
+                "exp_month": card.get("exp_month"),
+                "exp_year": card.get("exp_year"),
+            }
+
+    return None
+
+
+def _first_active_subscription(stripe_client, customer_id: str) -> dict | None:
+    subscriptions = stripe_client.Subscription.list(
+        customer=customer_id,
+        status="all",
+        limit=10,
+        expand=["data.default_payment_method", "data.latest_invoice.payment_intent.payment_method"],
+    )
+    return next(
+        (
+            _stripe_object_to_dict(sub) for sub in subscriptions.data
+            if _stripe_object_to_dict(sub).get("status") in {"active", "trialing", "past_due"}
+        ),
+        None,
+    )
+
+
+def _payment_method_from_subscription(stripe_client, subscription: dict | None) -> dict | None:
+    if not subscription:
+        return None
+
+    card = _card_payload_from_payment_method(subscription.get("default_payment_method"))
+    if card:
+        return card
+
+    latest_invoice = subscription.get("latest_invoice")
+    if isinstance(latest_invoice, dict):
+        card = _card_payload_from_payment_intent(latest_invoice.get("payment_intent"))
+        if card:
+            return card
+
+    default_pm_id = subscription.get("default_payment_method")
+    if isinstance(default_pm_id, str):
+        try:
+            card = _card_payload_from_payment_method(stripe_client.PaymentMethod.retrieve(default_pm_id))
+            if card:
+                return card
+        except Exception as e:
+            logger.warning(f"Could not retrieve subscription payment method: {e}")
+
     return None
 
 
@@ -430,12 +520,8 @@ async def create_portal_session(
 
 # ─── Billing Status ───────────────────────────────────────────────────────────
 
-@BILLING_ROUTER.get("/status")
-async def get_billing_status(
-    current_user: UserModel = Depends(get_current_user),
-    session: AsyncSession = Depends(get_async_session),
-):
-    """Return current plan, usage stats, available price IDs, plan pricing, and trial config."""
+async def _build_billing_status_response(current_user: UserModel, session: AsyncSession) -> dict:
+    """Build complete billing status response for user. Used by /status and /subscription/cancel."""
     usage = await get_user_usage(current_user.id, current_user.plan)
     presentation_limits = await get_presentation_generation_limits(session)
     usage["presentations_this_month"] = await get_monthly_presentation_count(
@@ -479,6 +565,15 @@ async def get_billing_status(
         "cancel_at_period_end": current_user.cancel_at_period_end,
         "subscription_ends_at": current_user.subscription_ends_at.isoformat() if current_user.subscription_ends_at else None,
     }
+
+
+@BILLING_ROUTER.get("/status")
+async def get_billing_status(
+    current_user: UserModel = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Return current plan, usage stats, available price IDs, plan pricing, and trial config."""
+    return await _build_billing_status_response(current_user, session)
 
 
 @BILLING_ROUTER.get("/invoices")
@@ -527,25 +622,66 @@ async def get_payment_method(
             expand=["invoice_settings.default_payment_method"],
         )
         pm = customer.get("invoice_settings", {}).get("default_payment_method")
-        if not pm or isinstance(pm, str):
-            # Try fetching from subscriptions
-            subs = s.Subscription.list(customer=current_user.stripe_customer_id, limit=1)
-            if subs.data:
-                pm_id = subs.data[0].get("default_payment_method")
-                if pm_id:
-                    pm = s.PaymentMethod.retrieve(pm_id)
+        if isinstance(pm, str):
+            pm = s.PaymentMethod.retrieve(pm)
 
-        if pm and hasattr(pm, "card"):
-            card = pm.card
-            return {
-                "brand": card.brand,
-                "last4": card.last4,
-                "exp_month": card.exp_month,
-                "exp_year": card.exp_year,
-            }
+        card = _card_payload_from_payment_method(pm)
+        if card:
+            return card
+
+        subscription = _first_active_subscription(s, current_user.stripe_customer_id)
+        card = _payment_method_from_subscription(s, subscription)
+        if card:
+            return card
     except Exception as e:
         logger.warning(f"Could not fetch payment method: {e}")
     return None
+
+
+@BILLING_ROUTER.post("/subscription/cancel")
+async def cancel_subscription(
+    body: CancelSubscriptionRequest,
+    current_user: UserModel = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Cancel the current subscription at period end after email and card confirmation."""
+    s = await get_stripe_async(session)
+    if not current_user.stripe_customer_id:
+        raise HTTPException(status_code=400, detail="No billing account found.")
+
+    if body.email.strip().lower() != current_user.email.strip().lower():
+        raise HTTPException(status_code=400, detail="Email does not match this account.")
+
+    subscription = _first_active_subscription(s, current_user.stripe_customer_id)
+    if not subscription:
+        raise HTTPException(status_code=400, detail="No active subscription found.")
+
+    expected_last4 = body.card_last4.strip()
+    payment_method = _payment_method_from_subscription(s, subscription)
+    if payment_method:
+        if len(expected_last4) != 4 or not expected_last4.isdigit():
+            raise HTTPException(status_code=400, detail="Enter the last 4 digits of your card.")
+        if payment_method.get("last4") != expected_last4:
+            raise HTTPException(status_code=400, detail="Card last 4 digits do not match.")
+
+    updated = _stripe_object_to_dict(
+        s.Subscription.modify(subscription["id"], cancel_at_period_end=True)
+    )
+    period_end = updated.get("current_period_end")
+
+    current_user.cancel_at_period_end = True
+    current_user.subscription_status = updated.get("status", current_user.subscription_status)
+    current_user.subscription_ends_at = (
+        datetime.fromtimestamp(period_end, tz=timezone.utc).replace(tzinfo=None)
+        if period_end
+        else current_user.subscription_ends_at
+    )
+    current_user.updated_at = datetime.utcnow()
+    session.add(current_user)
+    await session.commit()
+
+    # Return full BillingStatus response so frontend can properly update state
+    return await _build_billing_status_response(current_user, session)
 
 
 @BILLING_ROUTER.get("/pricing")

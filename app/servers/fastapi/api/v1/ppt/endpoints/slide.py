@@ -53,15 +53,13 @@ async def edit_slide(
         edited_slide_content,
     )
 
-    # Always assign a new unique id to the slide
-    slide.id = uuid.uuid4()
-
-    sql_session.add(slide)
     slide.content = edited_slide_content
     slide.layout = slide_layout.id
     slide.speaker_note = edited_slide_content.get("__speaker_note__", "")
+    sql_session.add(slide)
     sql_session.add_all(new_assets)
     await sql_session.commit()
+    await sql_session.refresh(slide)
 
     return slide
 
@@ -99,13 +97,10 @@ async def edit_slide_html(
 
     edited_slide_html = await get_edited_slide_html(prompt, html_to_edit)
 
-    # Always assign a new unique id to the slide
-    # This is to ensure that the nextjs can track slide updates
-    slide.id = uuid.uuid4()
-
-    sql_session.add(slide)
     slide.html_content = edited_slide_html
+    sql_session.add(slide)
     await sql_session.commit()
+    await sql_session.refresh(slide)
 
     return slide
 
