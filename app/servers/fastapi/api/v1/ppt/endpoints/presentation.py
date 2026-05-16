@@ -382,23 +382,6 @@ async def create_presentation(
 ):
     await enforce_presentation_generation_limit(current_user, sql_session)
 
-    # Free plan: allow exactly 1 active presentation (delete it to make a new one)
-    if current_user.plan == "free":
-        from sqlalchemy import func
-        existing_count = await sql_session.scalar(
-            select(func.count(PresentationModel.id)).where(
-                PresentationModel.user_id == current_user.id
-            )
-        )
-        if existing_count and existing_count >= 1:
-            raise HTTPException(
-                status_code=429,
-                detail=(
-                    "Free plan limit reached. You can have 1 presentation at a time. "
-                    "Delete your existing presentation to create a new one, or upgrade to Pro for unlimited presentations."
-                ),
-            )
-
     if include_table_of_contents and n_slides < 3:
         raise HTTPException(
             status_code=400,
@@ -1200,22 +1183,6 @@ async def generate_presentation_sync(
     try:
         await enforce_presentation_generation_limit(current_user, sql_session)
 
-        # Free plan: 1 active presentation slot
-        if current_user.plan == "free":
-            from sqlalchemy import func
-            existing_count = await sql_session.scalar(
-                select(func.count(PresentationModel.id)).where(
-                    PresentationModel.user_id == current_user.id
-                )
-            )
-            if existing_count and existing_count >= 1:
-                raise HTTPException(
-                    status_code=429,
-                    detail=(
-                        "Free plan limit reached. You can have 1 presentation at a time. "
-                        "Delete your existing presentation to create a new one, or upgrade to Pro for unlimited presentations."
-                    ),
-                )
         # Pro/Team: soft monthly cap check
         from utils.rate_limit import check_soft_cap
         under_cap, current_count, cap = await check_soft_cap(current_user.id, current_user.plan)
@@ -1251,22 +1218,6 @@ async def generate_presentation_async(
     try:
         await enforce_presentation_generation_limit(current_user, sql_session)
 
-        # Free plan: 1 active presentation slot
-        if current_user.plan == "free":
-            from sqlalchemy import func
-            existing_count = await sql_session.scalar(
-                select(func.count(PresentationModel.id)).where(
-                    PresentationModel.user_id == current_user.id
-                )
-            )
-            if existing_count and existing_count >= 1:
-                raise HTTPException(
-                    status_code=429,
-                    detail=(
-                        "Free plan limit reached. You can have 1 presentation at a time. "
-                        "Delete your existing presentation to create a new one, or upgrade to Pro for unlimited presentations."
-                    ),
-                )
         # Pro/Team: soft monthly cap check
         from utils.rate_limit import check_soft_cap
         under_cap, current_count, cap = await check_soft_cap(current_user.id, current_user.plan)

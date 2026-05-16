@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import MarkdownRenderer from "./MarkdownRenderer";
 import { getIconFromFile } from "../../utils/others";
-import { ChevronRight, PanelRightOpen, Trash2, X, Zap } from "lucide-react";
+import { ChevronRight, PanelRightOpen, X, Zap } from "lucide-react";
 import ToolTip from "@/components/ToolTip";
 import Header from "@/app/(presentation-generator)/(dashboard)/dashboard/components/Header";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
@@ -284,8 +284,8 @@ const DocumentsPreviewPage: React.FC = () => {
               <span className="text-2xl">🎯</span> Free Plan Limit Reached
             </DialogTitle>
             <DialogDescription className="text-slate-600 pt-1">
-              Your free plan allows <strong>1 active presentation</strong> at a time.
-              Delete your existing presentation to create a new one, or upgrade to Pro for unlimited presentations.
+              Your free plan includes <strong>5 presentations per month</strong>.
+              You have reached this month&apos;s limit. Upgrade to Pro for unlimited presentations.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 pt-2">
@@ -297,8 +297,8 @@ const DocumentsPreviewPage: React.FC = () => {
               variant="outline"
               className="w-full flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-50"
             >
-              <Trash2 className="w-4 h-4" />
-              Go to Dashboard to Delete Presentation
+              <ChevronRight className="w-4 h-4" />
+              View Dashboard
             </Button>
             <Button
               onClick={() => {

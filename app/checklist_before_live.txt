@@ -186,7 +186,7 @@ SECTION 3 — 🟢 ALREADY PRODUCTION-READY (implemented — no further action n
 
 ─── User Plans & Limits ────────────────────────────────────────────────────────
 
-[x] Free plan: 1 active presentation slot (DB-enforced — delete to recreate)
+[x] Free plan: 5 presentations/month (DB-enforced)
 [x] Free plan: 1 concurrent generation maximum
 [x] Pro plan: 100 presentations/month soft cap (returns 429 with "contact us" above)
     File: servers/fastapi/api/v1/ppt/endpoints/presentation.py

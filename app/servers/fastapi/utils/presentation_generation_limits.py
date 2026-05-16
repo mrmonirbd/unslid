@@ -14,7 +14,7 @@ from utils.template_generation_limits import (
 PRESENTATION_GENERATION_LIMITS_KEY = "presentation_generation_limits"
 
 DEFAULT_PRESENTATION_GENERATION_LIMITS = {
-    "free": 1,
+    "free": 5,
     "pro": -1,
     "team": -1,
 }
