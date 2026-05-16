@@ -214,7 +214,7 @@ export function useCustomTemplateSummaries() {
                 return {
                     id: item.template.id,
                     name: item.template.name || "Custom Template",
-                    layoutCount: 0,
+                    layoutCount: item.layout_count ?? item.total_layouts ?? 0,
                     isCustom: true as const,
                 }
             });
