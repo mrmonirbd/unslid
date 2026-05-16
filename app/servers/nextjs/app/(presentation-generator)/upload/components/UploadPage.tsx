@@ -18,7 +18,7 @@ import { PromptInput } from "./PromptInput";
 import { LanguageType, PresentationConfig, ToneType, VerbosityType } from "../type";
 import SupportingDoc from "./SupportingDoc";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, Trash2, Zap } from "lucide-react";
+import { ChevronRight, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { PresentationGenerationApi } from "../../services/api/presentation-generation";
 import { OverlayLoader } from "@/components/ui/overlay-loader";
@@ -227,8 +227,8 @@ const UploadPage = () => {
               <span className="text-2xl">🎯</span> Free Plan Limit Reached
             </DialogTitle>
             <DialogDescription className="text-slate-600 pt-1">
-              Your free plan allows <strong>1 active presentation</strong> at a time.
-              Delete your existing presentation to create a new one, or upgrade to Pro for unlimited presentations.
+              Your free plan includes <strong>5 presentations per month</strong>.
+              You have reached this month&apos;s limit. Upgrade to Pro for unlimited presentations.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 pt-2">
@@ -240,8 +240,8 @@ const UploadPage = () => {
               variant="outline"
               className="w-full flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-50"
             >
-              <Trash2 className="w-4 h-4" />
-              Go to Dashboard to Delete Presentation
+              <ChevronRight className="w-4 h-4" />
+              View Dashboard
             </Button>
             <Button
               onClick={() => {

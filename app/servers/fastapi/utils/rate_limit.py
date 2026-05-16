@@ -2,13 +2,13 @@
 Redis-based per-user rate limiting, concurrency control, and usage tracking.
 
 Plan limits:
-- free: max 1 concurrent generation, 1 active presentation (DB-enforced slot — delete to recreate)
+- free: max 1 concurrent generation, 5 presentations/month
 - pro:  max 3 concurrent generations, 100 presentations/month (soft cap — contact us above)
 - team: max 5 concurrent generations, unlimited presentations
 
-Note: Free plan presentation limit is enforced at the DB level in the /presentation/create
-endpoint (counting active rows), NOT via the Redis monthly counter. The monthly counter
-is kept for potential future use but is not the gating mechanism for free users.
+Note: Hard presentation generation limits are enforced from the presentations table,
+not via the Redis monthly counter. The monthly counter is kept for potential future
+use but is not the gating mechanism for free users.
 
 Abuse prevention:
 - Pro soft cap: 100 presentations/month. Flagged in admin; contact support for more.
@@ -33,7 +33,7 @@ PLAN_CONCURRENCY_LIMITS = {
 }
 
 PLAN_MONTHLY_LIMITS = {
-    "free": None,  # DB-enforced slot (1 active at a time) — see /presentation/create
+    "free": None,  # DB-enforced monthly limit — see presentation_generation_limits.py
     "pro": None,   # unlimited (soft cap enforced separately via PRO_MONTHLY_SOFT_CAP)
     "team": None,  # unlimited
 }
@@ -42,7 +42,7 @@ PLAN_MONTHLY_LIMITS = {
 # Above this threshold, the endpoint returns 429 with a "contact us" message.
 # Set to None to disable the cap for a plan.
 PLAN_MONTHLY_SOFT_CAPS = {
-    "free": None,  # hard-capped at 1 active by DB check
+    "free": None,  # hard-capped by presentation_generation_limits.py
     "pro": 100,    # soft cap — contact support above this
     "team": None,  # unlimited for team
 }
