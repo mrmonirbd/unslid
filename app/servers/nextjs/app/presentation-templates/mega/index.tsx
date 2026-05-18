@@ -466,8 +466,8 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
                 <span className="h-px w-12" style={{ background: theme.accent }} />
                 Lookbook Drop
               </div>
-              <h1 className="mt-12 text-[64px] font-black leading-[0.88]" style={{ ...textStyle, color: theme.fg }}>
-                {title.replace("Fashion Brand Lookbook", "Fashion Lookbook")}
+              <h1 className="mt-12 text-[66px] font-black leading-[0.9]" style={{ ...textStyle, color: theme.fg }}>
+                Fashion Lookbook
               </h1>
               <p className="mt-8 max-w-md text-lg leading-relaxed opacity-75">{subtitle}</p>
             </div>
@@ -488,12 +488,23 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
 
           <div className="relative h-full overflow-hidden">
             <img src={imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            <div className="absolute inset-0" style={{ background: `linear-gradient(90deg, ${theme.bg} 0%, transparent 24%, transparent 100%)` }} />
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `linear-gradient(90deg, ${theme.bg} 0%, rgba(247,241,234,.72) 28%, rgba(24,20,17,.16) 100%)`,
+              }}
+            />
             <div className="absolute bottom-12 left-12 right-12 grid grid-cols-2 gap-4">
               {items.slice(0, 4).map((item, index) => (
-                <div key={item.label} className="min-h-[96px] border bg-white/88 p-4 backdrop-blur" style={{ borderColor: index === 0 ? theme.accent : "rgba(255,255,255,.55)" }}>
-                  <div className="text-sm font-black uppercase" style={{ color: theme.accent }}>{String(index + 1).padStart(2, "0")} / {item.label}</div>
-                  <p className="mt-2 text-sm leading-snug text-slate-900">{item.text}</p>
+                <div
+                  key={item.label}
+                  className="min-h-[104px] border p-4 shadow-sm"
+                  style={{ background: "#fbf7f2", borderColor: index === 0 ? theme.accent : "#d8c6b5" }}
+                >
+                  <div className="text-sm font-black uppercase" style={{ color: theme.fg }}>
+                    {String(index + 1).padStart(2, "0")} / {item.label}
+                  </div>
+                  <p className="mt-2 text-[15px] leading-snug" style={{ color: "#1f1a16" }}>{item.text}</p>
                 </div>
               ))}
             </div>
