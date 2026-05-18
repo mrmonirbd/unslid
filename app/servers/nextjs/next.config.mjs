@@ -52,17 +52,9 @@ const nextConfig = {
     ];
   },
 
-  // /api/v1/* is now handled by app/api/v1/[...path]/route.ts (explicit proxy)
-  // which correctly reads and forwards POST bodies without dropping them.
-  // Keep /app_data/* rewrite for static file serving from FastAPI.
-  async rewrites() {
-    return [
-      {
-        source: '/app_data/:path*',
-        destination: `${FASTAPI_INTERNAL}/app_data/:path*`,
-      },
-    ];
-  },
+  // /api/v1/* and /app_data/* are handled by explicit route handlers.
+  // The app_data handler protects generated images while preserving static
+  // proxying for other app_data assets.
 
   images: {
     remotePatterns: [

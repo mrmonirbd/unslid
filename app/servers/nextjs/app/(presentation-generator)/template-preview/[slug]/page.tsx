@@ -94,12 +94,8 @@ const getTemplateScopedLayoutId = (templateId: string, layoutId: string) => {
 };
 
 const NON_TYPEWRITER_KEY_PATTERN = /(^|_)(url|href|src|id|slug|template|layout|color|font|icon|image)(_|\b)/i;
-const TYPEWRITER_SPEED_OPTIONS = {
-  slow: { label: "Slow", durationSlices: 320, intervalMs: 40, minCharactersPerTick: 4 },
-  normal: { label: "Normal", durationSlices: 220, intervalMs: 30, minCharactersPerTick: 8 },
-  fast: { label: "Fast", durationSlices: 150, intervalMs: 22, minCharactersPerTick: 12 },
-} as const;
-type TypewriterSpeed = keyof typeof TYPEWRITER_SPEED_OPTIONS;
+const TEMPLATE_PAGE_OPTIONS = Array.from({ length: 20 }, (_, index) => index + 1);
+const DEFAULT_TYPEWRITER_SPEED = { durationSlices: 320, intervalMs: 40, minCharactersPerTick: 4 };
 
 const countTypewriterCharacters = (value: any, key = ""): number => {
   if (typeof value === "string") {
@@ -1188,7 +1184,7 @@ function StaticTemplateEditPanel({ state }: { state: StaticEditorPanelState }) {
         <ImageEditor
           initialImage={state.imageUrl}
           slideIndex={0}
-          promptContent={`A realistic, high-quality presentation-related image for ${selection.label}. Professional photography, natural lighting, relevant to the slide content.`}
+          promptContent={`A realistic, high-quality presentation-related image for ${selection.label}. Professional photography, natural lighting, relevant to the slide content. Use non-identifiable people only; avoid clear faces, names, personal documents, badges, screens with private data, or any uniquely recognizable person.`}
           properties={getImageEditorProperties(selection.element)}
           onClose={() => setShowImageEditor(false)}
           onImageChange={(newImageUrl) => {
@@ -1315,6 +1311,7 @@ function StaticTemplateEditor({
     return [
       alt || nearbyText || savedTemplateMeta.name,
       "Realistic, high-quality presentation-related photo, natural lighting, professional composition.",
+      "Use non-identifiable people only; avoid clear faces, names, personal documents, badges, screens with private data, or any uniquely recognizable person.",
     ]
       .filter(Boolean)
       .join(". ");
@@ -1734,7 +1731,7 @@ const GroupLayoutPreview = () => {
   const [staticEditorPanelState, setStaticEditorPanelState] = useState<StaticEditorPanelState>(EMPTY_STATIC_EDITOR_PANEL_STATE);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLanguage, setAiLanguage] = useState<LanguageType>(LanguageType.English);
-  const [typewriterSpeed, setTypewriterSpeed] = useState<TypewriterSpeed>("slow");
+  const [selectedPageCount, setSelectedPageCount] = useState(1);
   const [aiPromptModalOpen, setAiPromptModalOpen] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiGenerationMessage, setAiGenerationMessage] = useState("");
@@ -1814,7 +1811,7 @@ const GroupLayoutPreview = () => {
       return Promise.resolve();
     }
 
-    const speed = TYPEWRITER_SPEED_OPTIONS[typewriterSpeed];
+    const speed = DEFAULT_TYPEWRITER_SPEED;
     const charactersPerTick = Math.max(
       speed.minCharactersPerTick,
       Math.ceil(totalCharacters / speed.durationSlices)
@@ -1987,6 +1984,25 @@ const GroupLayoutPreview = () => {
     ? customTemplate?.layouts.length || 0
     : staticTemplates.length;
   const resolvedTemplateName = isDesigner ? designerTemplate?.name || "Designer Template" : templateName;
+  const isFreePlan = (user?.plan ?? "free") === "free";
+  const generationPageCount = Math.max(1, Math.min(20, selectedPageCount || layoutCount || 1));
+
+  useEffect(() => {
+    if (layoutCount > 0) {
+      setSelectedPageCount(Math.min(20, layoutCount));
+    }
+  }, [layoutCount]);
+
+  const expandSlidesToPageCount = (slides: any[], pageCount: number) => {
+    if (!slides.length) return [];
+    return Array.from({ length: pageCount }, (_, index) => {
+      const slide = slides[index % slides.length];
+      return {
+        ...slide,
+        id: pageCount > slides.length ? `${slide.id}:page-${index + 1}` : slide.id,
+      };
+    });
+  };
 
   const buildGenerationLayout = () => {
     if (isDesigner) {
@@ -2097,11 +2113,23 @@ const GroupLayoutPreview = () => {
       return;
     }
 
+    if (isFreePlan && generationPageCount > layoutCount) {
+      toast.error("Upgrade to membership", {
+        description: `Free users can generate up to ${layoutCount} page${layoutCount !== 1 ? "s" : ""} for this template.`,
+      });
+      return;
+    }
+
     const { layout, pptxTemplateId } = buildGenerationLayout();
     if (!layout.slides.length) {
       toast.error("No usable layouts found for this template");
       return;
     }
+    const slidesToGenerate = expandSlidesToPageCount(layout.slides, generationPageCount);
+    const generationLayout = {
+      ...layout,
+      slides: slidesToGenerate,
+    };
 
     const requestId = generationRequestIdRef.current + 1;
     generationRequestIdRef.current = requestId;
@@ -2123,13 +2151,14 @@ const GroupLayoutPreview = () => {
       const instructions = [
         "Generate content for every template page/layout.",
         "All image prompts must be realistic, presentation-related, high-quality photographic scenes with natural lighting.",
+        "For privacy, image prompts must use non-identifiable people only and avoid clear faces, names, personal documents, badges, private screens, or any uniquely recognizable person.",
         "Avoid abstract, cartoon, logo, icon-only, blurry, or generic stock-looking image prompts unless the user explicitly asks for them.",
         "Image prompts should be directly relevant to the user's topic and the slide's message.",
       ].join(" ");
 
       const presentation = await PresentationGenerationApi.createPresentation({
         content: aiPrompt,
-        n_slides: layout.slides.length,
+        n_slides: slidesToGenerate.length,
         language: aiLanguage,
         tone: "default",
         verbosity: "standard",
@@ -2145,10 +2174,10 @@ const GroupLayoutPreview = () => {
         throw new Error("Failed to create presentation");
       }
 
-      const outlines = layout.slides.map((slide: any, index: number) => ({
+      const outlines = slidesToGenerate.map((slide: any, index: number) => ({
         content: [
           `User prompt: ${aiPrompt}`,
-          `Template page ${index + 1} of ${layout.slides.length}.`,
+          `Template page ${index + 1} of ${slidesToGenerate.length}.`,
           `Layout name: ${slide.name}.`,
           `Layout description: ${slide.description || ""}`,
           "Generate content directly for this exact template page.",
@@ -2160,7 +2189,7 @@ const GroupLayoutPreview = () => {
       await PresentationGenerationApi.presentationPrepare({
         presentation_id: presentationId,
         outlines,
-        layout,
+        layout: generationLayout,
         title: aiPrompt.trim().split(/\r?\n/)[0]?.slice(0, 80) || resolvedTemplateName,
         pptx_template_id: pptxTemplateId,
       });
@@ -2513,7 +2542,7 @@ const GroupLayoutPreview = () => {
           <DialogHeader>
             <DialogTitle>Generate content for this template</DialogTitle>
             <DialogDescription>
-              AI will update all {layoutCount} page{layoutCount !== 1 ? "s" : ""} in this template and use realistic, presentation-related images.
+              AI will update {generationPageCount} page{generationPageCount !== 1 ? "s" : ""} and use realistic, presentation-related images.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -2543,26 +2572,39 @@ const GroupLayoutPreview = () => {
                 </Select>
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-slate-700" htmlFor="template-ai-typewriter-speed">
-                  Typewriter speed
+                <label className="text-sm font-semibold text-slate-700" htmlFor="template-ai-page-count">
+                  Pages
                 </label>
                 <Select
-                  value={typewriterSpeed}
-                  onValueChange={(value) => setTypewriterSpeed(value as TypewriterSpeed)}
+                  value={String(generationPageCount)}
+                  onValueChange={(value) => setSelectedPageCount(Number(value))}
                   disabled={aiGenerating}
                 >
                   <SelectTrigger
-                    id="template-ai-typewriter-speed"
+                    id="template-ai-page-count"
                     className="h-10 w-full border-slate-200 bg-white text-sm font-medium focus:ring-indigo-100"
                   >
-                    <SelectValue placeholder="Select speed" />
+                    <SelectValue placeholder="Select pages" />
                   </SelectTrigger>
                   <SelectContent className="z-[80]">
-                    {Object.entries(TYPEWRITER_SPEED_OPTIONS).map(([value, option]) => (
-                      <SelectItem key={value} value={value} className="text-sm">
-                        {option.label}
-                      </SelectItem>
-                    ))}
+                    {TEMPLATE_PAGE_OPTIONS.map((pageCount) => {
+                      const isLocked = isFreePlan && layoutCount > 0 && pageCount > layoutCount;
+
+                      return (
+                        <SelectItem key={pageCount} value={String(pageCount)} disabled={isLocked} className="text-sm">
+                          <span className="flex w-full min-w-[220px] items-center justify-between gap-3">
+                            <span>
+                              {pageCount} page{pageCount !== 1 ? "s" : ""}
+                            </span>
+                            {isLocked && (
+                              <span className="text-xs font-semibold text-indigo-600">
+                                Upgrade to membership
+                              </span>
+                            )}
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -2600,7 +2642,7 @@ const GroupLayoutPreview = () => {
                 ) : (
                   <Sparkles className="h-4 w-4" />
                 )}
-                {aiGenerating ? "Generating" : `Generate ${layoutCount} pages`}
+                {aiGenerating ? "Generating" : `Generate ${generationPageCount} page${generationPageCount !== 1 ? "s" : ""}`}
               </Button>
             </div>
           </div>

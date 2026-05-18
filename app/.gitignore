@@ -22,6 +22,8 @@ out
 # App data
 user_data
 app_data
+!servers/nextjs/app/app_data/
+!servers/nextjs/app/app_data/**
 tmp
 debug
 

@@ -30,6 +30,9 @@ interface ImageEditorProps {
   onFocusPointClick?: (propertiesData: any) => void;
 }
 
+const IMAGE_PRIVACY_INSTRUCTION =
+  "Privacy requirement: use non-identifiable people only; avoid clear faces, names, personal documents, badges, screens with private data, or any uniquely recognizable person.";
+
 const ImageEditor = ({
   initialImage,
   imageIdx = 0,
@@ -73,6 +76,9 @@ const ImageEditor = ({
   // Refs
   const imageRef = useRef<HTMLImageElement>(null);
   const effectivePrompt = prompt.trim() || promptContent?.trim() || "";
+  const privateEffectivePrompt = effectivePrompt
+    ? `${effectivePrompt}. ${IMAGE_PRIVACY_INSTRUCTION}`
+    : "";
 
   useEffect(() => {
     setPreviewImages(initialImage);
@@ -222,7 +228,7 @@ const ImageEditor = ({
       setError(null);
       trackEvent(MixpanelEvent.ImageEditor_GenerateImage_API_Call);
       const response = await PresentationGenerationApi.generateImage({
-        prompt: effectivePrompt,
+        prompt: privateEffectivePrompt,
       });
 
       if (typeof response === "string" && response.includes("/app_data/images/placeholder")) {

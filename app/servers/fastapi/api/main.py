@@ -4,14 +4,16 @@ import os
 import time
 import uuid
 import sentry_sdk
-from fastapi import FastAPI, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from pythonjsonlogger import jsonlogger
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 # ── Structured JSON logging ───────────────────────────────────────────────────
 def _configure_logging():
@@ -40,7 +42,7 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 
 from api.lifespan import app_lifespan
 from api.middlewares import PlanAIConfigMiddleware
-from api.auth import AUTH_ROUTER
+from api.auth import AUTH_ROUTER, get_current_user
 from api.v1.ppt.router import API_V1_PPT_ROUTER
 from api.v1.webhook.router import API_V1_WEBHOOK_ROUTER
 from api.v1.mock.router import API_V1_MOCK_ROUTER
@@ -56,6 +58,9 @@ from api.v1.admin.pptx_templates_router import (
     THUMB_ROUTER,
 )
 from utils.get_env import get_app_data_directory_env
+from models.sql.image_asset import ImageAsset
+from models.sql.user import UserModel
+from services.database import get_async_session
 from api.v1.dev.email_preview import EMAIL_PREVIEW_ROUTER
 from fastapi.staticfiles import StaticFiles
 import pathlib
@@ -145,6 +150,40 @@ app.include_router(THUMB_ROUTER)
 # Serve generated images and other app_data assets used by the Next.js rewrite.
 _app_data_dir = pathlib.Path(get_app_data_directory_env())
 _app_data_dir.mkdir(parents=True, exist_ok=True)
+
+
+@app.get("/app_data/images/{image_path:path}")
+async def serve_private_image(
+    image_path: str,
+    current_user: UserModel = Depends(get_current_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    requested = (_app_data_dir / "images" / image_path).resolve()
+    images_root = (_app_data_dir / "images").resolve()
+    try:
+        requested.relative_to(images_root)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    if not requested.is_file():
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    stored_path = f"/app_data/images/{image_path}"
+    assets = await session.scalars(select(ImageAsset).where(ImageAsset.path == stored_path))
+    image_asset = next(
+        (
+            asset
+            for asset in assets
+            if (asset.extras or {}).get("user_id") == current_user.id
+        ),
+        None,
+    )
+    if not image_asset:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    return FileResponse(str(requested))
+
+
 app.mount("/app_data", StaticFiles(directory=str(_app_data_dir)), name="app-data")
 
 # Brand logo static files

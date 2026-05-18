@@ -174,6 +174,7 @@ async def _resolve_designer_generation_layout(
 async def generate_template_content(
     request: TemplateContentGenerateRequest,
     current_user: UserModel = Depends(get_current_user),
+    sql_session: AsyncSession = Depends(get_async_session),
 ):
     if not request.layout.slides:
         raise HTTPException(status_code=400, detail="Layout slides are required")
@@ -211,7 +212,7 @@ async def generate_template_content(
                 content=slide_content,
             )
             process_slide_add_placeholder_assets(slide)
-            assets = await process_slide_and_fetch_assets(image_generation_service, slide)
+            assets = await process_slide_and_fetch_assets(image_generation_service, slide, current_user.id)
             return slide, assets
 
     try:
@@ -239,6 +240,11 @@ async def generate_template_content(
         )
 
     slides = [slide for slide, _assets in generated]
+    generated_assets = [asset for _slide, assets in generated for asset in assets]
+    if generated_assets:
+        sql_session.add_all(generated_assets)
+        await sql_session.commit()
+
     title = request.content.strip().splitlines()[0][:80] or "Generated Template"
     return {
         "id": str(presentation_id),
@@ -589,7 +595,7 @@ async def stream_presentation(
 
                 # This will mutate slide - start task immediately so it runs in parallel with next slide LLM generation
                 async_assets_generation_tasks.append(
-                    asyncio.create_task(process_slide_and_fetch_assets(image_generation_service, slide))
+                    asyncio.create_task(process_slide_and_fetch_assets(image_generation_service, slide, presentation.user_id))
                 )
 
                 yield SSEResponse(
@@ -1091,7 +1097,7 @@ async def generate_presentation_handler(
 
             # Start asset fetch tasks immediately so they run in parallel with next batch's LLM calls
             asset_tasks = [
-                asyncio.create_task(process_slide_and_fetch_assets(image_generation_service, slide))
+                asyncio.create_task(process_slide_and_fetch_assets(image_generation_service, slide, user_id))
                 for slide in batch_slides
             ]
             async_assets_generation_tasks.extend(asset_tasks)
