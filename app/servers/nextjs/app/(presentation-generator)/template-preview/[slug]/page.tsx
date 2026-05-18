@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
+import { useDispatch } from "react-redux";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRightFromLine, ArrowUpRight, Download, FileSpreadsheet, Home, Loader2, MessageSquare, Mic2, Minus, MoveDiagonal, Palette, Pencil, Plus, Save, Sparkles, Trash2, Type, Video } from "lucide-react";
@@ -36,6 +37,7 @@ import { loadFonts } from "../../hooks/useFontLoad";
 import ThemeApi from "../../services/api/theme";
 import { LanguageType } from "../../upload/type";
 import { checkPresentationGenerationLimit } from "../../utils/presentationLimit";
+import { clearPresentationData } from "@/store/slices/presentationGeneration";
 
 interface PptxDesignerTemplate {
   id: number;
@@ -1683,6 +1685,7 @@ const GroupLayoutPreview = () => {
   const params = useParams();
   const router = useRouter();
   const pathname = usePathname();
+  const dispatch = useDispatch();
 
   const templateParams = params.slug as string;
 
@@ -2170,35 +2173,58 @@ const GroupLayoutPreview = () => {
       setAiGenerating(true);
       setGeneratedPresentationVersion(`generating-${Date.now()}`);
       setGeneratedPresentationData(null);
-      setAiGenerationMessage("Updating template content...");
+      setAiGenerationMessage("Preparing presentation...");
 
-      const generatedTemplate = await PresentationGenerationApi.generateTemplateContent({
+      const instructions = [
+        "Generate content for every template page/layout.",
+        "All image prompts must be realistic, presentation-related, high-quality photographic scenes with natural lighting.",
+        "Avoid abstract, cartoon, logo, icon-only, blurry, or generic stock-looking image prompts unless the user explicitly asks for them.",
+        "Image prompts should be directly relevant to the user's topic and the slide's message.",
+      ].join(" ");
+
+      const presentation = await PresentationGenerationApi.createPresentation({
         content: aiPrompt,
-        layout,
+        n_slides: layout.slides.length,
         language: aiLanguage,
         tone: "default",
         verbosity: "standard",
-        instructions: [
-          "Generate content for every template page/layout.",
-          "All image prompts must be realistic, presentation-related, high-quality photographic scenes with natural lighting.",
-          "Avoid abstract, cartoon, logo, icon-only, blurry, or generic stock-looking image prompts unless the user explicitly asks for them.",
-          "Image prompts should be directly relevant to the user's topic and the slide's message.",
-        ].join(" "),
-        pptx_template_id: pptxTemplateId,
-      }, {
-        signal: abortController.signal,
+        instructions,
+        include_table_of_contents: false,
+        include_title_slide: false,
       });
 
       if (generationRequestIdRef.current !== requestId) return;
 
-      const updatedAt = saveGeneratedPreviewData(generatedTemplate);
-      setGeneratedPresentationVersion(`typing-${Date.now()}`);
-      scrollToPreviewSlide(0);
-      await playGeneratedDataTypewriter(generatedTemplate, requestId);
+      const presentationId = presentation?.id;
+      if (!presentationId) {
+        throw new Error("Failed to create presentation");
+      }
+
+      const outlines = layout.slides.map((slide: any, index: number) => ({
+        content: [
+          `User prompt: ${aiPrompt}`,
+          `Template page ${index + 1} of ${layout.slides.length}.`,
+          `Layout name: ${slide.name}.`,
+          `Layout description: ${slide.description || ""}`,
+          "Generate content directly for this exact template page.",
+        ].join("\n"),
+      }));
+
+      setAiGenerationMessage("Opening presentation editor...");
+
+      await PresentationGenerationApi.presentationPrepare({
+        presentation_id: presentationId,
+        outlines,
+        layout,
+        title: aiPrompt.trim().split(/\r?\n/)[0]?.slice(0, 80) || resolvedTemplateName,
+        pptx_template_id: pptxTemplateId,
+      });
+
       if (generationRequestIdRef.current !== requestId) return;
-      setGeneratedPresentationVersion(updatedAt ? `saved-${updatedAt}` : `generated-${Date.now()}`);
-      scrollToPreviewSlide(Math.max((generatedTemplate?.slides?.length || 1) - 1, 0));
-      toast.success("Template updated with AI content");
+
+      dispatch(clearPresentationData());
+      toast.success("Presentation started");
+      router.replace(`/presentation?id=${presentationId}&stream=true&type=standard`);
     } catch (error: any) {
       if (generationRequestIdRef.current !== requestId) return;
       console.error("Template AI generation failed", error);

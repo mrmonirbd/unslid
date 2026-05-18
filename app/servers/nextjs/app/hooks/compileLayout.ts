@@ -193,12 +193,42 @@ const patchAutoSavedTokenReplacementCode = (layoutCode: string) => (
         )
 );
 
+const parseGeneratedDefaults = (layoutCode: string, marker: string) => {
+    const start = layoutCode.indexOf(marker);
+    if (start < 0) return {};
+
+    const valueStart = start + marker.length;
+    const valueEnd = layoutCode.indexOf(";\n", valueStart);
+    if (valueEnd < 0) return {};
+
+    try {
+        const parsed = JSON.parse(layoutCode.slice(valueStart, valueEnd));
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+        return {};
+    }
+};
+
+const extractGeneratedSampleData = (layoutCode: string) => ({
+    ...parseGeneratedDefaults(layoutCode, "const textTokenDefaults = "),
+    ...Object.fromEntries(
+        Object.entries(parseGeneratedDefaults(layoutCode, "const imageTokenDefaults = ")).map(([key, value]) => [
+            key,
+            {
+                __image_url__: typeof value === "string" ? value : "",
+                __image_prompt__: "Relevant presentation image for this slide",
+            },
+        ])
+    ),
+});
+
 /**
  * Compiles a layout code string into a usable React component
  */
 export function compileCustomLayout(layoutCode: string): CompiledLayout | null {
     try {
         const upgradedLayoutCode = patchAutoSavedTokenReplacementCode(upgradeAutoSavedStaticLayout(layoutCode));
+        const generatedSampleData = extractGeneratedSampleData(upgradedLayoutCode);
         // Clean up imports that we'll provide ourselves
         const cleanCode = upgradedLayoutCode
             // Remove React imports
@@ -286,6 +316,7 @@ export function compileCustomLayout(layoutCode: string): CompiledLayout | null {
                 console.warn("Could not parse schema defaults:", e);
             }
         }
+        sampleData = { ...generatedSampleData, ...sampleData };
         const schemaJSON = z.toJSONSchema(result.Schema);
 
         return {

@@ -15,6 +15,7 @@ import {
   usePresentationData,
   usePresentationNavigation,
   useAutoSave,
+  useAutoSaveGeneratedTemplate,
 } from "../hooks";
 import { PresentationPageProps } from "../types";
 import LoadingState from "./LoadingState";
@@ -142,6 +143,13 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
     setError,
     fetchUserSlides
   );
+
+  useAutoSaveGeneratedTemplate({
+    presentationId: presentation_id,
+    presentationData,
+    isStreaming,
+    loading,
+  });
 
   usePresentationUndoRedo();
 
