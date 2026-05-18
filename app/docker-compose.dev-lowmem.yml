@@ -69,5 +69,5 @@ services:
       - NEXT_TELEMETRY_DISABLED=1
       - WATCHPACK_POLLING=false
       - CHOKIDAR_USEPOLLING=false
-    mem_limit: 512m
+    mem_limit: 4096m
     cpus: "0.75"

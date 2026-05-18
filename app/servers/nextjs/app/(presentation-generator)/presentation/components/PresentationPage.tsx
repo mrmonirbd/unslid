@@ -194,8 +194,8 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   }
 
   return (
-    <div className="min-h-dvh bg-white font-syne md:h-screen md:overflow-hidden">
-      <div
+  <div className="min-h-dvh bg-white font-syne md:h-screen md:overflow-y-auto">
+        <div
         style={{
           background: "#ffffff",
         }}
