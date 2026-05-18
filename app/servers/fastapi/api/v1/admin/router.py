@@ -874,7 +874,7 @@ async def update_generated_template_limits(
 # ─── Presentation Generation Limits ──────────────────────────────────────────
 
 class PresentationGenerationLimitsRequest(BaseModel):
-    free: int = 1
+    free: int = 5
     pro: int = -1
     team: int = -1
 

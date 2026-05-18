@@ -106,6 +106,7 @@ const UploadPage = () => {
 
     try {
       const limitCheck = await checkPresentationGenerationLimit();
+      console.log(checkPresentationGenerationLimit());
       if (!limitCheck.allowed) {
         toast.error("Presentation limit reached", {
           description: limitCheck.message,
@@ -306,7 +307,7 @@ const UploadPage = () => {
             className="flex w-full items-center justify-center rounded-[28px] bg-[#5141e5] py-5 text-base font-semibold text-white hover:bg-[#5141e5]/85 focus-visible:ring-2 focus-visible:ring-[#5141e5]/40 sm:text-lg"
             data-testid="next-button"
           >
-            <span>Generate Presentation</span>
+            <span>Generate Presentation </span>
             <ChevronRight className="!w-5 !h-5 ml-1.5" />
           </Button>
         </div>
