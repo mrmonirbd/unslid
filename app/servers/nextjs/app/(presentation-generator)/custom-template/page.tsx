@@ -25,9 +25,12 @@ const CustomTemplatePage = () => {
 
 
   // Custom hooks for different concerns
-  const { selectedFile, handleFileSelect, removeFile } = useFileUpload();
   const { slides, setSlides, completedSlides } = useCustomLayout();
   const { fontsData, UploadedFonts, uploadFont, removeFont, getAllUnsupportedFonts, setFontsData } = useFontManagement();
+  const { selectedFile, handleFileSelect, selectFile, removeFile } = useFileUpload(() => {
+    setSlides([]);
+    setFontsData(null);
+  });
   const { isProcessingPptx, processFile, retrySlide, processSlideToHtml } = useSlideProcessing(
     selectedFile,
     slides,
@@ -102,6 +105,7 @@ const CustomTemplatePage = () => {
         <FileUploadSection
           selectedFile={selectedFile}
           handleFileSelect={handleFileSelect}
+          selectFile={selectFile}
           removeFile={removeFile}
           processFile={processFile}
           isProcessingPptx={isProcessingPptx}

@@ -29,6 +29,14 @@ interface SlideContentProps {
   theme?: any;
 }
 
+const ASPECT_RATIO_VALUES: Record<string, string> = {
+  "16:9": "16 / 9",
+  "4:3": "4 / 3",
+  "9:16": "9 / 16",
+  "1:1": "1 / 1",
+  A4: "1240 / 1754",
+};
+
 const SlideContent = ({ slide, index, presentationId, theme }: SlideContentProps) => {
   const dispatch = useDispatch();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -52,6 +60,8 @@ const SlideContent = ({ slide, index, presentationId, theme }: SlideContentProps
   const { presentationData, isStreaming } = useSelector(
     (state: RootState) => state.presentationGeneration
   );
+  const aspectRatioKey = theme?.aspect_ratio || "16:9";
+  const slideAspectRatio = ASPECT_RATIO_VALUES[aspectRatioKey] || ASPECT_RATIO_VALUES["16:9"];
 
   useEffect(() => {
     setNoteText(slide?.speaker_note ?? "");
@@ -288,8 +298,26 @@ const SlideContent = ({ slide, index, presentationId, theme }: SlideContentProps
         <div
           data-layout={slide.layout}
           data-group={slide.layout_group}
-          className={` w-full  group font-syne  `}
+          className="slide-aspect-canvas w-full group font-syne"
+          style={{ aspectRatio: slideAspectRatio }}
         >
+          <style>
+            {`
+              #slide-${slide.index} .slide-aspect-canvas [data-slide-content="true"],
+              #slide-${slide.index} .slide-aspect-canvas [data-slide-content="true"] > *,
+              #slide-${slide.index} .slide-aspect-canvas [data-slide-content="true"] > * > *,
+              #slide-${slide.index} .slide-aspect-canvas [data-slide-content="true"] > * > * > * {
+                width: 100% !important;
+                height: 100% !important;
+                max-width: none !important;
+                max-height: none !important;
+              }
+
+              #slide-${slide.index} .slide-aspect-canvas [data-slide-content="true"] > * > * > * {
+                aspect-ratio: auto !important;
+              }
+            `}
+          </style>
           <V1ContentRender slide={slide} isEditMode={true} theme={theme} />
           {!showNewSlideSelection && (
             <div className="group-hover:opacity-100 hidden md:block opacity-0 transition-opacity my-4 duration-300">

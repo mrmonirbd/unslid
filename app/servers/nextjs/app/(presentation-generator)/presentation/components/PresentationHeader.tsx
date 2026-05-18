@@ -42,7 +42,7 @@ import { extractPresentationPptxModel } from "@/utils/pptx-extractor-client";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { usePresentationUndoRedo } from "../hooks/PresentationUndoRedo";
 import ToolTip from "@/components/ToolTip";
-import { clearPresentationData } from "@/store/slices/presentationGeneration";
+import { clearPresentationData, updateTheme } from "@/store/slices/presentationGeneration";
 import { clearHistory } from "@/store/slices/undoRedoSlice";
 import { Separator } from "@/components/ui/separator";
 import ThemeSelector from "./ThemeSelector";
@@ -195,11 +195,22 @@ const PresentationHeader = ({
         headers: { "Content-Type": "application/json", ...(await getHeader()) },
         body: JSON.stringify({ aspect_ratio: ratio }),
       });
-      if (res.ok) {
-        setCurrentRatio(ratio);
-        toast.success(`Resized to ${ratio}`);
-        setResizeOpen(false);
+      if (!res.ok) {
+        throw new Error("Failed to resize presentation");
       }
+
+      const resized = await res.json();
+      setCurrentRatio(ratio);
+      dispatch(updateTheme({
+        ...(presentationData?.theme || {}),
+        aspect_ratio: resized.aspect_ratio,
+        slide_width_px: resized.width_px,
+        slide_height_px: resized.height_px,
+      } as any));
+      toast.success(`Resized to ${ratio}`);
+      setResizeOpen(false);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to resize presentation");
     } finally {
       setResizing(false);
     }

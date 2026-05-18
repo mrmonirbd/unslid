@@ -176,6 +176,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
         slides={presentationData?.slides!}
         currentSlide={selectedSlide}
         isFullscreen={isFullscreen}
+        theme={presentationData?.theme}
         onFullscreenToggle={toggleFullscreen}
         onExit={handlePresentExit}
         onSlideChange={onSlideChange}
