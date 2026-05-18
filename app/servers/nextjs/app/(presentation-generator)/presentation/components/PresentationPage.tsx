@@ -212,7 +212,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
           />
         </div>
         <div className="hide-scrollbar h-auto min-w-0 flex-1 overflow-y-auto px-3 pb-6 md:h-[calc(100vh-20px)] md:pr-[25px]">
-          <div className="relative">
+          <div className="sticky top-0 z-50 bg-white">
             <PresentationHeader presentation_id={presentation_id} isPresentationSaving={isSaving} currentSlide={selectedSlide} />
             {/* Presence avatars — positioned inside the header row */}
             {otherPresence.length > 0 && (
