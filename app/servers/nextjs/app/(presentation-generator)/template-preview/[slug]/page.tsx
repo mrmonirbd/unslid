@@ -4,7 +4,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { useDispatch } from "react-redux";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRightFromLine, ArrowUpRight, Download, FileSpreadsheet, Home, Loader2, MessageSquare, Mic2, Minus, MoveDiagonal, Palette, Pencil, Plus, Save, Sparkles, Trash2, Type, Video } from "lucide-react";
+import { ArrowLeft, ArrowRightFromLine, ArrowUpRight, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Home, Loader2, MessageSquare, Mic2, Minus, MoveDiagonal, Palette, Pencil, Play, Plus, Save, Sparkles, Trash2, Type, Video, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -1714,6 +1714,8 @@ const GroupLayoutPreview = () => {
   const [selectedTheme, setSelectedTheme] = useState<any | null>(null);
   const [generatedPresentationData, setGeneratedPresentationData] = useState<any | null>(null);
   const [generatedPresentationVersion, setGeneratedPresentationVersion] = useState("sample");
+  const [previewPlayerOpen, setPreviewPlayerOpen] = useState(false);
+  const [previewPlayerIndex, setPreviewPlayerIndex] = useState(0);
   const generationRequestIdRef = useRef(0);
   const generationAbortRef = useRef<AbortController | null>(null);
   const generationTypewriterRef = useRef<number | null>(null);
@@ -2251,8 +2253,97 @@ const GroupLayoutPreview = () => {
     return slides[index] ?? null;
   };
 
+  const previewPlayerLayouts = isCustom
+    ? customTemplate?.layouts || []
+    : isDesigner
+    ? designerHtmlTemplate?.layouts || []
+    : staticTemplates;
+  const activePreviewLayout = previewPlayerLayouts[previewPlayerIndex] as any;
+  const ActivePreviewComponent = activePreviewLayout?.component;
+  const activePreviewSlide = getGeneratedSlide(previewPlayerIndex);
+  const canPlayPreview = previewPlayerLayouts.length > 0 && !shouldShowExcelPreview;
+
+  const openPreviewPlayer = () => {
+    setPreviewPlayerIndex(0);
+    setPreviewPlayerOpen(true);
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  };
+
+  const closePreviewPlayer = () => {
+    setPreviewPlayerOpen(false);
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  };
+
+  useEffect(() => {
+    if (!previewPlayerOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closePreviewPlayer();
+      }
+      if (event.key === "ArrowRight" || event.key === " ") {
+        event.preventDefault();
+        setPreviewPlayerIndex((index) => Math.min(previewPlayerLayouts.length - 1, index + 1));
+      }
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        setPreviewPlayerIndex((index) => Math.max(0, index - 1));
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [previewPlayerLayouts.length, previewPlayerOpen]);
+
   return (
     <TemplatePreviewShell>
+      {previewPlayerOpen && ActivePreviewComponent && (
+        <div className="fixed inset-0 z-[1000] bg-black">
+          <div className="h-screen w-screen overflow-hidden [&>div]:!h-screen [&>div]:!max-h-none [&>div]:!max-w-none [&>div]:!rounded-none [&>div]:!shadow-none [&>div]:!w-screen">
+            <ActivePreviewComponent data={activePreviewSlide?.content ?? activePreviewLayout.sampleData} />
+          </div>
+          <div className="absolute right-4 top-4 z-[1010] flex items-center gap-2">
+            <span className="rounded-full bg-black/45 px-3 py-1 text-sm font-medium text-white backdrop-blur">
+              {previewPlayerIndex + 1} / {previewPlayerLayouts.length}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={closePreviewPlayer}
+              className="h-9 w-9 rounded-full bg-black/45 text-white hover:bg-black/60"
+              title="Close"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="absolute bottom-5 left-1/2 z-[1010] flex -translate-x-1/2 items-center gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={previewPlayerIndex === 0}
+              onClick={() => setPreviewPlayerIndex((index) => Math.max(0, index - 1))}
+              className="h-10 w-10 rounded-full bg-black/45 text-white hover:bg-black/60 disabled:opacity-30"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={previewPlayerIndex >= previewPlayerLayouts.length - 1}
+              onClick={() => setPreviewPlayerIndex((index) => Math.min(previewPlayerLayouts.length - 1, index + 1))}
+              className="h-10 w-10 rounded-full bg-black/45 text-white hover:bg-black/60 disabled:opacity-30"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="bg-white shadow-sm border-b sticky top-0 z-30">
         <div className="mx-auto px-4 py-5 sm:px-6 sm:py-6">
@@ -2313,6 +2404,17 @@ const GroupLayoutPreview = () => {
                   <Download className="w-4 h-4" />
                   Open PPTX
                 </a>
+              )}
+              {canPlayPreview && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={openPreviewPlayer}
+                  className="gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                >
+                  <Play className="h-4 w-4" />
+                  Play
+                </Button>
               )}
               <Button
                 type="button"
