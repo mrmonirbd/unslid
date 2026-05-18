@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Slide } from "../../types/slide";
 import { V1ContentRender } from "../../components/V1ContentRender";
+import { loadFonts } from "../../hooks/useFontLoad";
 
 interface PresentationModeProps {
   slides: Slide[];
@@ -39,6 +40,45 @@ function formatTime(seconds: number): string {
   return `${m}:${s}`;
 }
 
+const getThemeStyles = (theme: any): React.CSSProperties => {
+  const colors = theme?.data?.colors;
+  const textFont = theme?.data?.fonts?.textFont;
+  const styles: React.CSSProperties = {
+    backgroundColor: "var(--page-background-color,#c8c7c9)",
+  };
+
+  if (colors) {
+    Object.assign(styles, {
+      "--primary-color": colors.primary,
+      "--background-color": colors.background,
+      "--card-color": colors.card,
+      "--stroke": colors.stroke,
+      "--primary-text": colors.primary_text,
+      "--background-text": colors.background_text,
+      "--graph-0": colors.graph_0,
+      "--graph-1": colors.graph_1,
+      "--graph-2": colors.graph_2,
+      "--graph-3": colors.graph_3,
+      "--graph-4": colors.graph_4,
+      "--graph-5": colors.graph_5,
+      "--graph-6": colors.graph_6,
+      "--graph-7": colors.graph_7,
+      "--graph-8": colors.graph_8,
+      "--graph-9": colors.graph_9,
+    });
+  }
+
+  if (textFont?.name) {
+    Object.assign(styles, {
+      fontFamily: `"${textFont.name}"`,
+      "--heading-font-family": `"${textFont.name}"`,
+      "--body-font-family": `"${textFont.name}"`,
+    });
+  }
+
+  return styles;
+};
+
 const PresentationMode: React.FC<PresentationModeProps> = ({
   slides,
   currentSlide,
@@ -62,6 +102,13 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
   const nextSlide = slides[currentSlide + 1] ?? null;
   const progress = slides.length > 1 ? (currentSlide / (slides.length - 1)) * 100 : 100;
   const aspectRatio = ASPECT_RATIO_VALUES[theme?.aspect_ratio || "16:9"] || ASPECT_RATIO_VALUES["16:9"];
+
+  useEffect(() => {
+    const textFont = theme?.data?.fonts?.textFont;
+    if (textFont?.name && textFont?.url) {
+      loadFonts({ [textFont.name]: textFont.url });
+    }
+  }, [theme]);
 
   // Timer
   useEffect(() => {
@@ -145,7 +192,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
     <div
       ref={containerRef}
       className="fixed inset-0 flex flex-col"
-      style={{ backgroundColor: "var(--page-background-color,#c8c7c9)" }}
+      style={getThemeStyles(theme)}
       tabIndex={0}
       onClick={handleSlideClick}
     >
