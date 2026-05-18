@@ -254,7 +254,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
         /* Standard full-screen slide view */
         <div className={`flex-1 min-h-0 flex items-center justify-center ${isFullscreen ? "p-0" : "p-8"}`}>
           <div
-            className={`relative font-inter ${isFullscreen ? "h-screen w-screen overflow-hidden" : "rounded-sm"}`}
+            className={`relative font-inter ${isFullscreen ? "presentation-slide-fullscreen h-screen w-screen overflow-hidden" : "rounded-sm"}`}
             style={{
               aspectRatio: isFullscreen ? undefined : "16 / 9",
               width: isFullscreen ? "100vw" : "min(calc(100vw - 4rem), calc((100vh - 4rem) * 16 / 9))",
@@ -262,6 +262,21 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
               maxHeight: isFullscreen ? "100vh" : "calc(100vh - 4rem)",
             }}
           >
+            {isFullscreen && (
+              <style>
+                {`
+                  .presentation-slide-fullscreen > div > div > * {
+                    width: 100% !important;
+                    height: 100% !important;
+                    max-width: none !important;
+                    max-height: none !important;
+                    aspect-ratio: auto !important;
+                    border-radius: 0 !important;
+                    box-shadow: none !important;
+                  }
+                `}
+              </style>
+            )}
             {slides.map((slide, index) => (
               <div
                 key={slide.id}
