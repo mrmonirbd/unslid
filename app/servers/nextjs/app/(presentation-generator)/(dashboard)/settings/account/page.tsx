@@ -253,6 +253,7 @@ export default function AccountSettingsPage() {
     billingStatus?.has_billing &&
     !billingStatus.cancel_at_period_end &&
     ["active", "trialing", "past_due"].includes(billingStatus.subscription_status ?? "");
+  const isFreePlan = (billingStatus?.plan ?? "free").toLowerCase() === "free";
 
   const inputCls = "w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition";
   const saveBtnCls = "px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all shadow-sm shadow-violet-500/20";
@@ -586,7 +587,7 @@ export default function AccountSettingsPage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Current plan</p>
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-violet-100 px-3 py-1 text-sm font-bold capitalize text-violet-700">
                       {billingStatus?.plan ?? "free"}
                     </span>
@@ -595,7 +596,21 @@ export default function AccountSettingsPage() {
                         Cancels soon
                       </span>
                     )}
+                    {isFreePlan && (
+                      <a
+                        href="/settings/billing"
+                        className="inline-flex items-center gap-1 rounded-full bg-violet-600 px-3 py-1 text-xs font-bold text-white transition hover:bg-violet-500"
+                      >
+                        Update plan
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
                   </div>
+                  {isFreePlan && (
+                    <p className="mt-2 text-xs text-slate-500">
+                      Upgrade to unlock higher limits and premium template access.
+                    </p>
+                  )}
                   {billingStatus?.subscription_ends_at && (
                     <p className="mt-2 text-xs text-slate-500">
                       Access ends on {formatInvoiceDate(billingStatus.subscription_ends_at)}
