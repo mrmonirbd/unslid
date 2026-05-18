@@ -12,6 +12,7 @@ from utils.dict_utils import get_dict_at_path, get_dict_paths_with_key, set_dict
 async def process_slide_and_fetch_assets(
     image_generation_service: ImageGenerationService,
     slide: SlideModel,
+    user_id: int | None = None,
 ) -> List[ImageAsset]:
 
     async_tasks = []
@@ -43,6 +44,8 @@ async def process_slide_and_fetch_assets(
         image_dict = get_dict_at_path(slide.content, image_path)
         result = results.pop()
         if isinstance(result, ImageAsset):
+            if user_id is not None:
+                result.extras = {**(result.extras or {}), "user_id": user_id}
             return_assets.append(result)
             image_dict["__image_url__"] = result.path
         else:
