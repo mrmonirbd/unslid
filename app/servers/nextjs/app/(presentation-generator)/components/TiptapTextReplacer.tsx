@@ -11,9 +11,10 @@ import Underline from "@tiptap/extension-underline";
 const extensions = [StarterKit, Markdown, Underline];
 
 interface TiptapTextReplacerProps {
-  children: ReactNode;
+  children?: ReactNode;
   slideData?: any;
   slideIndex?: number;
+  isolated?: boolean;
   renderKey?: string;
   onContentChange?: (
     content: string,
