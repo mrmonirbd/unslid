@@ -19,10 +19,19 @@ interface PresentationModeProps {
   slides: Slide[];
   currentSlide: number;
   isFullscreen: boolean;
+  theme?: any;
   onFullscreenToggle: () => void;
   onExit: () => void;
   onSlideChange: (slideNumber: number) => void;
 }
+
+const ASPECT_RATIO_VALUES: Record<string, { css: string; value: number }> = {
+  "16:9": { css: "16 / 9", value: 16 / 9 },
+  "4:3": { css: "4 / 3", value: 4 / 3 },
+  "9:16": { css: "9 / 16", value: 9 / 16 },
+  "1:1": { css: "1 / 1", value: 1 },
+  A4: { css: "1240 / 1754", value: 1240 / 1754 },
+};
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -34,6 +43,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
   slides,
   currentSlide,
   isFullscreen,
+  theme,
   onFullscreenToggle,
   onExit,
   onSlideChange,
@@ -51,6 +61,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
   );
   const nextSlide = slides[currentSlide + 1] ?? null;
   const progress = slides.length > 1 ? (currentSlide / (slides.length - 1)) * 100 : 100;
+  const aspectRatio = ASPECT_RATIO_VALUES[theme?.aspect_ratio || "16:9"] || ASPECT_RATIO_VALUES["16:9"];
 
   // Timer
   useEffect(() => {
@@ -211,7 +222,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
                   key={slide.id}
                   className={index === currentSlide ? "h-full w-full" : "hidden h-full w-full"}
                 >
-                  <V1ContentRender slide={slide} isEditMode={false} />
+                  <V1ContentRender slide={slide} isEditMode={false} theme={theme} />
                 </div>
               ))}
             </div>
@@ -235,7 +246,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
                   className="relative w-full overflow-hidden rounded"
                   style={{ aspectRatio: "16/9" }}
                 >
-                  <V1ContentRender slide={nextSlide} isEditMode={false} />
+                  <V1ContentRender slide={nextSlide} isEditMode={false} theme={theme} />
                   <div className="absolute inset-0" />
                 </div>
               </div>
@@ -256,8 +267,8 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
           <div
             className={`relative font-inter ${isFullscreen ? "presentation-slide-fullscreen h-screen w-screen overflow-hidden" : "rounded-sm"}`}
             style={{
-              aspectRatio: isFullscreen ? undefined : "16 / 9",
-              width: isFullscreen ? "100vw" : "min(calc(100vw - 4rem), calc((100vh - 4rem) * 16 / 9))",
+              aspectRatio: isFullscreen ? undefined : aspectRatio.css,
+              width: isFullscreen ? "100vw" : `min(calc(100vw - 4rem), calc((100vh - 4rem) * ${aspectRatio.value}))`,
               height: isFullscreen ? "100vh" : undefined,
               maxHeight: isFullscreen ? "100vh" : "calc(100vh - 4rem)",
             }}
@@ -282,7 +293,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
                 key={slide.id}
                 className={index === currentSlide ? "h-full w-full" : "hidden h-full w-full"}
               >
-                <V1ContentRender slide={slide} isEditMode={false} />
+                <V1ContentRender slide={slide} isEditMode={false} theme={theme} />
               </div>
             ))}
           </div>

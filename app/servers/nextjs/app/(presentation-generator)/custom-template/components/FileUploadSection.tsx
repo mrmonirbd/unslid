@@ -15,6 +15,7 @@ import Timer from "./Timer";
 interface FileUploadSectionProps {
   selectedFile: File | null;
   handleFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  selectFile: (file: File | undefined | null) => void;
   removeFile: () => void;
   processFile: () => void;
   isProcessingPptx: boolean;
@@ -25,12 +26,15 @@ interface FileUploadSectionProps {
 export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
   selectedFile,
   handleFileSelect,
+  selectFile,
   removeFile,
   processFile,
   isProcessingPptx,
   slides,
   completedSlides,
 }) => {
+  const isBusy = isProcessingPptx || slides.some((s) => s.processing);
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -52,7 +56,18 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
       </CardHeader>
       <CardContent className="space-y-4">
         {!selectedFile ? (
-          <div className="border-2 relative border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors">
+          <div
+            className="border-2 relative border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors"
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              selectFile(event.dataTransfer.files?.[0]);
+            }}
+          >
             <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <Label htmlFor="file-upload" className="cursor-pointer">
               <span className="text-lg font-medium text-gray-700">
@@ -88,7 +103,7 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
               size="sm"
               onClick={removeFile}
               disabled={
-                isProcessingPptx || slides.some((s) => s.processing)
+                isBusy
               }
               className="text-red-600 hover:text-red-700 hover:bg-red-50"
             >
@@ -100,7 +115,7 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
         <div className="flex flex-col gap-1 ">
           <Button
             onClick={processFile}
-            disabled={isProcessingPptx || slides.some((s) => s.processing)}
+            disabled={!selectedFile || isBusy}
             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
           >
             {isProcessingPptx
