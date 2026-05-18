@@ -161,6 +161,26 @@ const firstUsableImageUrl = (...urls: unknown[]) => {
   return typeof usable === "string" ? usable : "";
 };
 
+const isRemotePlaceholderImage = (url: unknown) =>
+  typeof url === "string" && url.includes("picsum.photos");
+
+const localMegaImages = [
+  "/templates/mega-fallback-a.svg",
+  "/templates/mega-fallback-b.svg",
+  "/templates/mega-fallback-c.svg",
+];
+
+const hashText = (value: string) =>
+  Array.from(value).reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0, 7);
+
+const localMegaImage = (seed: string | number) =>
+  localMegaImages[hashText(String(seed)) % localMegaImages.length];
+
+const resolveMegaImageUrl = (...urls: unknown[]) => {
+  const usable = firstUsableImageUrl(...urls);
+  return isRemotePlaceholderImage(usable) ? localMegaImage(usable) : usable;
+};
+
 const parseChartValue = (value: unknown, fallback: number) => {
   if (typeof value === "number" && Number.isFinite(value)) {
     return Math.min(100, Math.max(1, Math.round(value)));
@@ -305,6 +325,9 @@ const shellRadius = (cfg: MegaConfig) => {
 };
 
 const getImageVariant = (imageUrl: string, variant: string | number, width = 900, height = 700) => {
+  if (isRemotePlaceholderImage(imageUrl)) {
+    return localMegaImage(`${imageUrl}-${variant}-${width}-${height}`);
+  }
   const picsumSeedMatch = imageUrl.match(/\/seed\/([^/]+)\/\d+\/\d+/);
   if (picsumSeedMatch) {
     return `https://picsum.photos/seed/${picsumSeedMatch[1]}-${variant}/${width}/${height}`;
@@ -1568,7 +1591,10 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
 function createMegaComponent(cfg: MegaConfig, Schema: ReturnType<typeof makeSchema>) {
   const MegaLayout: React.FC<{ data: Partial<z.infer<typeof Schema>> }> = ({ data }) => {
     const parsed = Schema.parse(normalizeMegaData(data));
-    const imageUrl = firstUsableImageUrl(parsed.image?.__image_url__, parsed.imageUrl, cfg.imageUrl);
+    const parsedImageUrl = resolveMegaImageUrl(parsed.image?.__image_url__, parsed.imageUrl);
+    const imageUrl = cfg.imageUrl.startsWith("/") && isRemotePlaceholderImage(firstUsableImageUrl(parsed.image?.__image_url__, parsed.imageUrl))
+      ? cfg.imageUrl
+      : resolveMegaImageUrl(parsedImageUrl, cfg.imageUrl);
     return renderLayout(cfg, {
       ...parsed,
       imageUrl,
@@ -1745,7 +1771,7 @@ const makeConfig = (deck: (typeof onlinePresentationServiceDecks)[number], index
     bg: fashionStyle?.bg || style.bg,
     fg: fashionStyle?.fg || style.fg,
     soft: fashionStyle?.soft || style.soft,
-    imageUrl: `https://picsum.photos/seed/${variant ? `${deck.id}-studio-${variant}` : deck.id}/900/700`,
+    imageUrl: localMegaImage(variant ? `${deck.id}-studio-${variant}` : deck.id),
     curve: index,
     visualMode: deck.id === "fashion-lookbook" ? 5 : index % 8,
   };
@@ -1794,7 +1820,7 @@ const featuredPortfolioConfig: MegaConfig = {
   bg: "#e9e9e9",
   fg: "#2b2b2b",
   soft: "#d9d9d9",
-  imageUrl: "https://picsum.photos/seed/personal-portfolio-featured/900/700",
+  imageUrl: "/templates/personal-portfolio-2026.svg",
   curve: 0,
   visualMode: 2,
 };
@@ -1822,7 +1848,7 @@ const featuredVisionConfig: MegaConfig = {
   bg: "#ffffff",
   fg: "#000000",
   soft: "#ede9fe",
-  imageUrl: "https://picsum.photos/seed/msgr-vision-mission/900/1200",
+  imageUrl: "/templates/mega-fallback-c.svg",
   curve: 1,
   visualMode: 6,
 };
