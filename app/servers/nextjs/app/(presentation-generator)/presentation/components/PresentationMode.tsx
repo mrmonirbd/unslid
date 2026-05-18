@@ -252,15 +252,14 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
         </div>
       ) : (
         /* Standard full-screen slide view */
-        <div className={`flex-1 min-h-0 flex items-center justify-center ${isFullscreen ? "px-6 py-8 md:px-10 md:py-12" : "p-8"}`}>
+        <div className={`flex-1 min-h-0 flex items-center justify-center ${isFullscreen ? "p-0" : "p-8"}`}>
           <div
-            className="relative rounded-sm font-inter"
+            className={`relative font-inter ${isFullscreen ? "h-screen w-screen overflow-hidden" : "rounded-sm"}`}
             style={{
-              aspectRatio: "16 / 9",
-              width: isFullscreen
-                ? "min(90vw, calc(88vh * 16 / 9))"
-                : "min(calc(100vw - 4rem), calc((100vh - 4rem) * 16 / 9))",
-              maxHeight: isFullscreen ? "88vh" : "calc(100vh - 4rem)",
+              aspectRatio: isFullscreen ? undefined : "16 / 9",
+              width: isFullscreen ? "100vw" : "min(calc(100vw - 4rem), calc((100vh - 4rem) * 16 / 9))",
+              height: isFullscreen ? "100vh" : undefined,
+              maxHeight: isFullscreen ? "100vh" : "calc(100vh - 4rem)",
             }}
           >
             {slides.map((slide, index) => (
@@ -301,7 +300,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
       </div>
 
       {/* Floating speaker notes (standard view only) */}
-      {!showPresenterPanel && currentSpeakerNote && (
+      {!isFullscreen && !showPresenterPanel && currentSpeakerNote && (
         <div className="presentation-controls absolute bottom-4 right-4 z-50">
           {showSpeakerNotes ? (
             <div className="w-[360px] max-w-[50vw] rounded-xl border border-black/10 bg-white/95 shadow-xl backdrop-blur-sm">
