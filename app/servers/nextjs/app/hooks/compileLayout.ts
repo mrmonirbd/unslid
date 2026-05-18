@@ -33,6 +33,31 @@ const tokenizeAutoSavedHtml = (html: string): { html: string; textTokens: AutoSa
 
     const container = document.createElement("div");
     container.innerHTML = html;
+
+    container.querySelectorAll<HTMLElement>(".imported-slide-canvas").forEach((canvas) => {
+        const editableTextNodes = canvas.querySelectorAll<HTMLElement>(".imported-editable-text");
+        const hasEditableText = canvas.getAttribute("data-editable-text") === "true" && editableTextNodes.length > 0;
+        const originalBg = canvas.querySelector<HTMLElement>(".imported-original-bg");
+        const editBg = canvas.querySelector<HTMLElement>(".imported-edit-bg");
+        const editableLayer = canvas.querySelector<HTMLElement>(".imported-editable-layer");
+
+        if (hasEditableText) {
+            if (originalBg) originalBg.style.opacity = "0";
+            if (editBg) editBg.style.opacity = "1";
+            if (editableLayer) {
+                editableLayer.style.opacity = "1";
+                editableLayer.style.pointerEvents = "none";
+            }
+        }
+
+        editableTextNodes.forEach((node) => {
+            node.removeAttribute("contenteditable");
+            node.removeAttribute("contentEditable");
+            node.style.pointerEvents = "none";
+            node.style.outline = "none";
+        });
+    });
+
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
     const skippedParents = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "SVG", "CANVAS"]);
     const textNodes: Text[] = [];
@@ -54,6 +79,7 @@ const tokenizeAutoSavedHtml = (html: string): { html: string; textTokens: AutoSa
         const value = (node.textContent || "").replace(/\s+/g, " ").trim();
         if (!value) return;
         textTokens.push({ key, value });
+        node.parentElement?.setAttribute("data-ai-text-key", key);
         node.textContent = `{{${key}}}`;
     });
 
@@ -150,10 +176,13 @@ const dynamicSlideLayout = ({ data = {} }) => {
 
 const upgradeAutoSavedStaticLayout = (layoutCode: string) => {
     if (!layoutCode.includes("const Schema = z.object({});")) return layoutCode;
-    if (!layoutCode.includes("const generatedSlideHtml = ")) return layoutCode;
-    if (!layoutCode.includes("const dynamicSlideLayout = () => (")) return layoutCode;
+    const htmlStartMarker = layoutCode.includes("const generatedSlideHtml = ")
+        ? "const generatedSlideHtml = "
+        : layoutCode.includes("const importedHtml = ")
+            ? "const importedHtml = "
+            : "";
+    if (!htmlStartMarker) return layoutCode;
 
-    const htmlStartMarker = "const generatedSlideHtml = ";
     const htmlStart = layoutCode.indexOf(htmlStartMarker);
     const htmlValueStart = htmlStart + htmlStartMarker.length;
     const htmlValueEnd = layoutCode.indexOf(";\n", htmlValueStart);
@@ -166,8 +195,15 @@ const upgradeAutoSavedStaticLayout = (layoutCode: string) => {
         return layoutCode;
     }
 
-    const dynamicStart = layoutCode.indexOf("const dynamicSlideLayout = () => (", htmlValueEnd);
-    const dynamicEnd = layoutCode.indexOf("\n);", dynamicStart);
+    const arrowMarkers = [
+        { start: "const dynamicSlideLayout = () => (", end: "\n);" },
+        { start: "const dynamicSlideLayout = ({ data = {} }) => {", end: "\n};" },
+    ];
+    const dynamicMarker = arrowMarkers
+        .map((marker) => ({ ...marker, index: layoutCode.indexOf(marker.start, htmlValueEnd) }))
+        .find((marker) => marker.index >= 0);
+    const dynamicStart = dynamicMarker?.index ?? -1;
+    const dynamicEnd = dynamicMarker ? layoutCode.indexOf(dynamicMarker.end, dynamicStart) : -1;
     const schemaStart = layoutCode.indexOf("const Schema = z.object({});");
     if (schemaStart < 0 || dynamicStart < 0 || dynamicEnd < 0) return layoutCode;
 
@@ -177,7 +213,7 @@ const upgradeAutoSavedStaticLayout = (layoutCode: string) => {
     return [
         layoutCode.slice(0, schemaStart),
         buildAutoSavedDynamicBlock(tokenizedHtml, textTokens, imageTokens),
-        layoutCode.slice(dynamicEnd + "\n);".length),
+        layoutCode.slice(dynamicEnd + (dynamicMarker?.end.length ?? 0)),
     ].join("");
 };
 
@@ -317,7 +353,14 @@ export function compileCustomLayout(layoutCode: string): CompiledLayout | null {
             }
         }
         sampleData = { ...generatedSampleData, ...sampleData };
-        const schemaJSON = z.toJSONSchema(result.Schema);
+        let schemaJSON = {};
+        if (result.Schema) {
+            try {
+                schemaJSON = z.toJSONSchema(result.Schema);
+            } catch (error) {
+                console.warn("Could not convert schema to JSON schema:", error);
+            }
+        }
 
         return {
             component: result.component,

@@ -823,6 +823,8 @@ function cleanEditedLayoutHtml(root: HTMLElement) {
 }
 
 function makeTextElementsEditable(root: HTMLElement, onSelect: (element: HTMLElement) => void) {
+  activateImportedEditableText(root);
+
   const candidates = Array.from(
     root.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6,p,span,div,li,td,th,strong,em")
   );
@@ -840,6 +842,7 @@ function makeTextElementsEditable(root: HTMLElement, onSelect: (element: HTMLEle
     element.dataset.adminEditable = "true";
     element.spellcheck = false;
     element.style.cursor = "text";
+    element.style.pointerEvents = "auto";
     if (getComputedStyle(element).display === "inline") {
       element.style.display = "inline-block";
     }
@@ -1213,6 +1216,29 @@ function cleanStaticEditorHtml(root: HTMLElement) {
   return clone.innerHTML;
 }
 
+function activateImportedEditableText(root: HTMLElement) {
+  root.querySelectorAll<HTMLElement>(".imported-slide-canvas").forEach((canvas) => {
+    const editableTextNodes = canvas.querySelectorAll<HTMLElement>(".imported-editable-text");
+    if (!editableTextNodes.length) return;
+
+    const originalBg = canvas.querySelector<HTMLElement>(".imported-original-bg");
+    const editBg = canvas.querySelector<HTMLElement>(".imported-edit-bg");
+    const editableLayer = canvas.querySelector<HTMLElement>(".imported-editable-layer");
+
+    if (originalBg) originalBg.style.opacity = "0";
+    if (editBg) editBg.style.opacity = "1";
+    if (editableLayer) {
+      editableLayer.style.opacity = "1";
+      editableLayer.style.pointerEvents = "auto";
+    }
+
+    editableTextNodes.forEach((node) => {
+      node.style.pointerEvents = "auto";
+      node.style.cursor = "text";
+    });
+  });
+}
+
 function StaticTemplateEditor({
   children,
   storageKey,
@@ -1305,6 +1331,8 @@ function StaticTemplateEditor({
       loadedStorageKeyRef.current = storageKey;
     }
 
+    activateImportedEditableText(root);
+
     const textElements = Array.from(root.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6,p,span,li,strong,em,button,div"))
       .filter((element) => {
         const text = element.textContent?.trim();
@@ -1324,6 +1352,7 @@ function StaticTemplateEditor({
       element.spellcheck = false;
       element.dataset.staticEditorText = "true";
       element.style.cursor = "text";
+      element.style.pointerEvents = "auto";
       if (getComputedStyle(element).display === "inline") {
         element.style.display = "inline-block";
       }
@@ -1816,16 +1845,6 @@ const GroupLayoutPreview = () => {
   };
 
   useEffect(() => {
-    const existingScript = document.querySelector('script[src*="tailwindcss.com"]');
-    if (!existingScript) {
-      const script = document.createElement("script");
-      script.src = "https://cdn.tailwindcss.com";
-      script.async = true;
-      document.head.appendChild(script);
-    }
-  }, [templateParams]);
-
-  useEffect(() => {
     return () => {
       stopGenerationTypewriter();
       generationAbortRef.current?.abort();
@@ -1954,82 +1973,6 @@ const GroupLayoutPreview = () => {
       toast.error(error?.message || "Failed to delete template");
     }
   };
-
-
-  // Loading state for custom templates
-  if (isCustom && (customLoading)) {
-    return (
-      <TemplatePreviewShell>
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          <span className="ml-3 text-gray-600">Compiling templates...</span>
-        </div>
-      </TemplatePreviewShell>
-    );
-  }
-
-  if (isDesigner && designerLoading) {
-    return (
-      <TemplatePreviewShell>
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-          <span className="ml-3 text-gray-600">Loading designer template...</span>
-        </div>
-      </TemplatePreviewShell>
-    );
-  }
-
-  // Error state
-  if (isCustom && customError) {
-    return (
-      <TemplatePreviewShell>
-        <div className="flex flex-col items-center justify-center py-24">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">Error loading template</h2>
-          <p className="text-gray-600 mb-4">{customError}</p>
-          <Button onClick={() => router.push("/template-preview")}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Templates
-          </Button>
-        </div>
-      </TemplatePreviewShell>
-    );
-  }
-
-  if (isDesigner && designerError) {
-    return (
-      <TemplatePreviewShell>
-        <div className="flex flex-col items-center justify-center py-24">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">Error loading template</h2>
-          <p className="text-gray-600 mb-4">{designerError}</p>
-          <Button onClick={() => router.push("/template-preview")}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Templates
-          </Button>
-        </div>
-      </TemplatePreviewShell>
-    );
-  }
-
-  // Empty state
-  if (
-    (!isCustom && !isDesigner && (!staticGroup || staticTemplates.length === 0)) ||
-    (isCustom && (!customTemplate)) ||
-    (isDesigner && !designerTemplate)
-  ) {
-    return (
-      <TemplatePreviewShell>
-        <div className="flex flex-col items-center justify-center py-24">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Template not found
-          </h2>
-          <Button onClick={() => router.push("/template-preview")}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Templates
-          </Button>
-        </div>
-      </TemplatePreviewShell>
-    );
-  }
 
   // Determine what to render
   const templateName = isCustom ? customTemplate?.template.name || "Custom Template" : staticGroup?.name || "";
@@ -2310,6 +2253,81 @@ const GroupLayoutPreview = () => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [previewPlayerLayouts.length, previewPlayerOpen]);
+
+  // Keep all hooks above this point. These render branches intentionally come
+  // after the preview-player keyboard effect so loading -> loaded transitions
+  // do not change the hook order.
+  if (isCustom && customLoading) {
+    return (
+      <TemplatePreviewShell>
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <span className="ml-3 text-gray-600">Compiling templates...</span>
+        </div>
+      </TemplatePreviewShell>
+    );
+  }
+
+  if (isDesigner && designerLoading) {
+    return (
+      <TemplatePreviewShell>
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+          <span className="ml-3 text-gray-600">Loading designer template...</span>
+        </div>
+      </TemplatePreviewShell>
+    );
+  }
+
+  if (isCustom && customError) {
+    return (
+      <TemplatePreviewShell>
+        <div className="flex flex-col items-center justify-center py-24">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Error loading template</h2>
+          <p className="text-gray-600 mb-4">{customError}</p>
+          <Button onClick={() => router.push("/template-preview")}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Templates
+          </Button>
+        </div>
+      </TemplatePreviewShell>
+    );
+  }
+
+  if (isDesigner && designerError) {
+    return (
+      <TemplatePreviewShell>
+        <div className="flex flex-col items-center justify-center py-24">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Error loading template</h2>
+          <p className="text-gray-600 mb-4">{designerError}</p>
+          <Button onClick={() => router.push("/template-preview")}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Templates
+          </Button>
+        </div>
+      </TemplatePreviewShell>
+    );
+  }
+
+  if (
+    (!isCustom && !isDesigner && (!staticGroup || staticTemplates.length === 0)) ||
+    (isCustom && !customTemplate) ||
+    (isDesigner && !designerTemplate)
+  ) {
+    return (
+      <TemplatePreviewShell>
+        <div className="flex flex-col items-center justify-center py-24">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Template not found
+          </h2>
+          <Button onClick={() => router.push("/template-preview")}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Templates
+          </Button>
+        </div>
+      </TemplatePreviewShell>
+    );
+  }
 
   return (
     <TemplatePreviewShell>
