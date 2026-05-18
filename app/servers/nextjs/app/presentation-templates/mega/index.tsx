@@ -1357,7 +1357,114 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
         </Shell>
       );
     case "team":
+      if (cfg.id.startsWith("mega-003-agency-proposal-luxe") && cfg.id.includes("team")) {
+        const teamItems = items.concat(items).slice(0, 4);
+        return (
+          <Shell cfg={cfg}>
+            <div className="flex h-full w-full flex-col p-12">
+              <div className="grid grid-cols-[0.72fr_1fr] items-end gap-10">
+                <div>
+                  <div className="mb-5 inline-flex rounded-full px-4 py-2 text-xs font-black uppercase" style={{ background: theme.accent, color: theme.primaryText }}>
+                    Studio Team
+                  </div>
+                  <h1 className="text-[52px] font-black leading-[0.98]" style={textStyle}>{title}</h1>
+                </div>
+                <p className="pb-1 text-xl leading-relaxed opacity-75">{subtitle}</p>
+              </div>
+              <div className="mt-10 grid flex-1 grid-cols-[1.05fr_0.95fr] gap-7">
+                <div className="relative overflow-hidden rounded-[28px]" style={{ background: theme.soft }}>
+                  <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+                  <div className="absolute left-6 top-6 rounded-full px-5 py-2 text-sm font-black uppercase" style={{ background: theme.accent, color: theme.primaryText }}>
+                    Lead creative unit
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-5">
+                  {teamItems.map((item, index) => (
+                    <div key={`${item.label}-${index}`} className="flex flex-col justify-between rounded-[24px] p-6" style={{ background: index === 0 ? theme.fg : theme.soft, color: index === 0 ? theme.primaryText : theme.fg }}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-black uppercase opacity-60">Role {index + 1}</span>
+                        <span className="h-3 w-3 rounded-full" style={{ background: theme.accent }} />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-black">{item.label}</h3>
+                        <p className="mt-3 text-sm leading-relaxed opacity-75">{item.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Shell>
+        );
+      }
+      return (
+        <Shell cfg={cfg}>
+          <div className="grid h-full w-full grid-cols-[0.86fr_1.14fr] gap-10 p-14">
+            <div className="flex flex-col justify-between">
+              <div>
+                <h1 className="text-5xl font-black" style={textStyle}>{title}</h1>
+                <p className="mt-5 text-xl opacity-75">{subtitle}</p>
+              </div>
+              <img src={imageUrl} alt="" className="h-64 rounded-[32px] object-cover" />
+            </div>
+            <div className="grid grid-cols-2 gap-5">
+              {items.concat(items).slice(0, 4).map((item, index) => (
+                <div key={`${item.label}-${index}`} className="flex flex-col justify-between rounded-2xl p-6" style={{ background: index === 0 ? theme.accent : theme.soft, color: index === 0 ? theme.primaryText : theme.fg }}>
+                  <div className="text-sm font-black uppercase opacity-60">Member {index + 1}</div>
+                  <div>
+                    <h3 className="text-2xl font-black">{item.label}</h3>
+                    <p className="mt-3 text-sm leading-relaxed opacity-75">{item.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Shell>
+      );
     case "portfolio":
+      if (cfg.id.startsWith("mega-003-agency-proposal-luxe") && cfg.id.includes("gallery")) {
+        const galleryItems = items.concat(items).slice(0, 4);
+        return (
+          <Shell cfg={cfg}>
+            <div className="grid h-full w-full grid-cols-[0.9fr_1.1fr] gap-8 p-12">
+              <div className="flex flex-col justify-between">
+                <div>
+                  <div className="mb-5 h-2 w-24 rounded-full" style={{ background: theme.accent }} />
+                  <h1 className="text-[54px] font-black leading-[0.98]" style={textStyle}>{title}</h1>
+                  <p className="mt-5 max-w-[500px] text-xl leading-relaxed opacity-75">{subtitle}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {metrics.slice(0, 4).map((metric, index) => (
+                    <div key={`${metric.label}-${index}`} className="rounded-xl p-4" style={{ background: index === 0 ? theme.accent : theme.soft, color: index === 0 ? theme.primaryText : theme.fg }}>
+                      <div className="text-3xl font-black">{metric.value}</div>
+                      <div className="mt-1 text-xs font-bold uppercase opacity-75">{metric.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="grid h-full grid-cols-[1fr_0.78fr] grid-rows-2 gap-5">
+                <div className="relative row-span-2 overflow-hidden rounded-[28px]" style={{ background: theme.soft }}>
+                  <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+                  <div className="absolute inset-x-0 bottom-0 p-6" style={{ background: "linear-gradient(180deg, transparent, rgba(0,0,0,.72))", color: "#fff" }}>
+                    <div className="text-xs font-black uppercase opacity-75">Hero Direction</div>
+                    <h3 className="mt-2 text-2xl font-black">{galleryItems[0]?.label}</h3>
+                    <p className="mt-2 text-sm leading-relaxed opacity-85">{galleryItems[0]?.text}</p>
+                  </div>
+                </div>
+                {galleryItems.slice(1, 3).map((item, index) => (
+                  <div key={`${item.label}-${index}`} className="flex flex-col justify-between rounded-[24px] p-6" style={{ background: index === 0 ? theme.fg : theme.soft, color: index === 0 ? theme.primaryText : theme.fg }}>
+                    <div className="text-sm font-black uppercase opacity-60">0{index + 2}</div>
+                    <div>
+                      <h3 className="text-2xl font-black">{item.label}</h3>
+                      <p className="mt-3 text-sm leading-relaxed opacity-75">{item.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Shell>
+        );
+      }
       return (
         <Shell cfg={cfg}>
           <div className="flex h-full w-full flex-col p-14">
