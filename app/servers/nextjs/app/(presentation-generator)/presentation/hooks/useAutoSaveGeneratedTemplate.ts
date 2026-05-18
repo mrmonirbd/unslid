@@ -105,7 +105,12 @@ const getSlideHtmlForTemplate = (element: HTMLElement) => {
   const isolatedRender = clone.querySelector<HTMLElement>(".tiptap-isolated-render");
   const source = isolatedRender ?? clone;
 
-  source.querySelectorAll("[aria-hidden='true'], .tiptap-text-editor").forEach((node) => {
+  source.querySelectorAll<HTMLElement>(".tiptap-text-editor").forEach((node) => {
+    const text = (node.textContent || "").replace(/\s+/g, " ").trim();
+    node.replaceWith(document.createTextNode(text));
+  });
+
+  source.querySelectorAll("[aria-hidden='true']").forEach((node) => {
     node.remove();
   });
 

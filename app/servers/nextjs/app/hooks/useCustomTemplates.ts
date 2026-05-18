@@ -57,13 +57,6 @@ export interface CustomTemplates {
     isCustom: true;
 }
 
-const AUTO_SAVED_TEMPLATE_DESCRIPTION = "Auto-saved from generated presentation";
-
-function isAutoSavedGeneratedTemplate(item: any): boolean {
-    const template = item?.template ?? item;
-    return template?.description === AUTO_SAVED_TEMPLATE_DESCRIPTION;
-}
-
 function normalizeCustomTemplateId(id: string): string {
     if (!id) return id;
     return id.startsWith("custom-") ? id.slice("custom-".length) : id;
@@ -210,7 +203,7 @@ export function useCustomTemplateSummaries() {
             //     }
             // });
 
-            const mappedTemplates: CustomTemplates[] = data.presentations.filter((item: any) => !isAutoSavedGeneratedTemplate(item)).map((item: any) => {
+            const mappedTemplates: CustomTemplates[] = data.presentations.map((item: any) => {
                 return {
                     id: item.template.id,
                     name: item.template.name || "Custom Template",

@@ -72,7 +72,7 @@ export function SortableSlide({ slide, index, selectedSlide, onSlideClick }: Sor
                         transform: `scale(${SCALE})`,
                     }}
                 >
-                    <V1ContentRender slide={slide} isEditMode={true} />
+                    <V1ContentRender slide={slide} isEditMode={false} />
                 </div>
             </div>
             {/* <div className=" slide-box relative z-50  overflow-hidden aspect-video">
