@@ -248,6 +248,7 @@ const normalizeMegaData = (data: unknown) => {
 };
 
 const textStyle = { letterSpacing: 0 };
+const editorialHeadingStyle = { letterSpacing: 0 };
 
 const getMegaTheme = (cfg: MegaConfig) => ({
   accent: `var(--primary-color, ${cfg.accent})`,
@@ -307,6 +308,10 @@ const getImageVariant = (imageUrl: string, variant: string | number, width = 900
   const picsumSeedMatch = imageUrl.match(/\/seed\/([^/]+)\/\d+\/\d+/);
   if (picsumSeedMatch) {
     return `https://picsum.photos/seed/${picsumSeedMatch[1]}-${variant}/${width}/${height}`;
+  }
+  if (imageUrl.includes("images.unsplash.com")) {
+    const separator = imageUrl.includes("?") ? "&" : "?";
+    return `${imageUrl}${separator}w=${width}&h=${height}&fit=crop&sig=${encodeURIComponent(String(variant))}`;
   }
   const separator = imageUrl.includes("?") ? "&" : "?";
   return `${imageUrl}${separator}variant=${variant}`;
@@ -773,7 +778,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
       if (page === "audience") {
         return (
           <div className="mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] flex-col overflow-hidden px-10 py-9" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
-            <h1 className="text-[112px] font-black uppercase leading-none" style={{ color: red, letterSpacing: "-0.04em" }}>{title}</h1>
+            <h1 className="text-[84px] font-black uppercase leading-none" style={{ color: red, ...editorialHeadingStyle }}>{title}</h1>
             <p className="mt-4 max-w-[760px] text-3xl font-medium leading-tight">{subtitle}</p>
             <div className="mt-12 flex flex-1 flex-col justify-between">
               {editorialRows.slice(0, 3).map((row, index) => (
@@ -794,7 +799,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
       if (page === "positioning") {
         return (
           <div className="mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] flex-col overflow-hidden px-10 py-9" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
-            <h1 className="text-[112px] font-black uppercase leading-none" style={{ color: red, letterSpacing: "-0.04em" }}>{title}</h1>
+            <h1 className="text-[84px] font-black uppercase leading-none" style={{ color: red, ...editorialHeadingStyle }}>{title}</h1>
             <p className="mt-4 max-w-[780px] text-3xl font-medium leading-tight">{subtitle}</p>
             <div className="mt-20 flex flex-1 flex-col justify-between">
               {editorialRows.slice(0, 4).map((row, index) => (
@@ -815,7 +820,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
       if (page === "timeline") {
         return (
           <div className="mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] flex-col overflow-hidden px-10 py-9" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
-            <h1 className="text-[112px] font-black uppercase leading-none" style={{ color: red, letterSpacing: "-0.04em" }}>{title}</h1>
+            <h1 className="text-[84px] font-black uppercase leading-none" style={{ color: red, ...editorialHeadingStyle }}>{title}</h1>
             <p className="mt-4 max-w-[780px] text-3xl font-medium leading-tight">{subtitle}</p>
             <div className="mt-28 flex flex-1 flex-col justify-between">
               {editorialRows.slice(0, 4).map((row, index) => (
@@ -845,7 +850,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
                 <div key={label}>
                   <div className="grid grid-cols-[60px_1fr_82px] items-center gap-6">
                     <div className="text-xl font-medium">({String(index + 1).padStart(2, "0")})</div>
-                    <div className="text-[72px] font-black uppercase leading-none" style={{ letterSpacing: "-0.04em" }}>{label}</div>
+                    <div className="text-[54px] font-black uppercase leading-none" style={editorialHeadingStyle}>{label}</div>
                     <Arrow />
                   </div>
                   <div className="mt-6 h-[3px]" style={{ background: red }} />
@@ -860,7 +865,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
         return (
           <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[1fr_0.82fr] overflow-hidden p-10" style={{ background: red, color: theme.primaryText, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
             <div className="flex flex-col justify-between">
-              <h1 className="text-[112px] font-black uppercase leading-none" style={{ letterSpacing: "-0.05em" }}>{title}</h1>
+              <h1 className="text-[84px] font-black uppercase leading-none" style={editorialHeadingStyle}>{title}</h1>
               <p className="max-w-[680px] text-[32px] uppercase leading-tight">{subtitle}</p>
               <div className="space-y-8 text-[24px] uppercase">
                 {editorialRows.slice(0, 3).map((row, index) => (
@@ -883,7 +888,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
         return (
           <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.92fr_1fr] overflow-hidden" style={{ background: cream, color: red, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
             <div className="flex flex-col justify-between p-10" style={{ background: red, color: theme.primaryText }}>
-              <h1 className="text-[104px] font-black uppercase leading-[0.9]" style={{ letterSpacing: "-0.05em" }}>{title}</h1>
+              <h1 className="text-[78px] font-black uppercase leading-[0.94]" style={editorialHeadingStyle}>{title}</h1>
               <p className="max-w-[520px] text-3xl uppercase leading-tight">{subtitle}</p>
               <Arrow className="mx-auto" />
               <div className="grid grid-cols-2 text-2xl uppercase">
@@ -901,7 +906,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
           <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[0.85fr_1fr] overflow-hidden" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
             <img src={imageFor("brand-strategy-workshop", 780, 720)} alt="" className="h-full w-full object-cover" style={redImageStyle} />
             <div className="flex flex-col justify-between p-16">
-              <h1 className="text-[92px] font-black uppercase leading-[0.92]" style={{ color: red, letterSpacing: "-0.05em" }}>{title}</h1>
+              <h1 className="text-[72px] font-black uppercase leading-[0.94]" style={{ color: red, ...editorialHeadingStyle }}>{title}</h1>
               <p className="max-w-[580px] text-2xl leading-tight">{subtitle}</p>
               <div>
                 <strong className="text-xl uppercase">(Key Focus)</strong>
@@ -922,7 +927,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
         return (
           <div className="mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] flex-col overflow-hidden px-10 py-10" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
             <div className="grid grid-cols-[1fr_0.32fr]">
-              <h1 className="text-[104px] font-black uppercase leading-none" style={{ color: red, letterSpacing: "-0.05em" }}>{title}</h1>
+              <h1 className="text-[78px] font-black uppercase leading-none" style={{ color: red, ...editorialHeadingStyle }}>{title}</h1>
               <p className="pt-8 text-2xl leading-tight">{subtitle}</p>
             </div>
             <div className="mt-16 grid flex-1 grid-cols-[1fr_0.46fr] gap-10">
@@ -940,7 +945,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
         return (
           <div className="mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] flex-col overflow-hidden px-10 py-10" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
             <div className="grid grid-cols-[1fr_0.38fr]">
-              <h1 className="text-[104px] font-black uppercase leading-none" style={{ color: red, letterSpacing: "-0.05em" }}>{title}</h1>
+              <h1 className="text-[78px] font-black uppercase leading-none" style={{ color: red, ...editorialHeadingStyle }}>{title}</h1>
               <p className="pt-10 text-2xl leading-tight">{subtitle}</p>
             </div>
             <div className="relative mt-12 flex-1">
@@ -955,7 +960,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
       return (
         <div className="mx-auto grid aspect-video max-h-[720px] w-full max-w-[1280px] grid-cols-[1fr_0.95fr] overflow-hidden" style={{ background: cream, color: black, fontFamily: "Arial Narrow, Impact, Inter, Arial, sans-serif" }}>
           <div className="relative p-10">
-            <h1 className="text-[104px] font-black uppercase leading-[0.88]" style={{ color: red, letterSpacing: "-0.055em" }}>{title}</h1>
+            <h1 className="text-[78px] font-black uppercase leading-[0.94]" style={{ color: red, ...editorialHeadingStyle }}>{title}</h1>
             <div className="absolute bottom-24 left-10 max-w-[500px]">
               <h2 className="text-3xl font-black uppercase" style={{ color: red }}>{subtitle}</h2>
               <p className="mt-4 text-2xl leading-tight">{editorialItems[0]?.text || quote}</p>
@@ -1042,6 +1047,61 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
       );
     case "timeline":
     case "roadmap":
+      if (cfg.id.startsWith("mega-003-agency-proposal-luxe") && cfg.id.includes("roadmap")) {
+        const roadmapItems = items.concat(items).slice(0, 5);
+        return (
+          <Shell cfg={cfg}>
+            <div className="grid h-full w-full grid-cols-[0.42fr_0.58fr] overflow-hidden">
+              <div className="relative flex flex-col justify-between p-14" style={{ background: theme.fg, color: theme.primaryText }}>
+                <div>
+                  <div className="mb-7 inline-flex rounded-full px-4 py-2 text-xs font-black uppercase" style={{ background: theme.accent, color: theme.primaryText }}>
+                    Delivery Roadmap
+                  </div>
+                  <h1 className="text-[52px] font-black leading-[0.98]" style={textStyle}>{title}</h1>
+                  <p className="mt-6 max-w-[390px] text-lg leading-relaxed opacity-80">{subtitle}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {metrics.slice(0, 2).map((metric) => (
+                    <div key={metric.label} className="rounded-xl border border-white/15 p-4">
+                      <div className="text-3xl font-black" style={{ color: theme.accent }}>{metric.value}</div>
+                      <div className="mt-1 text-xs font-bold uppercase opacity-70">{metric.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex h-full flex-col p-14" style={{ background: theme.bg, color: theme.fg }}>
+                <div className="grid grid-cols-[1fr_180px] items-start gap-8">
+                  <p className="text-xl font-semibold leading-snug opacity-75">{quote}</p>
+                  <div className="flex h-24 items-center justify-center rounded-full text-4xl font-black" style={{ background: theme.accent, color: theme.primaryText }}>
+                    5
+                  </div>
+                </div>
+                <div className="relative mt-10 flex-1">
+                  <div className="absolute left-[31px] top-7 h-[calc(100%-56px)] w-[3px]" style={{ background: theme.accent }} />
+                  <div className="space-y-5">
+                    {roadmapItems.map((item, index) => (
+                      <div key={`${item.label}-${index}`} className="relative grid grid-cols-[64px_1fr] gap-5">
+                        <div className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full text-xl font-black" style={{ background: index === 0 ? theme.accent : theme.soft, color: index === 0 ? theme.primaryText : theme.fg }}>
+                          {String(index + 1).padStart(2, "0")}
+                        </div>
+                        <div className="rounded-xl border p-5" style={{ borderColor: theme.stroke, background: index % 2 ? theme.soft : theme.bg }}>
+                          <div className="flex items-center justify-between gap-4">
+                            <h3 className="text-2xl font-black">{item.label}</h3>
+                            <span className="shrink-0 rounded-full px-3 py-1 text-xs font-bold uppercase" style={{ background: theme.accent, color: theme.primaryText }}>
+                              Week {index + 1}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm leading-relaxed opacity-75">{item.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Shell>
+        );
+      }
       return (
         <Shell cfg={cfg}>
           <div className="flex h-full w-full flex-col p-16">
@@ -1641,7 +1701,7 @@ const featuredRedEditorialConfig: MegaConfig = {
   bg: "#fbf8f1",
   fg: "#000000",
   soft: "#f3eee5",
-  imageUrl: "https://picsum.photos/seed/red-editorial-brand-campaign/1200/900",
+  imageUrl: "/templates/red-editorial-campaign.svg",
   curve: 0,
   visualMode: 5,
 };

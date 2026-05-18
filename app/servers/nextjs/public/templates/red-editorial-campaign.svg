@@ -1,0 +1,28 @@
+<svg width="1600" height="1100" viewBox="0 0 1600 1100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="1100" fill="#F9F4EA"/>
+  <rect x="0" y="0" width="1600" height="1100" fill="url(#grain)" opacity="0.28"/>
+  <rect x="110" y="95" width="1380" height="910" fill="#141414"/>
+  <rect x="154" y="139" width="1292" height="822" fill="#F51F18"/>
+  <path d="M154 760L1446 244V961H154V760Z" fill="#F9F4EA"/>
+  <path d="M160 170C332 246 471 281 612 278C815 274 919 183 1110 168C1237 158 1344 188 1440 235V139H154V170H160Z" fill="#F9F4EA" opacity="0.94"/>
+  <circle cx="505" cy="412" r="162" fill="#111111"/>
+  <circle cx="505" cy="412" r="118" fill="#F9F4EA"/>
+  <path d="M812 224C899 192 1012 196 1097 244C1191 297 1241 395 1227 496C1216 577 1164 648 1088 690C1008 734 903 734 824 690C740 643 688 558 688 466C688 359 738 252 812 224Z" fill="#111111"/>
+  <path d="M868 292C926 270 1002 275 1058 309C1119 347 1150 411 1139 475C1130 528 1095 573 1045 599C991 627 923 626 872 596C817 564 784 508 785 449C786 378 820 310 868 292Z" fill="#F9F4EA"/>
+  <rect x="232" y="802" width="430" height="32" fill="#F51F18"/>
+  <rect x="232" y="858" width="306" height="28" fill="#111111"/>
+  <rect x="232" y="910" width="524" height="12" fill="#111111" opacity="0.42"/>
+  <rect x="232" y="934" width="382" height="12" fill="#111111" opacity="0.42"/>
+  <rect x="1190" y="756" width="168" height="168" rx="84" fill="#F51F18"/>
+  <path d="M1232 838H1310" stroke="#F9F4EA" stroke-width="18" stroke-linecap="round"/>
+  <path d="M1285 805L1320 838L1285 871" stroke="#F9F4EA" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M154 139H1446V961H154V139Z" stroke="#111111" stroke-width="14"/>
+  <defs>
+    <filter id="noiseFilter">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/>
+    </filter>
+    <pattern id="grain" width="240" height="240" patternUnits="userSpaceOnUse">
+      <rect width="240" height="240" filter="url(#noiseFilter)" opacity="0.32"/>
+    </pattern>
+  </defs>
+</svg>
