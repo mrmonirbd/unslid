@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/auth/client";
 
-const AUTO_SAVE_PREFIX = "unslid:auto-saved-generated-template:";
+const AUTO_SAVE_PREFIX = "unslid:auto-saved-generated-template:v2:";
 
 const cleanSlideHtml = (html: string) => {
   if (typeof document === "undefined") return html;
