@@ -223,6 +223,21 @@ services:
       - nextjs
       - fastapi
 
+  phpmyadmin:
+    image: phpmyadmin:5-apache
+    container_name: phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - PMA_HOST=mysql
+      - PMA_PORT=3306
+      - PMA_ARBITRARY=1
+    networks:
+      - app-network
+    depends_on:
+      - mysql
+
   # ── Automated database backups ─────────────────────────────
   db-backup:
     image: mysql:8.4
@@ -255,3 +270,6 @@ volumes:
 networks:
   app-network:
     driver: bridge
+
+
+
