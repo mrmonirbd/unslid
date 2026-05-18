@@ -137,7 +137,7 @@ const DEFAULT_PLAN_PRICING: PlanPricing = {
 };
 
 const DEFAULT_TEMPLATE_GENERATION_LIMITS: TemplateGenerationLimits = {
-  free: 1,
+  free: 5,
   pro: -1,
   team: -1,
 };

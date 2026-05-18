@@ -6,10 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models.sql.key_value import KeyValueSqlModel
 from models.sql.presentation import PresentationModel
 from models.sql.user import UserModel
-from utils.template_generation_limits import (
-    TEMPLATE_GENERATION_LIMITS_KEY,
-    normalize_template_generation_limits,
-)
+from utils.template_generation_limits import normalize_template_generation_limits
 
 PRESENTATION_GENERATION_LIMITS_KEY = "presentation_generation_limits"
 
@@ -36,16 +33,6 @@ async def get_presentation_generation_limits(session: AsyncSession) -> dict[str,
     row = result.scalar_one_or_none()
     if row and row.value:
         return normalize_presentation_generation_limits(row.value)
-
-    # Compatibility fallback: the first UI shipped as "template generation limits".
-    # If an admin already set those values while intending presentation limits,
-    # use them until the new presentation-specific setting is saved.
-    legacy_result = await session.execute(
-        select(KeyValueSqlModel).where(KeyValueSqlModel.key == TEMPLATE_GENERATION_LIMITS_KEY)
-    )
-    legacy_row = legacy_result.scalar_one_or_none()
-    if legacy_row and legacy_row.value:
-        return normalize_presentation_generation_limits(legacy_row.value)
 
     return DEFAULT_PRESENTATION_GENERATION_LIMITS
 
