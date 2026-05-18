@@ -176,7 +176,7 @@ import neoStandardSettings from "./neo-standard/settings.json";
 import neoModernSettings from "./neo-modern/settings.json";
 import neoSwiftSettings from "./neo-swift/settings.json";
 import megaSettings from "./mega/settings.json";
-import { megaTemplateGroups, megaTemplates } from "./mega";
+import { megaTemplateGroups as generatedMegaTemplateGroups } from "./mega";
 
 
 // Helper to create template entry
@@ -342,6 +342,45 @@ export const swiftTemplates: TemplateWithData[] = [
     createTemplateEntry(TableorChart, TableChartSchema, TableChartId, TableChartName, TableChartDesc, "swift", "TableorChart"),
     createTemplateEntry(Timeline, TimelineSchema, TimelineId, TimelineName, TimelineDesc, "swift", "Timeline"),
 ];
+
+const builtInTemplatePools: TemplateWithData[][] = [
+    neoGeneralTemplates,
+    neoStandardTemplates,
+    neoModernTemplates,
+    neoSwiftTemplates,
+    generalTemplates,
+    modernTemplates,
+    standardTemplates,
+    swiftTemplates,
+];
+
+function cloneBuiltInLayoutsForMegaGroup(
+    generatedGroup: TemplateLayoutsWithSettings,
+    groupIndex: number
+): TemplateWithData[] {
+    const targetCount = generatedGroup.layouts.length;
+
+    return Array.from({ length: targetCount }, (_, layoutIndex) => {
+        const poolIndex = (groupIndex * 3 + layoutIndex * 5) % builtInTemplatePools.length;
+        const builtInLayouts = builtInTemplatePools[poolIndex];
+        const sourceLayout = builtInLayouts[(groupIndex * 7 + layoutIndex * 2) % builtInLayouts.length];
+        const rawLayoutId = sourceLayout.layoutId.split(":").pop() || sourceLayout.layoutId;
+
+        return {
+            ...sourceLayout,
+            layoutId: `${generatedGroup.id}:${layoutIndex + 1}-${rawLayoutId}`,
+            templateName: generatedGroup.id,
+            fileName: sourceLayout.fileName,
+        };
+    });
+}
+
+export const megaTemplateGroups: TemplateLayoutsWithSettings[] = generatedMegaTemplateGroups.map((group, groupIndex) => ({
+    ...group,
+    layouts: cloneBuiltInLayoutsForMegaGroup(group, groupIndex),
+}));
+
+export const megaTemplates: TemplateWithData[] = megaTemplateGroups.flatMap((group) => group.layouts);
 
 // TODO: Step 4: Combine all templates into a single array For UseCases (like the ones below)
 // All templates combined
