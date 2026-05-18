@@ -20,7 +20,7 @@ export interface PresentationData {
 interface PresentationGenerationState {
   presentation_id: string | null;
   isLoading: boolean;
-  isStreaming: boolean | null;
+  isStreaming: boolean;
   outlines: { content: string }[];
   error: string | null;
   presentationData: PresentationData | null;
@@ -34,7 +34,7 @@ const initialState: PresentationGenerationState = {
   isSlidesRendered: false,
   isLayoutLoading: false,
   isLoading: false,
-  isStreaming: null,
+  isStreaming: false,
   error: null,
   presentationData: null,
 };
