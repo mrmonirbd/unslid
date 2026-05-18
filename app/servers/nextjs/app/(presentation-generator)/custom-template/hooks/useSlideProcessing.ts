@@ -119,12 +119,14 @@ const extractEditableTextBoxes = (
           Math.min(1.35, height / Math.max(fontSize, 1) / Math.max(paragraphs.length, 1))
         );
 
+        const fontSizePx = Number(fontSize.toFixed(2));
+
         return `
   <div
     class="imported-editable-text"
     contenteditable="true"
     data-slide-text="${index + 1}"
-    style="position:absolute;left:${((left / SLIDE_WIDTH) * 100).toFixed(3)}%;top:${((top / SLIDE_HEIGHT) * 100).toFixed(3)}%;width:${((width / SLIDE_WIDTH) * 100).toFixed(3)}%;min-height:${((height / SLIDE_HEIGHT) * 100).toFixed(3)}%;color:#${color};font-family:'${fontFamily.replace(/'/g, "\\'")}', Arial, sans-serif;font-size:${((fontSize / SLIDE_HEIGHT) * 100).toFixed(3)}cqh;font-weight:${isBold ? 700 : 400};font-style:${isItalic ? "italic" : "normal"};line-height:${lineHeight.toFixed(2)};text-align:${align};white-space:pre-wrap;overflow:visible;outline:1px dashed transparent;"
+    style="position:absolute;left:${((left / SLIDE_WIDTH) * 100).toFixed(3)}%;top:${((top / SLIDE_HEIGHT) * 100).toFixed(3)}%;width:${((width / SLIDE_WIDTH) * 100).toFixed(3)}%;min-height:${((height / SLIDE_HEIGHT) * 100).toFixed(3)}%;box-sizing:border-box;color:#${color};font-family:'${fontFamily.replace(/'/g, "\\'")}', Arial, sans-serif;font-size:clamp(8px, ${((fontSize / SLIDE_HEIGHT) * 100).toFixed(3)}cqh, ${fontSizePx}px);font-weight:${isBold ? 700 : 400};font-style:${isItalic ? "italic" : "normal"};line-height:${lineHeight.toFixed(2)};text-align:${align};white-space:pre-wrap;overflow:visible;outline:1px dashed transparent;transform:none;-webkit-text-size-adjust:100%;text-size-adjust:100%;"
   >${safeText}</div>`;
       })
       .join("");

@@ -21,6 +21,31 @@ interface TiptapTextReplacerProps {
   ) => void;
 }
 
+function activateImportedEditableText(root: HTMLElement) {
+  root.querySelectorAll<HTMLElement>(".imported-slide-canvas").forEach((canvas) => {
+    const editableTextNodes = canvas.querySelectorAll<HTMLElement>(".imported-editable-text");
+    if (!editableTextNodes.length) return;
+
+    const originalBg = canvas.querySelector<HTMLElement>(".imported-original-bg");
+    const editBg = canvas.querySelector<HTMLElement>(".imported-edit-bg");
+    const editableLayer = canvas.querySelector<HTMLElement>(".imported-editable-layer");
+
+    if (originalBg) originalBg.style.opacity = "0";
+    if (editBg) editBg.style.opacity = "1";
+    if (editableLayer) {
+      editableLayer.style.opacity = "1";
+      editableLayer.style.pointerEvents = "auto";
+    }
+
+    editableTextNodes.forEach((node) => {
+      node.removeAttribute("contenteditable");
+      node.removeAttribute("contentEditable");
+      node.style.pointerEvents = "auto";
+      node.style.cursor = "text";
+    });
+  });
+}
+
 const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
   children,
   slideData,
@@ -44,6 +69,8 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
     const container = containerRef.current;
 
     const replaceTextElements = () => {
+      activateImportedEditableText(container);
+
       // Get all elements in the container
       const allElements = container.querySelectorAll("*");
 
@@ -81,7 +108,11 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
         const allClasses = Array.from(htmlElement.classList);
         const allStyles = htmlElement.getAttribute("style");
 
-        const dataPath = findDataPath(slideData, trimmedText);
+        const matchedDataPath = findDataPath(slideData, trimmedText);
+        const dataPath = {
+          ...matchedDataPath,
+          path: htmlElement.dataset.aiTextKey || matchedDataPath.path,
+        };
 
         // Create a container for the TiptapText
         const tiptapContainer = document.createElement("div");

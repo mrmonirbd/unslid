@@ -63,7 +63,11 @@ function normalizeCustomTemplateId(id: string): string {
 }
 
 function getGeneratedSlideHtml(layoutCode: string): string | null {
-    const marker = "const generatedSlideHtml = ";
+    const marker = ["const generatedSlideHtml = ", "const importedHtml = "].find((candidate) =>
+        layoutCode.includes(candidate)
+    );
+    if (!marker) return null;
+
     const start = layoutCode.indexOf(marker);
     if (start < 0) return null;
 
