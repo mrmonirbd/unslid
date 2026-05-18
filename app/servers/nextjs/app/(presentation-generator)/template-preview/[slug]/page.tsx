@@ -2262,6 +2262,19 @@ const GroupLayoutPreview = () => {
   const ActivePreviewComponent = activePreviewLayout?.component;
   const activePreviewSlide = getGeneratedSlide(previewPlayerIndex);
   const canPlayPreview = previewPlayerLayouts.length > 0 && !shouldShowExcelPreview;
+  const userPreviewKey = user?.id || user?.email || "guest";
+  const activePreviewStorageKey = activePreviewLayout
+    ? [
+        isCustom ? "custom-template-preview-edits" : isDesigner ? "designer-html-template-preview-edits" : "static-template-edits",
+        userPreviewKey,
+        isCustom ? templateParams : isDesigner ? templateParams : resolvedStaticTemplateId,
+        generatedPresentationVersion,
+        activePreviewLayout.layoutId,
+      ].join(":")
+    : "";
+  const activeSavedPreviewHtml = typeof window !== "undefined" && activePreviewStorageKey
+    ? window.localStorage.getItem(activePreviewStorageKey)
+    : null;
 
   const openPreviewPlayer = () => {
     setPreviewPlayerIndex(0);
@@ -2303,7 +2316,14 @@ const GroupLayoutPreview = () => {
       {previewPlayerOpen && ActivePreviewComponent && (
         <div className="fixed inset-0 z-[1000] bg-black">
           <div className="h-screen w-screen overflow-hidden [&>div]:!h-screen [&>div]:!max-h-none [&>div]:!max-w-none [&>div]:!rounded-none [&>div]:!shadow-none [&>div]:!w-screen">
-            <ActivePreviewComponent data={activePreviewSlide?.content ?? activePreviewLayout.sampleData} />
+            {activeSavedPreviewHtml ? (
+              <div
+                className="h-screen w-screen overflow-hidden"
+                dangerouslySetInnerHTML={{ __html: activeSavedPreviewHtml }}
+              />
+            ) : (
+              <ActivePreviewComponent data={activePreviewSlide?.content ?? activePreviewLayout.sampleData} />
+            )}
           </div>
           <div className="absolute right-4 top-4 z-[1010] flex items-center gap-2">
             <span className="rounded-full bg-black/45 px-3 py-1 text-sm font-medium text-white backdrop-blur">

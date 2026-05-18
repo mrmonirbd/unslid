@@ -94,6 +94,10 @@ const baseChartData = [
 ];
 
 type MegaSchemaDefaults = {
+  image?: {
+    __image_url__: string;
+    __image_prompt__: string;
+  };
   items?: typeof baseItems;
   metrics?: typeof baseMetrics;
   rows?: typeof baseRows;
@@ -109,7 +113,7 @@ function makeSchema(title: string, imageUrl: string, subtitle: string, quote: st
     image: z.object({
       __image_url__: z.string(),
       __image_prompt__: z.string().max(100),
-    }).default({
+    }).default(defaults.image || {
       __image_url__: imageUrl,
       __image_prompt__: `${title} presentation image`.slice(0, 100),
     }),
@@ -1952,6 +1956,10 @@ const getDefaultSubtitle = (cfg: MegaConfig, page: PagePlan, groupIndex: number,
 const getMegaSchemaDefaults = (cfg: MegaConfig, pageIndex: number): MegaSchemaDefaults => {
   if (cfg.id === "mega-004-restaurant-launch" && pageIndex === 0) {
     return {
+      image: {
+        __image_url__: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1600&q=80",
+        __image_prompt__: "Warm modern restaurant dining room with plated food and natural light",
+      },
       metrics: [
         { label: "Launch Sales", value: "84%", note: "Opening-month target" },
         { label: "Reservations", value: "72%", note: "Dinner capacity booked" },
