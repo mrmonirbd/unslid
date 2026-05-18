@@ -52,6 +52,8 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
   children,
   slideData,
   slideIndex,
+  isolated = false,
+  renderKey,
   onContentChange = () => {},
 }) => {
 
@@ -393,7 +395,11 @@ const TiptapTextReplacer: React.FC<TiptapTextReplacerProps> = ({
 
 
   return (
-    <div ref={containerRef} className="tiptap-text-replacer">
+    <div
+      ref={containerRef}
+      data-render-key={renderKey}
+      className={`tiptap-text-replacer${isolated ? " tiptap-isolated-render" : ""}`}
+    >
       {children}
     </div>
   );
