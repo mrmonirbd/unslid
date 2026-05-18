@@ -64,16 +64,6 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
     };
   }, [timerRunning]);
 
-  // Fullscreen API
-  const requestFullscreen = useCallback(() => {
-    const el = containerRef.current ?? document.documentElement;
-    if (!document.fullscreenElement) {
-      el.requestFullscreen?.().catch(() => {});
-    } else {
-      document.exitFullscreen?.().catch(() => {});
-    }
-  }, []);
-
   // Keyboard shortcuts
   const handleKeyPress = useCallback(
     (event: KeyboardEvent) => {
@@ -97,7 +87,6 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
           break;
         case "f":
         case "F":
-          requestFullscreen();
           onFullscreenToggle();
           break;
         case "n":
@@ -114,7 +103,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
           break;
       }
     },
-    [currentSlide, slides.length, onSlideChange, onExit, onFullscreenToggle, requestFullscreen]
+    [currentSlide, slides.length, onSlideChange, onExit, onFullscreenToggle]
   );
 
   useEffect(() => {
@@ -191,7 +180,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
           variant="ghost"
           size="icon"
           title={isFullscreen ? "Exit fullscreen (F)" : "Enter fullscreen (F)"}
-          onClick={(e) => { e.stopPropagation(); requestFullscreen(); onFullscreenToggle(); }}
+          onClick={(e) => { e.stopPropagation(); onFullscreenToggle(); }}
           className="h-8 w-8 rounded-full bg-black/20 text-white hover:bg-black/30"
         >
           {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
