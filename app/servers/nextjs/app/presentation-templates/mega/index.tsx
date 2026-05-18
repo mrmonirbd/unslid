@@ -1665,7 +1665,7 @@ const first20KindSequences: MegaKind[][] = [
   ["portfolio", "beforeAfter", "featureGrid", "caseStudy", "pricing", "timeline", "quote"],
   ["chart", "portfolio", "pricing", "metrics", "table", "quote", "thankYou"],
   ["featureGrid", "hero", "pieChart", "comparison", "roadmap", "pricing", "quote"],
-  ["portfolio", "map", "table", "caseStudy", "metrics", "roadmap", "thankYou"],
+  ["split", "chart", "table", "caseStudy", "metrics", "roadmap", "thankYou"],
   ["agenda", "metrics", "process", "pricing", "quote", "dashboard", "thankYou"],
   ["matrix", "swot", "pyramid", "chart", "timeline", "caseStudy", "quote"],
   ["quote", "metrics", "map", "timeline", "pricing", "featureGrid", "thankYou"],
@@ -1867,6 +1867,46 @@ const getMegaSchemaDefaults = (cfg: MegaConfig, pageIndex: number): MegaSchemaDe
         { label: "Menu", value: "Validated", note: "Hero items tested with guests" },
         { label: "Channel", value: "Multi-stream", note: "Dine-in, delivery, events" },
         { label: "Risk", value: "Controlled", note: "Launch staffing and supply plan" },
+      ],
+    };
+  }
+  if (cfg.id === "mega-006-real-estate-listing" && pageIndex === 0) {
+    return {
+      items: [
+        { label: "Premium Listing", text: "Lead with the property's strongest lifestyle angle and location advantage." },
+        { label: "Buyer Fit", text: "Frame the home for qualified buyers comparing value, finish, and neighborhood." },
+        { label: "Showcase Flow", text: "Use image-led storytelling to move from curb appeal to interior proof." },
+        { label: "Next Action", text: "Guide buyers toward a private tour, open house, or offer conversation." },
+      ],
+      metrics: [
+        { label: "List Price", value: "$1.28M", note: "Premium positioning" },
+        { label: "Bedrooms", value: "4", note: "Family-ready plan" },
+        { label: "Living Area", value: "3,240", note: "Square feet" },
+        { label: "Tour Demand", value: "76%", note: "High-intent buyer signal" },
+      ],
+    };
+  }
+  if (cfg.id === "mega-006-real-estate-listing" && pageIndex === 1) {
+    return {
+      metrics: [
+        { label: "Buyer Demand", value: "88%", note: "Active search volume" },
+        { label: "Price Strength", value: "+12%", note: "Above area median" },
+        { label: "Days To Offer", value: "14", note: "Expected market window" },
+        { label: "Tour Conversion", value: "41%", note: "Showing to offer intent" },
+      ],
+      chartData: [
+        { label: "Location", value: 92, note: "Neighborhood pull" },
+        { label: "Schools", value: 84, note: "Family buyer priority" },
+        { label: "Finish", value: 78, note: "Move-in readiness" },
+        { label: "Outdoor", value: 67, note: "Lifestyle premium" },
+        { label: "Transit", value: 58, note: "Commute access" },
+        { label: "Value", value: 73, note: "Comparable strength" },
+      ],
+      rows: [
+        { label: "Position", value: "Premium", note: "Strong against nearby comps" },
+        { label: "Audience", value: "Qualified buyers", note: "Families and move-up buyers" },
+        { label: "Strategy", value: "Tour-led", note: "Photography, open house, private showing" },
+        { label: "Timing", value: "Fast window", note: "First two weeks matter most" },
       ],
     };
   }
