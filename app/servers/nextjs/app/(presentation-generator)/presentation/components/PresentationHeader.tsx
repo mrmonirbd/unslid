@@ -640,9 +640,12 @@ const PresentationHeader = ({
             <Separator orientation="vertical" className="h-4 w-[2px]" />
             <ToolTip content="Present">
               <button
-                onClick={() => {
+                onClick={async () => {
                   const to = `?id=${presentation_id}&mode=present&slide=${currentSlide || 0}`;
                   trackEvent(MixpanelEvent.Navigation, { from: pathname, to });
+                  if (presentationData) {
+                    await PresentationGenerationApi.updatePresentationContent(presentationData);
+                  }
                   router.push(to);
                 }}
                 disabled={!presentationData?.slides || presentationData?.slides.length === 0} className="cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group">

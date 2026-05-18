@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, ArrowUpRight, FileDown, Lock, Loader2, Search } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Lock, Loader2, Search } from "lucide-react";
 import { templates } from "@/app/presentation-templates";
 import { getTemplateRouteId, TemplateWithData, TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
 import {
@@ -31,9 +31,9 @@ interface EditedStaticTemplateSummary {
 }
 
 const CARD_CLASS =
-    "relative h-[210px] min-w-[340px] cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md";
-const CARD_BACKGROUND_CLASS = "absolute left-0 top-0 h-full w-full object-cover";
-const PREVIEW_TILE_CLASS = "relative aspect-video overflow-hidden rounded border border-gray-200 bg-gray-100";
+    "relative h-[280px] min-w-[340px] cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md";
+const CARD_BACKGROUND_CLASS = "hidden";
+const PREVIEW_TILE_CLASS = "relative aspect-video overflow-hidden rounded-[4px] border border-slate-200 bg-white shadow-sm";
 const PREVIEW_SCALE_STYLE = { width: "833.33%", height: "833.33%" };
 const PREVIEW_PLACEHOLDERS = [0, 1, 2, 3];
 const TEMPLATE_SKELETONS = [0, 1, 2, 3, 4, 5, 6, 7];
@@ -74,6 +74,12 @@ const EmptyTemplates = React.memo(function EmptyTemplates({ label }: { label: st
         </div>
     );
 });
+
+const PreviewPlaceholder = ({ className = "" }: { className?: string }) => (
+    <div
+        className={`relative aspect-video overflow-hidden rounded-[4px] border border-slate-200 bg-gradient-to-br from-slate-50 to-violet-50 shadow-sm ${className}`}
+    />
+);
 
 const TemplateCardSkeleton = React.memo(function TemplateCardSkeleton() {
     return (
@@ -257,27 +263,31 @@ export const CustomTemplateCard = React.memo(function CustomTemplateCard({ templ
         >
 
             <img src="/card_bg.svg" alt="" className={CARD_BACKGROUND_CLASS} />
-            <div className="p-4">
+            <div className="p-4 pb-0">
 
                 {/* Layout previews */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                     {!shouldLoadPreview || loading ? (
                         // Loading placeholders
                         PREVIEW_PLACEHOLDERS.map((index) => (
                             <div
                                 key={`${template.id}-loading-${index}`}
-                                className="relative bg-gradient-to-br from-violet-50 to-slate-50 border border-violet-100 overflow-hidden aspect-video rounded flex items-center justify-center"
+                                className="relative flex aspect-video items-center justify-center overflow-hidden rounded-[4px] border border-slate-200 bg-gradient-to-br from-slate-50 to-violet-50 shadow-sm"
                             >
                                 {shouldLoadPreview && <Loader2 className="w-4 h-4 text-violet-300 animate-spin" />}
                             </div>
                         ))
-                    ) : previewLayouts.length > 0 && (
+                    ) : (
                         // Actual layout previews
-                        previewLayouts.slice(0, 4).map((layout: CompiledLayout, index: number) => {
+                        PREVIEW_PLACEHOLDERS.map((slot) => {
+                            const layout = previewLayouts[slot] as CompiledLayout | undefined;
+                            if (!layout) {
+                                return <PreviewPlaceholder key={`${template.id}-empty-${slot}`} />;
+                            }
                             const LayoutComponent = layout.component;
                             return (
                                 <div
-                                    key={`${template.id}-preview-${index}`}
+                                    key={`${template.id}-preview-${slot}`}
                                     className={PREVIEW_TILE_CLASS}
                                 >
                                     <div className="absolute inset-0 bg-transparent z-10 pointer-events-none" />
@@ -377,13 +387,17 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
                 </div>
             )}
             <img src="/card_bg.svg" alt="" className={CARD_BACKGROUND_CLASS} />
-            <div className="p-4">
-                <div className="grid grid-cols-2 gap-2">
-                    {shouldRenderPreview ? previewItems.map((item, index: number) => {
+            <div className="p-4 pb-0">
+                <div className="grid grid-cols-2 gap-3">
+                    {shouldRenderPreview ? PREVIEW_PLACEHOLDERS.map((slot) => {
+                        const item = previewItems[slot];
+                        if (!item) {
+                            return <PreviewPlaceholder key={`${template.id}-empty-${slot}`} />;
+                        }
                         const LayoutComponent = item.layout.component;
                         return (
                             <div
-                                key={`${template.id}-preview-${item.layout.layoutId}-${index}`}
+                                key={`${template.id}-preview-${item.layout.layoutId}-${slot}`}
                                 className={PREVIEW_TILE_CLASS}
                             >
                                 <div className="absolute inset-0 bg-transparent z-10 pointer-events-none" />
@@ -403,10 +417,9 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
                                 )}
                             </div>
                         );
-                    }) : (previewLayouts.length ? previewLayouts : PREVIEW_PLACEHOLDERS).map((layoutOrIndex, index) => (
-                        <div
-                            key={`${template.id}-placeholder-${typeof layoutOrIndex === "number" ? layoutOrIndex : layoutOrIndex.layoutId}`}
-                            className="relative aspect-video overflow-hidden rounded border border-gray-200 bg-gradient-to-br from-slate-50 to-violet-50"
+                    }) : PREVIEW_PLACEHOLDERS.map((index) => (
+                        <PreviewPlaceholder
+                            key={`${template.id}-placeholder-${index}`}
                         />
                     ))}
                 </div>
@@ -466,13 +479,17 @@ const EditedStaticTemplateCard = React.memo(function EditedStaticTemplateCard({
             onClick={() => router.push(`/template-preview/${previewRouteId}`)}
         >
             <img src="/card_bg.svg" alt="" className={CARD_BACKGROUND_CLASS} />
-            <div className="p-4">
-                <div className="grid grid-cols-2 gap-2">
-                    {previewItems.length > 0 ? previewItems.map((item, index: number) => {
+            <div className="p-4 pb-0">
+                <div className="grid grid-cols-2 gap-3">
+                    {PREVIEW_PLACEHOLDERS.map((slot) => {
+                        const item = previewItems[slot];
+                        if (!item) {
+                            return <PreviewPlaceholder key={`${template.id}-empty-${slot}`} />;
+                        }
                         const LayoutComponent = item.layout.component;
                         return (
                             <div
-                                key={`${template.id}-preview-${item.layout.layoutId}-${index}`}
+                                key={`${template.id}-preview-${item.layout.layoutId}-${slot}`}
                                 className={PREVIEW_TILE_CLASS}
                             >
                                 <div className="absolute inset-0 bg-transparent z-10 pointer-events-none" />
@@ -492,12 +509,7 @@ const EditedStaticTemplateCard = React.memo(function EditedStaticTemplateCard({
                                 )}
                             </div>
                         );
-                    }) : PREVIEW_PLACEHOLDERS.map((index) => (
-                        <div
-                            key={`${template.id}-placeholder-${index}`}
-                            className="relative aspect-video overflow-hidden rounded border border-gray-200 bg-gradient-to-br from-violet-50 to-blue-50"
-                        />
-                    ))}
+                    })}
                 </div>
             </div>
             <div className="absolute left-3 top-3 z-20 rounded-full bg-violet-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow">
@@ -560,19 +572,26 @@ const DesignerTemplateCard = React.memo(function DesignerTemplateCard({
                 </div>
             )}
             <img src="/card_bg.svg" alt="" className={CARD_BACKGROUND_CLASS} />
-            <div className="p-4">
+            <div className="p-4 pb-0">
                 {template.thumbnail_urls.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-2">
-                        {template.thumbnail_urls.slice(0, 4).map((url, i) => (
-                            <div key={url} className={PREVIEW_TILE_CLASS}>
-                                <img src={url} alt={`Slide ${i + 1}`} className="w-full h-full object-cover" />
-                            </div>
-                        ))}
+                    <div className="grid grid-cols-2 gap-3">
+                        {PREVIEW_PLACEHOLDERS.map((slot) => {
+                            const url = template.thumbnail_urls[slot];
+                            if (!url) {
+                                return <PreviewPlaceholder key={`${template.id}-empty-${slot}`} />;
+                            }
+                            return (
+                                <div key={`${url}-${slot}`} className={PREVIEW_TILE_CLASS}>
+                                    <img src={url} alt={`Slide ${slot + 1}`} className="w-full h-full object-cover" />
+                                </div>
+                            );
+                        })}
                     </div>
                 ) : (
-                    <div className="aspect-video bg-gradient-to-br from-violet-50 to-slate-50 rounded flex flex-col items-center justify-center gap-2">
-                        <FileDown className="w-8 h-8 text-violet-300" />
-                        <span className="text-xs text-slate-400">Thumbnails generating…</span>
+                    <div className="grid grid-cols-2 gap-3">
+                        {PREVIEW_PLACEHOLDERS.map((slot) => (
+                            <PreviewPlaceholder key={`${template.id}-generating-${slot}`} />
+                        ))}
                     </div>
                 )}
             </div>

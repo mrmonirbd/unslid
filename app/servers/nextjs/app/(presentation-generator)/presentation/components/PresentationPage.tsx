@@ -104,10 +104,6 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
     (state: RootState) => state.presentationGeneration
   );
 
-  useEffect(() => {
-    applyThemeToSlidesWrapper(presentationData?.theme);
-  }, [presentationData?.theme, loading]);
-
   // Auto-save functionality
   const { isSaving } = useAutoSave({
     debounceMs: 2000,
@@ -134,6 +130,10 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
     setSelectedSlide,
     setIsFullscreen
   );
+
+  useEffect(() => {
+    applyThemeToSlidesWrapper(presentationData?.theme);
+  }, [presentationData?.theme, loading, isPresentMode]);
 
   // Initialize streaming
   usePresentationStreaming(
