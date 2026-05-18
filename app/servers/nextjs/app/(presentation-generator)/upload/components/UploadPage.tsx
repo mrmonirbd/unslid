@@ -26,6 +26,7 @@ import Wrapper from "@/components/Wrapper";
 import { setPptGenUploadState } from "@/store/slices/presentationGenUpload";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { ConfigurationSelects } from "./ConfigurationSelects";
+import { useUser } from "@/app/hooks/useUser";
 import {
   Dialog,
   DialogContent,
@@ -44,10 +45,14 @@ interface LoadingState {
   extra_info?: string;
 }
 
+const FREE_SLIDE_OPTIONS = new Set<string>(["5", "8"]);
+
 const UploadPage = () => {
   const router = useRouter();
   const pathname = usePathname();
   const dispatch = useDispatch();
+  const { user } = useUser();
+  const isFreePlan = (user?.plan ?? "free").toLowerCase() === "free";
 
   // State management
   const [files, setFiles] = useState<File[]>([]);
@@ -78,6 +83,13 @@ const UploadPage = () => {
    * @param value - New value for the configuration
    */
   const handleConfigChange = (key: keyof PresentationConfig, value: string) => {
+    if (key === "slides" && isFreePlan && !FREE_SLIDE_OPTIONS.has(value)) {
+      toast.error("Upgrade required", {
+        description: "Free members can create 5 or 8 pages. Upgrade your membership for more slide counts.",
+      });
+      return;
+    }
+
     setConfig((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -95,6 +107,14 @@ const UploadPage = () => {
       toast.error("No Prompt or Document Provided");
       return false;
     }
+
+    if (isFreePlan && !FREE_SLIDE_OPTIONS.has(config.slides)) {
+      toast.error("Upgrade required", {
+        description: "Free members can create 5 or 8 pages. Upgrade your membership for more slide counts.",
+      });
+      return false;
+    }
+
     return true;
   };
 
@@ -274,6 +294,7 @@ const UploadPage = () => {
           <ConfigurationSelects
             config={config}
             onConfigChange={handleConfigChange}
+            isFreePlan={isFreePlan}
           />
         </div>
         <div className="border-t border-slate-200/70" />

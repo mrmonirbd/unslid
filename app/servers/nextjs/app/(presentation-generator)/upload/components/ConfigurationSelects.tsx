@@ -33,12 +33,14 @@ import ToolTip from "@/components/ToolTip";
 interface ConfigurationSelectsProps {
     config: PresentationConfig;
     onConfigChange: (key: keyof PresentationConfig, value: any) => void;
+    isFreePlan?: boolean;
 }
 
 type SlideOption = "5" | "8" | "9" | "10" | "11" | "12" | "13" | "14" | "15" | "16" | "17" | "18" | "19" | "20";
 
 // Constants
 const SLIDE_OPTIONS: SlideOption[] = ["5", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"];
+const FREE_SLIDE_OPTIONS = new Set<string>(["5", "8"]);
 
 /**
  * Renders a select component for slide count
@@ -46,7 +48,8 @@ const SLIDE_OPTIONS: SlideOption[] = ["5", "8", "9", "10", "11", "12", "13", "14
 const SlideCountSelect: React.FC<{
     value: string | null;
     onValueChange: (value: string) => void;
-}> = ({ value, onValueChange }) => {
+    isFreePlan?: boolean;
+}> = ({ value, onValueChange, isFreePlan = false }) => {
     const [customInput, setCustomInput] = useState(
         value && !SLIDE_OPTIONS.includes(value as SlideOption) ? value : ""
     );
@@ -60,6 +63,8 @@ const SlideCountSelect: React.FC<{
     };
 
     const applyCustomValue = () => {
+        if (isFreePlan) return;
+
         const sanitized = sanitizeToPositiveInteger(customInput);
         if (sanitized && Number(sanitized) > 0) {
             onValueChange(sanitized);
@@ -82,49 +87,67 @@ const SlideCountSelect: React.FC<{
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <div className="flex items-center gap-2">
-                        <Input
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={customInput}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => {
-                                const next = sanitizeToPositiveInteger(e.target.value);
-                                setCustomInput(next);
-                            }}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    applyCustomValue();
-                                }
-                            }}
-                            onBlur={applyCustomValue}
-                            placeholder="--"
-                            className="h-8 w-16 px-2 text-sm"
-                        />
-                        <span className="text-sm font-medium">slides</span>
-                    </div>
+                    {isFreePlan ? (
+                        <p className="max-w-[220px] text-xs font-medium leading-5 text-slate-500">
+                            Free members can create 5 or 8 pages.
+                        </p>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <Input
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={customInput}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => {
+                                    const next = sanitizeToPositiveInteger(e.target.value);
+                                    setCustomInput(next);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        applyCustomValue();
+                                    }
+                                }}
+                                onBlur={applyCustomValue}
+                                placeholder="--"
+                                className="h-8 w-16 px-2 text-sm"
+                            />
+                            <span className="text-sm font-medium">slides</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Hidden item to allow SelectValue to render custom selection */}
-                {value && !SLIDE_OPTIONS.includes(value as SlideOption) && (
+                {!isFreePlan && value && !SLIDE_OPTIONS.includes(value as SlideOption) && (
                     <SelectItem value={value} className="hidden">
                         {value} slides
                     </SelectItem>
                 )}
 
-                {SLIDE_OPTIONS.map((option) => (
-                    <SelectItem
-                        key={option}
-                        value={option}
-                        className="font-instrument_sans text-sm font-medium"
-                        role="option"
-                    >
-                        {option} slides
-                    </SelectItem>
-                ))}
+                {SLIDE_OPTIONS.map((option) => {
+                    const isLocked = isFreePlan && !FREE_SLIDE_OPTIONS.has(option);
+
+                    return (
+                        <SelectItem
+                            key={option}
+                            value={option}
+                            disabled={isLocked}
+                            className="font-instrument_sans text-sm font-medium"
+                            role="option"
+                        >
+                            <span className="flex w-full min-w-[220px] items-center justify-between gap-3">
+                                <span>{option} slides</span>
+                                {isLocked && (
+                                    <span className="text-xs font-semibold text-[#5141e5]">
+                                        Upgrade to membership
+                                    </span>
+                                )}
+                            </span>
+                        </SelectItem>
+                    );
+                })}
             </SelectContent>
         </Select>
     );
@@ -199,6 +222,7 @@ const LanguageSelect: React.FC<{
 export function ConfigurationSelects({
     config,
     onConfigChange,
+    isFreePlan = false,
 }: ConfigurationSelectsProps) {
     const [openLanguage, setOpenLanguage] = useState(false);
     const [openAdvanced, setOpenAdvanced] = useState(false);
@@ -241,6 +265,7 @@ export function ConfigurationSelects({
             <SlideCountSelect
                 value={config.slides}
                 onValueChange={(value) => onConfigChange("slides", value)}
+                isFreePlan={isFreePlan}
             />
             <LanguageSelect
                 value={config.language}
