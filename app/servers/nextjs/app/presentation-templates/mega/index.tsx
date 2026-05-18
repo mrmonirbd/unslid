@@ -1853,6 +1853,11 @@ const featuredVisionConfig: MegaConfig = {
   visualMode: 6,
 };
 
+const hiddenMegaTemplateIds = new Set([
+  "mega-featured-personal-portfolio",
+  "mega-featured-red-editorial",
+]);
+
 const featuredConfigs: MegaConfig[] = [featuredPortfolioConfig, featuredRedEditorialConfig, featuredVisionConfig];
 
 const configs: MegaConfig[] = [...featuredConfigs, ...baseConfigs, ...expansionConfigs];
@@ -2361,6 +2366,6 @@ export const megaTemplateGroups: TemplateLayoutsWithSettings[] = configs.map((cf
     },
     layouts: pagePlans.map((page, pageIndex) => createMegaTemplate(cfg, page, pageIndex, index)),
   };
-});
+}).filter((group, index) => !hiddenMegaTemplateIds.has(configs[index].id));
 
 export const megaTemplates: TemplateWithData[] = megaTemplateGroups.flatMap((group) => group.layouts);

@@ -2,7 +2,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, ArrowUpRight, Lock, Loader2, Search } from "lucide-react";
+import {
+    ArrowRight,
+    ArrowUpRight,
+    Check,
+    CreditCard,
+    Lock,
+    Loader2,
+    Search,
+    Sparkles,
+} from "lucide-react";
 import { templates } from "@/app/presentation-templates";
 import { getTemplateRouteId, TemplateWithData, TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
 import {
@@ -12,8 +21,15 @@ import {
 } from "@/app/hooks/useCustomTemplates";
 import { CompiledLayout } from "@/app/hooks/compileLayout";
 import CreateCustomTemplate from "./CreateCustomTemplate";
-import { api, UserProfile } from "@/lib/api";
+import { api, BillingStatus, UserProfile } from "@/lib/api";
 import { useUser } from "@/app/hooks/useUser";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 interface TemplateTierEntry {
     template_id: string;
@@ -30,6 +46,23 @@ interface EditedStaticTemplateSummary {
     updatedAt: string;
 }
 
+interface PlanPricingEntry {
+    price_monthly: number;
+    price_annual: number;
+    currency: string;
+    stripe_price_id_monthly: string;
+    stripe_price_id_annual: string;
+    features: string[];
+}
+
+interface BillingStatusWithPricing extends BillingStatus {
+    plan_pricing?: {
+        free: PlanPricingEntry;
+        pro: PlanPricingEntry;
+        team: PlanPricingEntry;
+    };
+}
+
 const CARD_CLASS =
     "relative h-[280px] min-w-[340px] cursor-pointer overflow-hidden rounded-lg border border-slate-200 bg-white shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md";
 const CARD_BACKGROUND_CLASS = "hidden";
@@ -40,6 +73,32 @@ const TEMPLATE_SKELETONS = [0, 1, 2, 3, 4, 5, 6, 7];
 const STATIC_TEMPLATE_EDIT_INDEX_PREFIX = "static-template-edits:index:";
 const STATIC_TEMPLATE_EDIT_STORAGE_PREFIX = "static-template-edits";
 const FREE_BUILT_IN_TEMPLATE_LIMIT = 10;
+const DEFAULT_PLAN_PRICING: NonNullable<BillingStatusWithPricing["plan_pricing"]> = {
+    free: {
+        price_monthly: 0,
+        price_annual: 0,
+        currency: "USD",
+        stripe_price_id_monthly: "",
+        stripe_price_id_annual: "",
+        features: ["5 presentations / month", "1 concurrent generation", "PDF & PPTX export", "Community support"],
+    },
+    pro: {
+        price_monthly: 19,
+        price_annual: 190,
+        currency: "USD",
+        stripe_price_id_monthly: "",
+        stripe_price_id_annual: "",
+        features: ["Unlimited presentations", "Premium templates", "PDF & PPTX export", "Priority support"],
+    },
+    team: {
+        price_monthly: 49,
+        price_annual: 490,
+        currency: "USD",
+        stripe_price_id_monthly: "",
+        stripe_price_id_annual: "",
+        features: ["Everything in Pro", "Team workspace", "Shared template access", "Dedicated support"],
+    },
+};
 const STOP_WORDS = new Set([
     "template",
     "templates",
@@ -119,6 +178,140 @@ const TemplateGridSkeleton = ({ includeCreateCard = false }: { includeCreateCard
         ))}
     </div>
 );
+
+const formatPlanPrice = (entry: PlanPricingEntry) => {
+    if (entry.price_monthly === 0) return "Free";
+    const amount = entry.price_monthly % 1 === 0 ? entry.price_monthly.toFixed(0) : entry.price_monthly.toFixed(2);
+    return `$${amount}`;
+};
+
+const PricingModal = ({
+    open,
+    onOpenChange,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}) => {
+    const router = useRouter();
+    const [pricing, setPricing] = useState(DEFAULT_PLAN_PRICING);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (!open) return;
+
+        let mounted = true;
+        setLoading(true);
+        api.get<BillingStatusWithPricing>("/api/v1/billing/status")
+            .then((status) => {
+                if (mounted && status.plan_pricing) setPricing(status.plan_pricing);
+            })
+            .catch(() => {
+                if (mounted) setPricing(DEFAULT_PLAN_PRICING);
+            })
+            .finally(() => {
+                if (mounted) setLoading(false);
+            });
+
+        return () => {
+            mounted = false;
+        };
+    }, [open]);
+
+    const handleUpgrade = () => {
+        onOpenChange(false);
+        router.push("/settings/billing");
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto p-0">
+                <div className="border-b border-slate-200 bg-gradient-to-br from-violet-50 via-white to-amber-50 px-6 py-5">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-xl text-slate-950">
+                            <Lock className="h-5 w-5 text-amber-500" />
+                            Unlock paid templates
+                        </DialogTitle>
+                        <DialogDescription className="text-slate-600">
+                            This template is available for paid members. Compare plans and upgrade to continue.
+                        </DialogDescription>
+                    </DialogHeader>
+                </div>
+
+                <div className="space-y-5 px-6 pb-6">
+                    {loading && (
+                        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading latest pricing...
+                        </div>
+                    )}
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {(["pro", "team"] as const).map((planKey) => {
+                            const entry = pricing[planKey];
+                            const isPro = planKey === "pro";
+
+                            return (
+                                <div
+                                    key={planKey}
+                                    className={`relative rounded-lg border-2 bg-white p-5 shadow-sm ${
+                                        isPro ? "border-violet-300" : "border-slate-200"
+                                    }`}
+                                >
+                                    {isPro && (
+                                        <span className="absolute -top-3 right-4 rounded-full bg-violet-600 px-3 py-0.5 text-xs font-semibold text-white shadow">
+                                            Best for templates
+                                        </span>
+                                    )}
+                                    <div className="mb-4">
+                                        <div className={`mb-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                                            isPro ? "bg-violet-100 text-violet-700" : "bg-purple-100 text-purple-700"
+                                        }`}>
+                                            {isPro ? <Sparkles className="h-3.5 w-3.5" /> : <CreditCard className="h-3.5 w-3.5" />}
+                                            {isPro ? "Pro" : "Team"}
+                                        </div>
+                                        <div className="flex items-end gap-1">
+                                            <span className="text-4xl font-extrabold text-slate-950">
+                                                {formatPlanPrice(entry)}
+                                            </span>
+                                            <span className="mb-1 text-sm text-slate-500">/mo</span>
+                                        </div>
+                                        {entry.price_annual > 0 && (
+                                            <p className="mt-1 text-xs text-slate-500">
+                                                Annual: ${entry.price_annual}/yr
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <ul className="space-y-2">
+                                        {entry.features.filter(Boolean).slice(0, 5).map((feature) => (
+                                            <li key={feature} className="flex items-start gap-2 text-sm text-slate-600">
+                                                <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-violet-500" />
+                                                {feature}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm text-slate-500">
+                            Paid members get premium template access plus higher generation limits.
+                        </p>
+                        <button
+                            onClick={handleUpgrade}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 text-sm font-semibold text-white transition hover:bg-violet-500"
+                        >
+                            See billing options
+                            <ArrowRight className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+};
 
 function useInViewport(ref: React.RefObject<Element>, rootMargin = "240px") {
     const [isVisible, setIsVisible] = useState(false);
@@ -329,12 +522,14 @@ export const CustomTemplateCard = React.memo(function CustomTemplateCard({ templ
 const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
     template,
     onOpen,
+    onLockedOpen,
     locked,
     editedTemplate,
     userKey,
 }: {
     template: TemplateLayoutsWithSettings;
     onOpen: (template: TemplateLayoutsWithSettings) => void;
+    onLockedOpen: () => void;
     locked?: boolean;
     editedTemplate?: EditedStaticTemplateSummary;
     userKey: string;
@@ -355,14 +550,13 @@ const InbuiltTemplateCard = React.memo(function InbuiltTemplateCard({
     }, [savedLayoutHtml, template.layouts]);
     const cardRef = useRef<HTMLDivElement>(null);
     const shouldRenderPreview = useInViewport(cardRef);
-    const router = useRouter();
     const handleOpen = useCallback(() => {
         if (locked) {
-            router.push("/settings/billing");
+            onLockedOpen();
             return;
         }
         onOpen(template);
-    }, [locked, onOpen, router, template]);
+    }, [locked, onLockedOpen, onOpen, template]);
 
     return (
         <Card
@@ -544,17 +738,19 @@ interface PptxDesignerTemplate {
 
 const DesignerTemplateCard = React.memo(function DesignerTemplateCard({
     template,
+    onLockedOpen,
 }: {
     template: PptxDesignerTemplate;
+    onLockedOpen: () => void;
 }) {
     const router = useRouter();
     const handleClick = useCallback(() => {
         if (template.locked) {
-            router.push("/settings/billing");
+            onLockedOpen();
             return;
         }
         router.push(`/template-preview/designer-${template.id}`);
-    }, [router, template.id, template.locked]);
+    }, [onLockedOpen, router, template.id, template.locked]);
 
     return (
         <Card
@@ -623,6 +819,7 @@ type TemplatePanelLayout = "shelf" | "grid" | "user-grid" | "user-vertical";
 const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) => {
     const [query, setQuery] = useState("");
     const [activeTag, setActiveTag] = useState<string | null>(null);
+    const [pricingModalOpen, setPricingModalOpen] = useState(false);
     const router = useRouter();
     const { isLocked } = useTemplateTiers();
     const { user } = useUser();
@@ -739,6 +936,10 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
         router.push(`/template-preview/${getTemplateRouteId(template)}`);
     }, [router]);
 
+    const handleLockedTemplateOpen = useCallback(() => {
+        setPricingModalOpen(true);
+    }, []);
+
     const editedStaticTemplateMap = useMemo(() => {
         const map = new Map<string, EditedStaticTemplateSummary>();
         editedStaticTemplates.forEach((template) => {
@@ -754,12 +955,13 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                     key={template.id}
                     template={template}
                     onOpen={handleOpenPreview}
+                    onLockedOpen={handleLockedTemplateOpen}
                     locked={isLocked(template.id, templates.findIndex((source) => source.id === template.id))}
                     editedTemplate={editedStaticTemplateMap.get(template.id)}
                     userKey={userKey}
                 />
             )),
-        [editedStaticTemplateMap, filteredInbuiltTemplates, handleOpenPreview, isLocked, userKey],
+        [editedStaticTemplateMap, filteredInbuiltTemplates, handleLockedTemplateOpen, handleOpenPreview, isLocked, userKey],
     );
 
     const customTemplateCards = useMemo(
@@ -784,6 +986,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
     if (isUserGeneratedOnly) {
         return (
             <div className="min-h-screen bg-transparent font-syne text-slate-950">
+                <PricingModal open={pricingModalOpen} onOpenChange={setPricingModalOpen} />
                 <div className="rounded-b-[28px] bg-[linear-gradient(115deg,#ede9fe_0%,#fbf9ff_48%,#f5f3ff_100%)] px-6 pb-12 pt-14 md:px-10">
                     <div className="mx-auto flex max-w-5xl flex-col items-center">
                         <h1 className="font-unbounded text-[34px] font-semibold tracking-[-0.02em] md:text-[42px]">
@@ -871,6 +1074,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
 
     return (
         <div className="min-h-screen bg-transparent font-syne text-slate-950">
+            <PricingModal open={pricingModalOpen} onOpenChange={setPricingModalOpen} />
             <div className="rounded-b-[28px] bg-[linear-gradient(115deg,#ede9fe_0%,#fbf9ff_48%,#f5f3ff_100%)] px-6 pb-12 pt-14 md:px-10">
                 <div className="mx-auto flex max-w-5xl flex-col items-center">
                     <h1 className="font-unbounded text-[34px] font-semibold tracking-[-0.02em] md:text-[42px]">
@@ -955,7 +1159,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                             {inbuiltTemplateCards}
                             {customTemplateCards}
                             {filteredDesignerTemplates.map((t) => (
-                                <DesignerTemplateCard key={t.id} template={t} />
+                                <DesignerTemplateCard key={t.id} template={t} onLockedOpen={handleLockedTemplateOpen} />
                             ))}
                         </div>
                     )}
