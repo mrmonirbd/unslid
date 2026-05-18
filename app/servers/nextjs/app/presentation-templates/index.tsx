@@ -176,7 +176,7 @@ import neoStandardSettings from "./neo-standard/settings.json";
 import neoModernSettings from "./neo-modern/settings.json";
 import neoSwiftSettings from "./neo-swift/settings.json";
 import megaSettings from "./mega/settings.json";
-import { megaTemplateGroups as generatedMegaTemplateGroups } from "./mega";
+import { megaTemplateGroups, megaTemplates } from "./mega";
 
 
 // Helper to create template entry
@@ -343,45 +343,6 @@ export const swiftTemplates: TemplateWithData[] = [
     createTemplateEntry(Timeline, TimelineSchema, TimelineId, TimelineName, TimelineDesc, "swift", "Timeline"),
 ];
 
-const builtInTemplatePools: TemplateWithData[][] = [
-    neoGeneralTemplates,
-    neoStandardTemplates,
-    neoModernTemplates,
-    neoSwiftTemplates,
-    generalTemplates,
-    modernTemplates,
-    standardTemplates,
-    swiftTemplates,
-];
-
-function cloneBuiltInLayoutsForMegaGroup(
-    generatedGroup: TemplateLayoutsWithSettings,
-    groupIndex: number
-): TemplateWithData[] {
-    const targetCount = generatedGroup.layouts.length;
-
-    return Array.from({ length: targetCount }, (_, layoutIndex) => {
-        const poolIndex = (groupIndex * 3 + layoutIndex * 5) % builtInTemplatePools.length;
-        const builtInLayouts = builtInTemplatePools[poolIndex];
-        const sourceLayout = builtInLayouts[(groupIndex * 7 + layoutIndex * 2) % builtInLayouts.length];
-        const rawLayoutId = sourceLayout.layoutId.split(":").pop() || sourceLayout.layoutId;
-
-        return {
-            ...sourceLayout,
-            layoutId: `${generatedGroup.id}:${layoutIndex + 1}-${rawLayoutId}`,
-            templateName: generatedGroup.id,
-            fileName: sourceLayout.fileName,
-        };
-    });
-}
-
-export const megaTemplateGroups: TemplateLayoutsWithSettings[] = generatedMegaTemplateGroups.map((group, groupIndex) => ({
-    ...group,
-    layouts: cloneBuiltInLayoutsForMegaGroup(group, groupIndex),
-}));
-
-export const megaTemplates: TemplateWithData[] = megaTemplateGroups.flatMap((group) => group.layouts);
-
 // TODO: Step 4: Combine all templates into a single array For UseCases (like the ones below)
 // All templates combined
 export const allLayouts: TemplateWithData[] = [
@@ -503,13 +464,22 @@ export function getLayoutByLayoutId(layout: string): TemplateWithData | undefine
     const layoutParts = layout.split(":");
     const templateName = layoutParts.length > 1 ? layoutParts[0] : "";
     const rawLayoutId = layoutParts[layoutParts.length - 1];
+    const normalizedRawLayoutId = rawLayoutId.replace(/^\d+-/, "");
 
     if (templateName) {
         const template = templates.find((t) => t.id === templateName)
         if (template) {
-            return template.layouts.find((t) => t.layoutId === rawLayoutId || t.layoutId === layout);
+            return template.layouts.find((t) => (
+                t.layoutId === rawLayoutId ||
+                t.layoutId === layout ||
+                t.layoutId.endsWith(`:${normalizedRawLayoutId}`)
+            ));
         }
     }
 
-    return allLayouts.find((t) => t.layoutId === rawLayoutId || t.layoutId === layout);
+    return allLayouts.find((t) => (
+        t.layoutId === rawLayoutId ||
+        t.layoutId === layout ||
+        t.layoutId.endsWith(`:${normalizedRawLayoutId}`)
+    ));
 }

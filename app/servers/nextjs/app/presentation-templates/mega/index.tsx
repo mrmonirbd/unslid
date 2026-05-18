@@ -1,5 +1,20 @@
 import React from "react";
 import * as z from "zod";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { onlinePresentationServiceDecks } from "../../presentation-decks/onlinePresentationServiceDecks";
 import { createTemplateEntry, TemplateLayoutsWithSettings, TemplateWithData } from "../utils";
 
@@ -45,6 +60,7 @@ type MegaConfig = {
   soft: string;
   imageUrl: string;
   curve: number;
+  visualMode: number;
 };
 
 const baseItems = [
@@ -77,7 +93,14 @@ const baseChartData = [
   { label: "Q6", value: 94, note: "Scale" },
 ];
 
-function makeSchema(title: string, imageUrl: string, subtitle: string, quote: string) {
+type MegaSchemaDefaults = {
+  items?: typeof baseItems;
+  metrics?: typeof baseMetrics;
+  rows?: typeof baseRows;
+  chartData?: typeof baseChartData;
+};
+
+function makeSchema(title: string, imageUrl: string, subtitle: string, quote: string, defaults: MegaSchemaDefaults = {}) {
   return z.object({
     title: z.string().max(120).default(title),
     subtitle: z.string().max(220).default(subtitle),
@@ -93,22 +116,22 @@ function makeSchema(title: string, imageUrl: string, subtitle: string, quote: st
     items: z.array(z.object({
       label: z.string().max(40),
       text: z.string().max(160),
-    })).default(baseItems),
+    })).default(defaults.items || baseItems),
     metrics: z.array(z.object({
       label: z.string().max(30),
       value: z.string().max(24),
       note: z.string().max(80),
-    })).default(baseMetrics),
+    })).default(defaults.metrics || baseMetrics),
     rows: z.array(z.object({
       label: z.string().max(36),
       value: z.string().max(42),
       note: z.string().max(100),
-    })).default(baseRows),
+    })).default(defaults.rows || baseRows),
     chartData: z.array(z.object({
       label: z.string().max(24).describe("Short chart axis or segment label, such as Q1, Mobile, Enterprise, or Retention."),
       value: z.number().min(1).max(100).describe("Numeric chart value from 1 to 100. This directly controls bar height, line position, and pie slice size."),
       note: z.string().max(80).describe("Short context for this chart point."),
-    })).min(4).max(6).describe("Chart values that must match the slide topic. Generate fresh values for chart, pie chart, and dashboard slides.").default(baseChartData),
+    })).min(4).max(6).describe("Chart values that must match the slide topic. Generate fresh values for chart, pie chart, and dashboard slides.").default(defaults.chartData || baseChartData),
   });
 }
 
@@ -145,24 +168,6 @@ const parseChartValue = (value: unknown, fallback: number) => {
     }
   }
   return fallback;
-};
-
-const buildTrendPath = (chartData: typeof baseChartData) => {
-  const points = chartData.slice(0, 6);
-  if (!points.length) return "M0 78 C90 12 145 84 225 38 C310 -10 360 72 430 28 C470 4 500 15 520 8";
-  const maxIndex = Math.max(points.length - 1, 1);
-  const coordinates = points.map((point, index) => ({
-    x: (index / maxIndex) * 520,
-    y: 96 - point.value * 0.88,
-  }));
-  return coordinates
-    .map((point, index) => {
-      if (index === 0) return `M${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
-      const previous = coordinates[index - 1];
-      const midX = (previous.x + point.x) / 2;
-      return `C${midX.toFixed(1)} ${previous.y.toFixed(1)} ${midX.toFixed(1)} ${point.y.toFixed(1)} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
-    })
-    .join(" ");
 };
 
 const normalizeMegaData = (data: unknown) => {
@@ -251,6 +256,49 @@ const getMegaTheme = (cfg: MegaConfig) => ({
   bodyFont: "var(--body-font-family, Inter, Arial, sans-serif)",
 });
 
+const hexToRgb = (hex: string) => {
+  const normalized = hex.replace("#", "");
+  const value = normalized.length === 3
+    ? normalized.split("").map((char) => char + char).join("")
+    : normalized;
+  const parsed = Number.parseInt(value, 16);
+  if (!Number.isFinite(parsed)) return { r: 15, g: 23, b: 42 };
+  return {
+    r: (parsed >> 16) & 255,
+    g: (parsed >> 8) & 255,
+    b: parsed & 255,
+  };
+};
+
+const alpha = (hex: string, opacity: number) => {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+
+const getShellBackground = (cfg: MegaConfig) => {
+  const mode = cfg.visualMode % 8;
+  const accent = alpha(cfg.accent, 0.28);
+  const soft = alpha(cfg.soft, 0.78);
+
+  const backgrounds = [
+    `radial-gradient(circle at 10% 12%, ${accent} 0, transparent 30%), radial-gradient(circle at 92% 84%, ${soft} 0, transparent 34%), ${cfg.bg}`,
+    `linear-gradient(135deg, ${cfg.bg} 0%, ${cfg.bg} 48%, ${soft} 48%, ${soft} 100%)`,
+    `radial-gradient(ellipse at 50% -10%, ${accent} 0, transparent 42%), linear-gradient(180deg, ${cfg.bg}, ${alpha(cfg.soft, 0.38)})`,
+    `linear-gradient(90deg, ${alpha(cfg.soft, 0.64)} 0 18%, transparent 18% 100%), ${cfg.bg}`,
+    `conic-gradient(from 210deg at 84% 16%, ${accent}, transparent 18%, ${cfg.bg} 46%, ${soft} 80%, ${cfg.bg})`,
+    `linear-gradient(160deg, ${cfg.bg} 0%, ${cfg.bg} 62%, ${alpha(cfg.accent, 0.2)} 62%, ${alpha(cfg.accent, 0.2)} 100%)`,
+    `radial-gradient(circle at 78% 22%, ${accent} 0, transparent 22%), radial-gradient(circle at 14% 78%, ${soft} 0, transparent 28%), ${cfg.bg}`,
+    `repeating-linear-gradient(135deg, transparent 0 18px, ${alpha(cfg.soft, 0.22)} 18px 19px), ${cfg.bg}`,
+  ];
+
+  return backgrounds[mode];
+};
+
+const shellRadius = (cfg: MegaConfig) => {
+  const radii = ["rounded-xl", "rounded-none", "rounded-[28px]", "rounded-lg", "rounded-[40px]", "rounded-sm", "rounded-2xl", "rounded-[20px]"];
+  return radii[cfg.visualMode % radii.length];
+};
+
 const getImageVariant = (imageUrl: string, variant: string | number, width = 900, height = 700) => {
   const picsumSeedMatch = imageUrl.match(/\/seed\/([^/]+)\/\d+\/\d+/);
   if (picsumSeedMatch) {
@@ -262,9 +310,9 @@ const getImageVariant = (imageUrl: string, variant: string | number, width = 900
 
 const Shell = ({ cfg, children }: { cfg: MegaConfig; children: React.ReactNode }) => (
   <div
-    className="relative mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] overflow-hidden rounded-xl border shadow-2xl"
+    className={`relative mx-auto flex aspect-video max-h-[720px] w-full max-w-[1280px] overflow-hidden border shadow-2xl ${shellRadius(cfg)}`}
     style={{
-      background: `radial-gradient(circle at ${cfg.curve % 2 ? "86% 12%" : "12% 86%"}, ${getMegaTheme(cfg).soft} 0, transparent 34%), ${getMegaTheme(cfg).bg}`,
+      background: getShellBackground(cfg),
       borderColor: getMegaTheme(cfg).stroke,
       color: getMegaTheme(cfg).fg,
       fontFamily: getMegaTheme(cfg).bodyFont,
@@ -276,8 +324,14 @@ const Shell = ({ cfg, children }: { cfg: MegaConfig; children: React.ReactNode }
       {cfg.curve % 4 === 2 && <path d="M0 0 C210 110 270 270 145 455 C90 535 45 625 0 720 Z" fill={getMegaTheme(cfg).soft} />}
       {cfg.curve % 4 === 3 && <path d="M360 720 C490 520 780 670 940 420 C1040 260 1160 220 1280 240 L1280 720 Z" fill={getMegaTheme(cfg).soft} />}
       <circle cx={cfg.curve % 2 ? 1060 : 180} cy={cfg.curve % 3 ? 140 : 560} r="86" fill={getMegaTheme(cfg).accent} opacity="0.12" />
+      {cfg.visualMode % 3 === 0 && <path d="M96 92H1184M96 628H1184" stroke={getMegaTheme(cfg).fg} strokeOpacity="0.08" strokeWidth="2" />}
+      {cfg.visualMode % 3 === 1 && <path d="M160 0V720M1120 0V720" stroke={getMegaTheme(cfg).accent} strokeOpacity="0.14" strokeWidth="18" />}
+      {cfg.visualMode % 3 === 2 && <path d="M0 120H1280M0 600H1280" stroke={getMegaTheme(cfg).soft} strokeOpacity="0.7" strokeWidth="72" />}
     </svg>
-    <div className="absolute right-8 top-8 z-20 rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur" style={{ background: getMegaTheme(cfg).soft, borderColor: getMegaTheme(cfg).stroke, color: getMegaTheme(cfg).fg }}>
+    <div
+      className={`absolute z-20 border px-3 py-1 text-xs font-semibold backdrop-blur ${cfg.visualMode % 2 ? "left-8 top-8 rounded-md" : "right-8 top-8 rounded-full"}`}
+      style={{ background: getMegaTheme(cfg).soft, borderColor: getMegaTheme(cfg).stroke, color: getMegaTheme(cfg).fg }}
+    >
       {cfg.name}
     </div>
     <div className="relative z-10 h-full w-full">
@@ -294,36 +348,100 @@ const MetricCard = ({ metric, cfg }: { metric: { label: string; value: string; n
   </div>
 );
 
-const MiniBars = ({ cfg, chartData }: { cfg: MegaConfig; chartData: typeof baseChartData }) => (
-  <div className="flex h-56 items-end gap-4">
-    {chartData.slice(0, 6).map((point, index) => (
-      <div key={index} className="flex flex-1 flex-col items-center gap-3">
-        <div className="w-full rounded-t-md" style={{ height: `${point.value}%`, background: index % 2 ? getMegaTheme(cfg).accent : getMegaTheme(cfg).soft }} />
-        <span className="text-xs font-semibold opacity-70">{point.label}</span>
-      </div>
-    ))}
-  </div>
-);
+const BuiltInChart = ({
+  cfg,
+  chartData,
+  variant = "bar",
+}: {
+  cfg: MegaConfig;
+  chartData: typeof baseChartData;
+  variant?: "bar" | "line" | "pie" | "dashboard";
+}) => {
+  const theme = getMegaTheme(cfg);
+  const rows = chartData.slice(0, 6).map((point, index) => ({
+    ...point,
+    value2: Math.max(8, Math.round(point.value * (0.62 + (index % 3) * 0.12))),
+  }));
+  const axisProps = {
+    axisLine: false,
+    tickLine: false,
+    tick: { fill: theme.fg, fillOpacity: 0.72, fontSize: 12, fontWeight: 600 },
+  };
+  const gridProps = {
+    vertical: false,
+    stroke: theme.fg,
+    strokeOpacity: 0.1,
+  };
+  const colors = [theme.accent, theme.fg, theme.soft, alpha(cfg.accent, 0.55), alpha(cfg.fg, 0.45)];
 
-const MiniPie = ({ cfg, chartData }: { cfg: MegaConfig; chartData: typeof baseChartData }) => {
-  const darkSlice = cfg.fg === "#f9fafb" ? "#f8fafc" : "#0f172a";
-  const points = chartData.slice(0, 4);
-  const total = points.reduce((sum, point) => sum + point.value, 0) || 1;
-  let cursor = 0;
-  const colors = [getMegaTheme(cfg).accent, getMegaTheme(cfg).soft, darkSlice, "rgba(255,255,255,.72)"];
-  const gradient = points.map((point, index) => {
-    const start = cursor;
-    cursor += (point.value / total) * 100;
-    return `${colors[index % colors.length]} ${start}% ${cursor}%`;
-  }).join(", ");
-  const primaryPercent = Math.round((points[0]?.value ?? 0) / total * 100);
+  if (variant === "pie") {
+    return (
+      <ResponsiveContainer width="100%" height={330}>
+        <PieChart>
+          <Tooltip cursor={{ fill: "transparent" }} />
+          <Pie
+            data={rows.slice(0, 5)}
+            dataKey="value"
+            nameKey="label"
+            innerRadius={74}
+            outerRadius={130}
+            paddingAngle={3}
+            label={(entry: any) => `${entry.name} ${Math.round((entry.percent ?? 0) * 100)}%`}
+            labelLine={false}
+          >
+            {rows.slice(0, 5).map((point, index) => (
+              <Cell key={point.label} fill={colors[index % colors.length]} />
+            ))}
+          </Pie>
+          <Legend iconType="circle" verticalAlign="bottom" wrapperStyle={{ color: theme.fg, fontSize: 12, fontWeight: 600 }} />
+        </PieChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  if (variant === "line") {
+    return (
+      <ResponsiveContainer width="100%" height={330}>
+        <LineChart data={rows} margin={{ top: 22, right: 24, left: 0, bottom: 8 }}>
+          <CartesianGrid {...gridProps} />
+          <XAxis dataKey="label" {...axisProps} dy={10} />
+          <YAxis {...axisProps} width={38} />
+          <Tooltip cursor={{ stroke: theme.accent, strokeOpacity: 0.18 }} />
+          <Legend iconType="circle" verticalAlign="top" wrapperStyle={{ paddingBottom: 16, fontSize: 12, fontWeight: 600 }} />
+          <Line type="monotone" dataKey="value" name="Current" stroke={theme.accent} strokeWidth={4} dot={{ fill: theme.accent, r: 5 }} />
+          <Line type="monotone" dataKey="value2" name="Previous" stroke={alpha(cfg.fg, 0.42)} strokeWidth={3} dot={{ fill: alpha(cfg.fg, 0.42), r: 4 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  if (variant === "dashboard") {
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={rows.slice(0, 5)} margin={{ top: 20, right: 24, left: 0, bottom: 8 }} barGap={4}>
+          <CartesianGrid {...gridProps} />
+          <XAxis dataKey="label" {...axisProps} dy={10} />
+          <YAxis {...axisProps} width={38} />
+          <Tooltip cursor={{ fill: alpha(cfg.accent, 0.08) }} />
+          <Legend iconType="circle" verticalAlign="top" wrapperStyle={{ paddingBottom: 16, fontSize: 12, fontWeight: 600 }} />
+          <Bar dataKey="value" name="Actual" fill={theme.accent} radius={[6, 6, 0, 0]} />
+          <Bar dataKey="value2" name="Target" fill={alpha(cfg.fg, 0.34)} radius={[6, 6, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
+
   return (
-    <div className="relative mx-auto flex h-72 w-72 items-center justify-center rounded-full" style={{ background: `conic-gradient(${gradient})` }}>
-      <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full text-center shadow-sm" style={{ background: getMegaTheme(cfg).bg, color: getMegaTheme(cfg).fg }}>
-        <span className="text-4xl font-black">{primaryPercent}%</span>
-        <span className="text-xs font-bold uppercase opacity-65">{points[0]?.label || "Primary"}</span>
-      </div>
-    </div>
+    <ResponsiveContainer width="100%" height={330}>
+      <BarChart data={rows} margin={{ top: 22, right: 24, left: 0, bottom: 8 }} barGap={2}>
+        <CartesianGrid {...gridProps} />
+        <XAxis dataKey="label" {...axisProps} dy={10} />
+        <YAxis {...axisProps} width={38} />
+        <Tooltip cursor={{ fill: alpha(cfg.accent, 0.08) }} />
+        <Legend iconType="circle" verticalAlign="top" wrapperStyle={{ paddingBottom: 16, fontSize: 12, fontWeight: 600 }} />
+        <Bar dataKey="value" name="Primary" fill={theme.accent} radius={[6, 6, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 };
 
@@ -335,7 +453,6 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
   const metrics = data.metrics?.length ? data.metrics : baseMetrics;
   const rows = data.rows?.length ? data.rows : baseRows;
   const chartData = data.chartData?.length ? data.chartData : baseChartData;
-  const trendPath = buildTrendPath(chartData);
   const imageUrl = firstUsableImageUrl(data.image?.__image_url__, data.imageUrl, cfg.imageUrl);
   const theme = getMegaTheme(cfg);
 
@@ -876,10 +993,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               </div>
             </div>
             <div className="rounded-xl p-8" style={{ background: theme.soft }}>
-              <MiniBars cfg={cfg} chartData={chartData} />
-              <svg className="mt-6 h-20 w-full" viewBox="0 0 520 100" preserveAspectRatio="none">
-                <path d={trendPath} fill="none" stroke={theme.accent} strokeWidth="8" strokeLinecap="round" />
-              </svg>
+              <BuiltInChart cfg={cfg} chartData={chartData} variant={cfg.visualMode % 2 ? "line" : "bar"} />
             </div>
           </div>
         </Shell>
@@ -901,7 +1015,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               </div>
             </div>
             <div className="flex flex-col justify-center rounded-[36px] p-10" style={{ background: theme.soft }}>
-              <MiniPie cfg={cfg} chartData={chartData} />
+              <BuiltInChart cfg={cfg} chartData={chartData} variant="pie" />
               <div className="mt-8 grid grid-cols-4 gap-3 text-center text-xs font-bold">
                 {chartData.slice(0, 4).map((point, index) => (
                   <div key={point.label} className="rounded-full px-3 py-2" style={{ background: index === 0 ? theme.accent : theme.bg, color: index === 0 ? theme.primaryText : theme.fg }}>{point.label}</div>
@@ -923,10 +1037,7 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
               </div>
             </div>
             <div className="rounded-xl p-8" style={{ background: theme.soft }}>
-              <MiniBars cfg={cfg} chartData={chartData} />
-              <svg className="mt-6 h-20 w-full" viewBox="0 0 520 100" preserveAspectRatio="none">
-                <path d={trendPath} fill="none" stroke={theme.accent} strokeWidth="8" strokeLinecap="round" />
-              </svg>
+              <BuiltInChart cfg={cfg} chartData={chartData} variant="dashboard" />
               <div className="mt-8 grid grid-cols-3 gap-4">
                 {rows.slice(0, 3).map((row) => <div key={row.label}><div className="text-sm opacity-60">{row.label}</div><div className="text-2xl font-black">{row.value}</div></div>)}
               </div>
@@ -1361,6 +1472,7 @@ const makeConfig = (deck: (typeof onlinePresentationServiceDecks)[number], index
     soft: style.soft,
     imageUrl: `https://picsum.photos/seed/${variant ? `${deck.id}-studio-${variant}` : deck.id}/900/700`,
     curve: index,
+    visualMode: index % 8,
   };
 };
 
@@ -1394,6 +1506,7 @@ const expansionConfigs: MegaConfig[] = onlinePresentationServiceDecks.map((deck,
     fg: style.fg,
     soft: style.soft,
     curve: configIndex * 2,
+    visualMode: (configIndex * 3 + 1) % 8,
   };
 });
 
@@ -1408,6 +1521,7 @@ const featuredPortfolioConfig: MegaConfig = {
   soft: "#d9d9d9",
   imageUrl: "https://picsum.photos/seed/personal-portfolio-featured/900/700",
   curve: 0,
+  visualMode: 2,
 };
 
 const featuredRedEditorialConfig: MegaConfig = {
@@ -1421,6 +1535,7 @@ const featuredRedEditorialConfig: MegaConfig = {
   soft: "#f3eee5",
   imageUrl: "https://picsum.photos/seed/red-editorial-brand-campaign/1200/900",
   curve: 0,
+  visualMode: 5,
 };
 
 const featuredVisionConfig: MegaConfig = {
@@ -1434,6 +1549,7 @@ const featuredVisionConfig: MegaConfig = {
   soft: "#ede9fe",
   imageUrl: "https://picsum.photos/seed/msgr-vision-mission/900/1200",
   curve: 1,
+  visualMode: 6,
 };
 
 const featuredConfigs: MegaConfig[] = [featuredPortfolioConfig, featuredRedEditorialConfig, featuredVisionConfig];
@@ -1547,7 +1663,7 @@ const first20KindSequences: MegaKind[][] = [
   ["hero", "pieChart", "roadmap", "pricing", "caseStudy", "team", "quote"],
   ["split", "funnel", "chart", "dashboard", "comparison", "pricing", "thankYou"],
   ["portfolio", "beforeAfter", "featureGrid", "caseStudy", "pricing", "timeline", "quote"],
-  ["map", "portfolio", "pricing", "metrics", "table", "quote", "thankYou"],
+  ["chart", "portfolio", "pricing", "metrics", "table", "quote", "thankYou"],
   ["featureGrid", "hero", "pieChart", "comparison", "roadmap", "pricing", "quote"],
   ["portfolio", "map", "table", "caseStudy", "metrics", "roadmap", "thankYou"],
   ["agenda", "metrics", "process", "pricing", "quote", "dashboard", "thankYou"],
@@ -1729,6 +1845,34 @@ const getDefaultSubtitle = (cfg: MegaConfig, page: PagePlan, groupIndex: number,
   return subtitleTemplates[(groupIndex + pageIndex) % subtitleTemplates.length](cfg, page);
 };
 
+const getMegaSchemaDefaults = (cfg: MegaConfig, pageIndex: number): MegaSchemaDefaults => {
+  if (cfg.id === "mega-004-restaurant-launch" && pageIndex === 0) {
+    return {
+      metrics: [
+        { label: "Launch Sales", value: "84%", note: "Opening-month target" },
+        { label: "Reservations", value: "72%", note: "Dinner capacity booked" },
+        { label: "Avg Ticket", value: "$38", note: "Projected per guest" },
+        { label: "Repeat Intent", value: "61%", note: "Local survey signal" },
+      ],
+      chartData: [
+        { label: "Lunch", value: 48, note: "Weekday traffic" },
+        { label: "Dinner", value: 86, note: "Peak reservation demand" },
+        { label: "Delivery", value: 64, note: "Off-premise revenue" },
+        { label: "Events", value: 58, note: "Private dining pipeline" },
+        { label: "Catering", value: 42, note: "Corporate orders" },
+        { label: "Loyalty", value: 73, note: "Return guest program" },
+      ],
+      rows: [
+        { label: "Market", value: "High demand", note: "Dense local dining audience" },
+        { label: "Menu", value: "Validated", note: "Hero items tested with guests" },
+        { label: "Channel", value: "Multi-stream", note: "Dine-in, delivery, events" },
+        { label: "Risk", value: "Controlled", note: "Launch staffing and supply plan" },
+      ],
+    };
+  }
+  return {};
+};
+
 const createMegaTemplate = (
   cfg: MegaConfig,
   page: PagePlan,
@@ -1746,11 +1890,12 @@ const createMegaTemplate = (
     kind: page.kind,
     imageUrl,
     curve: cfg.curve + pageIndex,
+    visualMode: (cfg.visualMode + pageIndex) % 8,
   };
   const defaultTitle = getDefaultTitle(cfg, page);
   const subtitle = getDefaultSubtitle(cfg, page, groupIndex, pageIndex);
   const quote = quoteTemplates[(groupIndex + pageIndex) % quoteTemplates.length](cfg);
-  const Schema = makeSchema(defaultTitle, pageConfig.imageUrl, subtitle, quote);
+  const Schema = makeSchema(defaultTitle, pageConfig.imageUrl, subtitle, quote, getMegaSchemaDefaults(cfg, pageIndex));
   const groupId = `mega-${String(groupIndex + 1).padStart(3, "0")}`;
   return createTemplateEntry(
     createMegaComponent(pageConfig, Schema),
