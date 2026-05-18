@@ -17,6 +17,18 @@ from utils.file_utils import get_file_name_with_random_uuid
 IMAGES_ROUTER = APIRouter(prefix="/images", tags=["Images"])
 
 
+def _public_image_path(path: str) -> str:
+    images_directory = os.path.abspath(get_images_directory())
+    absolute_path = os.path.abspath(path)
+    try:
+        relative = os.path.relpath(absolute_path, images_directory)
+    except ValueError:
+        return path
+    if relative.startswith(".."):
+        return path
+    return f"/app_data/images/{relative.replace(os.sep, '/')}"
+
+
 @IMAGES_ROUTER.get("/generate")
 async def generate_image(
     prompt: str,
@@ -31,6 +43,7 @@ async def generate_image(
     if not isinstance(image, ImageAsset):
         return image
 
+    image.path = _public_image_path(image.path)
     image.extras = {**(image.extras or {}), "user_id": current_user.id}
     sql_session.add(image)
     await sql_session.commit()

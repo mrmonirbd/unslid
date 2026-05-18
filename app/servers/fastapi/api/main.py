@@ -169,7 +169,10 @@ async def serve_private_image(
         raise HTTPException(status_code=404, detail="Image not found")
 
     stored_path = f"/app_data/images/{image_path}"
-    assets = await session.scalars(select(ImageAsset).where(ImageAsset.path == stored_path))
+    legacy_absolute_path = str(requested)
+    assets = await session.scalars(
+        select(ImageAsset).where(ImageAsset.path.in_([stored_path, legacy_absolute_path]))
+    )
     image_asset = next(
         (
             asset

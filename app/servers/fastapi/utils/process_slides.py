@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import List, Tuple
 from models.image_prompt import ImagePrompt
 from models.sql.image_asset import ImageAsset
@@ -7,6 +8,18 @@ from services.icon_finder_service import ICON_FINDER_SERVICE
 from services.image_generation_service import ImageGenerationService
 from utils.asset_directory_utils import get_images_directory
 from utils.dict_utils import get_dict_at_path, get_dict_paths_with_key, set_dict_at_path
+
+
+def _public_image_path(path: str) -> str:
+    images_directory = os.path.abspath(get_images_directory())
+    absolute_path = os.path.abspath(path)
+    try:
+        relative = os.path.relpath(absolute_path, images_directory)
+    except ValueError:
+        return path
+    if relative.startswith(".."):
+        return path
+    return f"/app_data/images/{relative.replace(os.sep, '/')}"
 
 
 async def process_slide_and_fetch_assets(
@@ -46,6 +59,7 @@ async def process_slide_and_fetch_assets(
         if isinstance(result, ImageAsset):
             if user_id is not None:
                 result.extras = {**(result.extras or {}), "user_id": user_id}
+            result.path = _public_image_path(result.path)
             return_assets.append(result)
             image_dict["__image_url__"] = result.path
         else:
