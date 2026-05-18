@@ -456,6 +456,96 @@ function renderLayout(cfg: MegaConfig, data: z.infer<ReturnType<typeof makeSchem
   const imageUrl = firstUsableImageUrl(data.image?.__image_url__, data.imageUrl, cfg.imageUrl);
   const theme = getMegaTheme(cfg);
 
+  if (cfg.id.startsWith("mega-010-fashion-lookbook") && cfg.id.includes("custom-1-")) {
+    return (
+      <Shell cfg={cfg}>
+        <div className="grid h-full w-full grid-cols-[0.42fr_0.58fr]">
+          <div className="relative flex h-full flex-col justify-between p-14" style={{ background: theme.bg }}>
+            <div>
+              <div className="flex items-center gap-3 text-xs font-black uppercase tracking-[0.32em]" style={{ color: theme.accent }}>
+                <span className="h-px w-12" style={{ background: theme.accent }} />
+                Lookbook Drop
+              </div>
+              <h1 className="mt-12 text-[64px] font-black leading-[0.88]" style={{ ...textStyle, color: theme.fg }}>
+                {title.replace("Fashion Brand Lookbook", "Fashion Lookbook")}
+              </h1>
+              <p className="mt-8 max-w-md text-lg leading-relaxed opacity-75">{subtitle}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {metrics.slice(0, 4).map((metric, index) => (
+                <div key={metric.label} className="border-t pt-4" style={{ borderColor: index === 0 ? theme.accent : theme.stroke }}>
+                  <div className="text-3xl font-black" style={{ color: index === 0 ? theme.accent : theme.fg }}>{metric.value}</div>
+                  <div className="mt-1 text-xs font-bold uppercase opacity-70">{metric.label}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="absolute bottom-14 right-6 origin-bottom-right rotate-[-90deg] text-xs font-black uppercase tracking-[0.42em] opacity-45">
+              Editorial Preview
+            </div>
+          </div>
+
+          <div className="relative h-full overflow-hidden">
+            <img src={imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            <div className="absolute inset-0" style={{ background: `linear-gradient(90deg, ${theme.bg} 0%, transparent 24%, transparent 100%)` }} />
+            <div className="absolute bottom-12 left-12 right-12 grid grid-cols-2 gap-4">
+              {items.slice(0, 4).map((item, index) => (
+                <div key={item.label} className="min-h-[96px] border bg-white/88 p-4 backdrop-blur" style={{ borderColor: index === 0 ? theme.accent : "rgba(255,255,255,.55)" }}>
+                  <div className="text-sm font-black uppercase" style={{ color: theme.accent }}>{String(index + 1).padStart(2, "0")} / {item.label}</div>
+                  <p className="mt-2 text-sm leading-snug text-slate-900">{item.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  if (cfg.id.startsWith("mega-010-fashion-lookbook") && cfg.id.includes("custom-7-")) {
+    return (
+      <Shell cfg={cfg}>
+        <div className="relative h-full w-full overflow-hidden" style={{ background: theme.bg }}>
+          <div className="absolute inset-y-0 left-0 w-[43%]">
+            <img src={imageUrl} alt="" className="h-full w-full object-cover grayscale" />
+            <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, transparent 0%, ${alpha(theme.fg, 0.42)} 100%)` }} />
+            <div className="absolute bottom-12 left-12 text-xs font-black uppercase tracking-[0.42em] text-white/85">
+              Collection Close
+            </div>
+          </div>
+
+          <div className="absolute left-[39%] top-0 h-full w-px" style={{ background: theme.accent }} />
+          <div className="absolute left-[43%] top-0 flex h-full w-[57%] flex-col justify-between px-16 py-14">
+            <div className="flex justify-between text-xs font-black uppercase tracking-[0.28em] opacity-55">
+              <span>Final Look</span>
+              <span>{cfg.name}</span>
+            </div>
+
+            <div>
+              <div className="text-[140px] font-black leading-none opacity-[0.07]" style={{ color: theme.fg }}>
+                FIN
+              </div>
+              <h1 className="-mt-10 max-w-[640px] text-[58px] font-black leading-[0.92]" style={{ ...textStyle, color: theme.fg }}>
+                {title}
+              </h1>
+              <p className="mt-8 max-w-xl text-xl leading-relaxed opacity-72">{quote || subtitle}</p>
+            </div>
+
+            <div className="grid grid-cols-4 gap-3">
+              {rows.slice(0, 4).map((row, index) => (
+                <div key={row.label} className="border-t pt-4" style={{ borderColor: index === 0 ? theme.accent : theme.stroke }}>
+                  <div className="text-xs font-black uppercase opacity-55">{row.label}</div>
+                  <div className="mt-2 text-lg font-black">{row.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
   switch (cfg.kind) {
     case "personalPortfolio": {
       const dark = theme.accent;
@@ -1459,7 +1549,10 @@ const categoryKindMap: Record<string, MegaKind> = {
 
 const makeConfig = (deck: (typeof onlinePresentationServiceDecks)[number], index: number, variant = 0): MegaConfig => {
   const style = styles[index % styles.length];
-  const accent = index % 3 === 0 ? style.accent : deck.accent || style.accent;
+  const fashionStyle = deck.id === "fashion-lookbook"
+    ? { accent: "#111111", bg: "#f7f1ea", fg: "#181411", soft: "#e8d8c8" }
+    : null;
+  const accent = fashionStyle?.accent || (index % 3 === 0 ? style.accent : deck.accent || style.accent);
   const fallbackKind = kinds[index % kinds.length];
   return {
     id: `mega-${String(index + 1).padStart(3, "0")}-${deck.id}`,
@@ -1467,12 +1560,12 @@ const makeConfig = (deck: (typeof onlinePresentationServiceDecks)[number], index
     description: `${deck.category} presentation template for ${deck.audience}. ${deck.summary}`,
     kind: categoryKindMap[deck.category] || fallbackKind,
     accent,
-    bg: style.bg,
-    fg: style.fg,
-    soft: style.soft,
+    bg: fashionStyle?.bg || style.bg,
+    fg: fashionStyle?.fg || style.fg,
+    soft: fashionStyle?.soft || style.soft,
     imageUrl: `https://picsum.photos/seed/${variant ? `${deck.id}-studio-${variant}` : deck.id}/900/700`,
     curve: index,
-    visualMode: index % 8,
+    visualMode: deck.id === "fashion-lookbook" ? 5 : index % 8,
   };
 };
 
@@ -1669,13 +1762,13 @@ const first20KindSequences: MegaKind[][] = [
   ["agenda", "metrics", "process", "pricing", "quote", "dashboard", "thankYou"],
   ["matrix", "swot", "pyramid", "chart", "timeline", "caseStudy", "quote"],
   ["quote", "metrics", "map", "timeline", "pricing", "featureGrid", "thankYou"],
-  ["roadmap", "portfolio", "pricing", "map", "team", "dashboard", "quote"],
+  ["split", "portfolio", "pricing", "featureGrid", "team", "dashboard", "quote"],
   ["split", "metrics", "process", "table", "caseStudy", "quote", "thankYou"],
   ["dashboard", "pieChart", "risk", "chart", "table", "pricing", "quote"],
   ["process", "timeline", "dashboard", "matrix", "featureGrid", "caseStudy", "thankYou"],
   ["risk", "dashboard", "table", "matrix", "roadmap", "quote", "thankYou"],
   ["team", "funnel", "metrics", "pricing", "comparison", "caseStudy", "quote"],
-  ["map", "timeline", "portfolio", "pricing", "featureGrid", "quote", "thankYou"],
+  ["dashboard", "timeline", "portfolio", "pricing", "featureGrid", "quote", "chart"],
   ["portfolio", "agenda", "pricing", "beforeAfter", "quote", "team", "thankYou"],
   ["split", "portfolio", "comparison", "pricing", "caseStudy", "roadmap", "quote"],
   ["portfolio", "map", "pyramid", "table", "dashboard", "caseStudy", "thankYou"],
@@ -1907,6 +2000,100 @@ const getMegaSchemaDefaults = (cfg: MegaConfig, pageIndex: number): MegaSchemaDe
         { label: "Audience", value: "Qualified buyers", note: "Families and move-up buyers" },
         { label: "Strategy", value: "Tour-led", note: "Photography, open house, private showing" },
         { label: "Timing", value: "Fast window", note: "First two weeks matter most" },
+      ],
+    };
+  }
+  if (cfg.id === "mega-010-fashion-lookbook" && pageIndex === 0) {
+    return {
+      items: [
+        { label: "Collection Mood", text: "Open with a crisp editorial point of view for the season." },
+        { label: "Signature Silhouette", text: "Make the strongest shape, fit, and styling language obvious at first glance." },
+        { label: "Hero Styling", text: "Frame the first look as a campaign image, not a product list." },
+        { label: "Buyer Hook", text: "Connect the visual story to wholesale, press, and launch demand." },
+      ],
+      metrics: [
+        { label: "Hero Looks", value: "12", note: "Campaign-ready outfits" },
+        { label: "Core Pieces", value: "28", note: "Full collection range" },
+        { label: "Margin", value: "64%", note: "Target blended gross margin" },
+        { label: "Drop Window", value: "6 wk", note: "Editorial to launch runway" },
+      ],
+      rows: [
+        { label: "Mood", value: "Modern editorial", note: "Clean silhouettes with sharp styling tension" },
+        { label: "Audience", value: "Style-led buyers", note: "Boutiques, stylists, and DTC customers" },
+        { label: "Channel", value: "Lookbook + campaign", note: "Wholesale deck, press preview, and social launch" },
+        { label: "Outcome", value: "Immediate desire", note: "Make the first page feel worth opening" },
+      ],
+    };
+  }
+  if (cfg.id === "mega-010-fashion-lookbook" && pageIndex === 5) {
+    return {
+      metrics: [
+        { label: "Sell-through", value: "72%", note: "Projected first drop" },
+        { label: "AOV", value: "$186", note: "Styled bundle target" },
+        { label: "Wholesale", value: "18", note: "Boutique conversations" },
+        { label: "Content Lift", value: "3.4x", note: "Expected social saves" },
+      ],
+      chartData: [
+        { label: "Outerwear", value: 74, note: "Statement pieces" },
+        { label: "Dresses", value: 88, note: "Hero editorial looks" },
+        { label: "Tops", value: 64, note: "Everyday volume" },
+        { label: "Bottoms", value: 57, note: "Wardrobe builders" },
+        { label: "Knitwear", value: 69, note: "Seasonal texture" },
+        { label: "Accessories", value: 46, note: "Add-on basket" },
+      ],
+      rows: [
+        { label: "Merchandising", value: "Hero-first", note: "Anchor the range around highest-impact looks" },
+        { label: "Styling", value: "Layered", note: "Build complete outfits, not isolated products" },
+        { label: "Launch", value: "Drop-based", note: "Create scarcity and content rhythm" },
+        { label: "Buyer CTA", value: "Book preview", note: "Invite wholesale and press appointments" },
+      ],
+    };
+  }
+  if (cfg.id === "mega-016-fintech-product" && pageIndex === 0) {
+    return {
+      metrics: [
+        { label: "Active Users", value: "128K", note: "Monthly engaged accounts" },
+        { label: "Approval Rate", value: "91%", note: "Automated underwriting" },
+        { label: "Fraud Signals", value: "-37%", note: "Risk reduction model" },
+        { label: "Payback", value: "8 mo", note: "Projected CAC recovery" },
+      ],
+      chartData: [
+        { label: "Onboard", value: 82, note: "Account creation completion" },
+        { label: "Verify", value: 74, note: "KYC pass-through" },
+        { label: "Fund", value: 69, note: "First deposit or transfer" },
+        { label: "Spend", value: 77, note: "Card/payment activation" },
+        { label: "Save", value: 58, note: "Recurring wallet balance" },
+        { label: "Retain", value: 86, note: "30-day return rate" },
+      ],
+      rows: [
+        { label: "Segment", value: "Digital-first users", note: "Mobile banking and payment adoption" },
+        { label: "Engine", value: "Real-time risk", note: "KYC, fraud, and scoring layer" },
+        { label: "Revenue", value: "Interchange + SaaS", note: "Multiple monetization paths" },
+        { label: "Moat", value: "Data loop", note: "Every transaction improves decisions" },
+      ],
+    };
+  }
+  if (cfg.id === "mega-016-fintech-product" && pageIndex === 6) {
+    return {
+      metrics: [
+        { label: "Funding Ask", value: "$2.4M", note: "18-month runway" },
+        { label: "Launch Markets", value: "3", note: "Priority regulated regions" },
+        { label: "Partner Pipeline", value: "12", note: "Banks, payroll, and platforms" },
+        { label: "ARR Target", value: "$4.8M", note: "Year-two operating plan" },
+      ],
+      chartData: [
+        { label: "Build", value: 55, note: "Core product expansion" },
+        { label: "Risk", value: 72, note: "Compliance and fraud tooling" },
+        { label: "Growth", value: 88, note: "Acquisition channels" },
+        { label: "Partners", value: 64, note: "Embedded finance deals" },
+        { label: "Support", value: 48, note: "Customer success capacity" },
+        { label: "Scale", value: 79, note: "Infrastructure readiness" },
+      ],
+      rows: [
+        { label: "Decision", value: "Lead seed round", note: "Capital plus strategic fintech access" },
+        { label: "Use Of Funds", value: "Product and growth", note: "Compliance-ready expansion" },
+        { label: "Milestone", value: "3 markets live", note: "Validated repeatable launch model" },
+        { label: "Next Step", value: "Investor deep dive", note: "Data room, demo, and partner intros" },
       ],
     };
   }
