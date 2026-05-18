@@ -1,24 +1,9 @@
 <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Gradient background -->
-  <defs>
-    <linearGradient id="unslid-bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#4f46e5"/>
-      <stop offset="100%" stop-color="#7c3aed"/>
-    </linearGradient>
-  </defs>
-  <rect width="32" height="32" rx="8" fill="url(#unslid-bg)"/>
-
-  <!-- Back slide card (offset up-right = "unslid" / pulling out effect) -->
-  <rect x="11" y="6" width="14" height="10" rx="2" fill="white" opacity="0.30"/>
-
-  <!-- Front slide card -->
-  <rect x="7" y="10" width="14" height="10" rx="2" fill="white" opacity="0.97"/>
-
-  <!-- Content lines on front card -->
-  <rect x="10" y="13" width="8" height="1.5" rx="0.75" fill="#4f46e5" opacity="0.75"/>
-  <rect x="10" y="16" width="5.5" height="1.5" rx="0.75" fill="#4f46e5" opacity="0.40"/>
-
-  <!-- Amber accent dot (AI spark / color pop) -->
-  <circle cx="25.5" cy="8.5" r="4.5" fill="#f59e0b"/>
-  <circle cx="25.5" cy="8.5" r="1.8" fill="white" opacity="0.85"/>
+  <rect width="32" height="32" rx="8" fill="#7C3AED"/>
+  <g stroke="white" stroke-width="2.5">
+    <rect x="5" y="5" width="9" height="9" rx="1.5"/>
+    <rect x="18" y="5" width="9" height="9" rx="1.5"/>
+    <rect x="5" y="18" width="9" height="9" rx="1.5"/>
+    <rect x="18" y="18" width="9" height="9" rx="1.5"/>
+  </g>
 </svg>

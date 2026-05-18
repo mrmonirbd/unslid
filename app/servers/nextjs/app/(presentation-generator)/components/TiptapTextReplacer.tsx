@@ -14,6 +14,7 @@ interface TiptapTextReplacerProps {
   children: ReactNode;
   slideData?: any;
   slideIndex?: number;
+  renderKey?: string;
   onContentChange?: (
     content: string,
     path: string,
