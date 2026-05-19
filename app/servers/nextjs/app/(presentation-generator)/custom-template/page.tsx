@@ -2,7 +2,6 @@
 
 import React, { useEffect } from "react";
 import FontManager from "./components/FontManager";
-import Header from "../(dashboard)/dashboard/components/Header";
 import DashboardSidebar from "../(dashboard)/Components/DashboardSidebar";
 
 import { useCustomLayout } from "./hooks/useCustomLayout";
@@ -17,6 +16,7 @@ import { SaveLayoutModal } from "./components/SaveLayoutModal";
 import EachSlide from "./components/EachSlide/NewEachSlide";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { useUser } from "@/app/hooks/useUser";
+import { CheckCircle2, FileText, LayoutPanelLeft, UploadCloud } from "lucide-react";
 
 const CustomTemplatePage = () => {
   const router = useRouter();
@@ -85,84 +85,132 @@ const CustomTemplatePage = () => {
   }, []);
 
   return (
-    <div className="flex h-dvh flex-col-reverse overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 md:flex-row">
-      <DashboardSidebar />
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto md:h-screen">
-        {/* <Header /> */}
-        <div className="mx-auto max-w-[1440px] px-4 sm:px-6">
-        {/* Header */}
-        <div className="text-center space-y-2 my-6">
-          <h1 className="text-4xl font-bold text-gray-900">
-            Custom Template Processor
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Upload your PDF or PPTX file to import slides as a reusable template.
-          </p>
-        </div>
+    <div className="flex h-dvh flex-col overflow-hidden bg-[#fbf9ff] text-slate-950 md:flex-row">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.08),transparent_32%),linear-gradient(180deg,#fbf9ff_0%,#ffffff_48%,#f8fafc_100%)] md:h-screen">
+        <div className="min-h-full px-4 pb-24 font-syne sm:px-6 md:px-8 md:pb-12">
+          <div className="pt-8 pb-6">
+            <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-start">
+              <div className="min-w-0">
+                <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+                  Create custom template
+                </h1>
+                <p className="mt-1 text-sm text-slate-500">
+                  Import a PDF or PowerPoint deck and save it as a reusable presentation design.
+                </p>
+              </div>
 
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                <div className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold text-slate-600 shadow-sm sm:px-4">
+                  <UploadCloud className="h-4 w-4 text-violet-500" />
+                  {selectedFile ? "File ready" : "Upload file"}
+                </div>
+                <div className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold text-slate-600 shadow-sm sm:px-4">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  {completedSlides}/{slides.length || 0} done
+                </div>
+              </div>
+            </div>
 
-        {/* File Upload Section */}
-        <FileUploadSection
-          selectedFile={selectedFile}
-          handleFileSelect={handleFileSelect}
-          selectFile={selectFile}
-          removeFile={removeFile}
-          processFile={processFile}
-          isProcessingPptx={isProcessingPptx}
-          slides={slides}
-          completedSlides={completedSlides}
-        />
+            <div className="mt-6 grid max-w-3xl grid-cols-1 gap-3 min-[520px]:grid-cols-3 sm:gap-4">
+              <div className="rounded-xl border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
+                <div className="mb-1 flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-violet-500" />
+                  <span className="text-xs font-medium text-slate-500">Source</span>
+                </div>
+                <p className="truncate text-lg font-bold text-slate-900">
+                  {selectedFile ? selectedFile.name : "No file"}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-400">PDF or PPTX</p>
+              </div>
 
-        {/* Global Font Management */}
-        {fontsData && (
-          <FontManager
-            fontsData={fontsData}
-            UploadedFonts={UploadedFonts}
-            uploadFont={uploadFont}
-            removeFont={removeFont}
-            getAllUnsupportedFonts={getAllUnsupportedFonts}
-            processSlideToHtml={() => handleProcessSlideToHtml(slides[0])}
-          />
-        )}
+              <div className="rounded-xl border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
+                <div className="mb-1 flex items-center gap-2">
+                  <LayoutPanelLeft className="h-4 w-4 text-emerald-500" />
+                  <span className="text-xs font-medium text-slate-500">Slides</span>
+                </div>
+                <p className="text-lg font-bold text-slate-900">{slides.length || "None"}</p>
+                <p className="mt-0.5 text-xs text-slate-400">imported layouts</p>
+              </div>
 
-        {/* Slides Section */}
-        {slides.length > 0 && (
-          <div className="space-y-6 mt-10">
-            {slides.map((slide, index) => (
-              <EachSlide
-                key={index}
-                slide={slide}
-                index={index}
-                isProcessing={slides.some((s) => s.processing)}
-                retrySlide={retrySlide}
-                setSlides={setSlides}
-                canEditHtml={isAdmin}
-                onSlideUpdate={(updatedSlideData) =>
-                  handleSlideUpdate(index, updatedSlideData)
-                }
-              />
-            ))}
+              <div className="rounded-xl border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
+                <div className="mb-1 flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-violet-500" />
+                  <span className="text-xs font-medium text-slate-500">Status</span>
+                </div>
+                <p className="text-lg font-bold text-slate-900">
+                  {isProcessingPptx || slides.some((s) => s.processing) ? "Processing" : slides.length ? "Ready" : "Waiting"}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-400">template extraction</p>
+              </div>
+            </div>
           </div>
-        )}
 
-        {/* Floating Save Template Button */}
-        {slides.length > 0 && slides.some((s) => s.processed) && (
-          <SaveLayoutButton
-            onSave={openSaveModal}
-            isSaving={isSavingLayout}
-            isProcessing={slides.some((s) => s.processing)}
+          <div className="mb-6 border-t border-slate-200" />
+
+          <FileUploadSection
+            selectedFile={selectedFile}
+            handleFileSelect={handleFileSelect}
+            selectFile={selectFile}
+            removeFile={removeFile}
+            processFile={processFile}
+            isProcessingPptx={isProcessingPptx}
+            slides={slides}
+            completedSlides={completedSlides}
           />
-        )}
 
-        {/* Save Template Modal */}
-        <SaveLayoutModal
-          isOpen={isModalOpen}
-          onClose={closeSaveModal}
-          onSave={handleSaveTemplate}
-          isSaving={isSavingLayout}
-        />
+          {fontsData && (
+            <FontManager
+              fontsData={fontsData}
+              UploadedFonts={UploadedFonts}
+              uploadFont={uploadFont}
+              removeFont={removeFont}
+              getAllUnsupportedFonts={getAllUnsupportedFonts}
+              processSlideToHtml={() => handleProcessSlideToHtml(slides[0])}
+            />
+          )}
+
+          {slides.length > 0 && (
+            <div className="mt-8 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-700">Imported slides</h2>
+                <span className="text-xs text-slate-400">{slides.length} total</span>
+              </div>
+              <div className="space-y-6">
+                {slides.map((slide, index) => (
+                  <EachSlide
+                    key={index}
+                    slide={slide}
+                    index={index}
+                    isProcessing={slides.some((s) => s.processing)}
+                    retrySlide={retrySlide}
+                    setSlides={setSlides}
+                    canEditHtml={isAdmin}
+                    onSlideUpdate={(updatedSlideData) =>
+                      handleSlideUpdate(index, updatedSlideData)
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {slides.length > 0 && slides.some((s) => s.processed) && (
+            <SaveLayoutButton
+              onSave={openSaveModal}
+              isSaving={isSavingLayout}
+              isProcessing={slides.some((s) => s.processing)}
+            />
+          )}
+
+          <SaveLayoutModal
+            isOpen={isModalOpen}
+            onClose={closeSaveModal}
+            onSave={handleSaveTemplate}
+            isSaving={isSavingLayout}
+          />
         </div>
       </div>
+      <DashboardSidebar />
     </div>
   );
 };
