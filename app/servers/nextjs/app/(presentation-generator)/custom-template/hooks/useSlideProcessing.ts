@@ -146,7 +146,7 @@ const buildPptxPreviewHtml = (slide: SlideData) => {
   const editBackground = slide.textless_screenshot_url || slide.screenshot_url;
 
   return `
-<div class="imported-slide-canvas relative mx-auto w-full max-w-[1280px] overflow-hidden bg-white" data-editable-text="${hasEditableText ? "true" : "false"}" style="position:relative;width:100%;max-width:1280px;aspect-ratio:${getSlideAspectRatio(slide)};background:#fff;container-type:size;">
+<div class="imported-slide-canvas relative mx-auto w-full max-w-[1280px] overflow-hidden bg-white" data-editable-text="${hasEditableText ? "true" : "false"}" style="display:block;position:relative;width:100%;max-width:1280px;aspect-ratio:${getSlideAspectRatio(slide)};background:#fff;container-type:size;">
   <img src="${slide.screenshot_url}" alt="Imported slide ${slide.slide_number}" class="imported-original-bg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill;opacity:1;pointer-events:none;" draggable="false" />
   <img src="${editBackground}" alt="" class="imported-edit-bg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill;opacity:0;pointer-events:none;" draggable="false" />
   <div class="imported-editable-layer" style="position:absolute;inset:0;width:100%;height:100%;z-index:40;opacity:0;pointer-events:${hasEditableText ? "auto" : "none"};">
