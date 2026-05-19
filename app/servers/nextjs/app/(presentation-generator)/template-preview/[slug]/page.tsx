@@ -783,22 +783,146 @@ function FullPreviewDownloadDropdown({
   );
 }
 
+type CustomTemplateTextToken = {
+  key: string;
+  value: string;
+};
+
+type CustomTemplateImageToken = {
+  key: string;
+  url: string;
+  prompt: string;
+};
+
+function tokenizeSavedCustomTemplateHtml(html: string): {
+  html: string;
+  textTokens: CustomTemplateTextToken[];
+  imageTokens: CustomTemplateImageToken[];
+} {
+  if (typeof document === "undefined") return { html, textTokens: [], imageTokens: [] };
+
+  const container = document.createElement("div");
+  container.innerHTML = html;
+
+  const textTokens: CustomTemplateTextToken[] = [];
+  const imageTokens: CustomTemplateImageToken[] = [];
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  const skippedParents = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "SVG", "CANVAS"]);
+  const textNodes: Text[] = [];
+
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    const parent = node.parentElement;
+    const trimmed = (node.textContent || "").replace(/\s+/g, " ").trim();
+
+    if (!parent || skippedParents.has(parent.tagName) || trimmed.length < 3) continue;
+    if (/^[\d\s.,:%$€£৳#()\-+/]+$/.test(trimmed) && trimmed.length < 8) continue;
+    textNodes.push(node);
+  }
+
+  textNodes.slice(0, 80).forEach((node, index) => {
+    const key = `text_${index + 1}`;
+    const value = (node.textContent || "").replace(/\s+/g, " ").trim();
+    if (!value) return;
+
+    textTokens.push({ key, value });
+    node.textContent = `{{${key}}}`;
+  });
+
+  Array.from(container.querySelectorAll<HTMLImageElement>("img[src]")).slice(0, 24).forEach((image, index) => {
+    const key = `image_${index + 1}`;
+    const url = image.getAttribute("src") || "";
+    if (!url || url.startsWith("data:")) return;
+
+    const nearbyText = image
+      .closest("div")
+      ?.textContent
+      ?.replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 80);
+    const prompt = image.getAttribute("alt")?.trim() || nearbyText || "Relevant presentation image for this slide";
+
+    imageTokens.push({ key, url, prompt });
+    image.setAttribute("src", `{{${key}}}`);
+  });
+
+  return { html: container.innerHTML, textTokens, imageTokens };
+}
+
 function buildStaticLayoutCode(layout: CustomTemplateLayout, html: string) {
+  const { html: tokenizedHtml, textTokens, imageTokens } = tokenizeSavedCustomTemplateHtml(html);
+  const textSchemaFields = textTokens.map((token) => (
+    `${JSON.stringify(token.key)}: z.string().max(260).describe(${JSON.stringify(`Visible template text currently reading: "${token.value.slice(0, 140)}". Rewrite this text for the user's prompt while preserving the slide's role and length.`)}).default(${JSON.stringify(token.value)})`
+  ));
+  const imageSchemaFields = imageTokens.map((token) => (
+    `${JSON.stringify(token.key)}: z.object({
+    __image_url__: z.string().default(${JSON.stringify(token.url)}),
+    __image_prompt__: z.string().min(10).max(100).describe(${JSON.stringify("Prompt for replacing this exact image. Use a realistic, presentation-related photographic scene that matches the user's topic and this slide's message.")}).default(${JSON.stringify(token.prompt.slice(0, 100))})
+  })`
+  ));
+
   return `
 import * as z from "zod";
 
 const layoutId = ${JSON.stringify(layout.rawLayoutId || layout.layoutId || "custom-layout")};
 const layoutName = ${JSON.stringify(layout.rawLayoutName || layout.layoutName || "Custom Layout")};
 const layoutDescription = ${JSON.stringify(layout.layoutDescription || "")};
-const Schema = z.object({});
-const EDITED_TEMPLATE_HTML = ${JSON.stringify(html)};
+const Schema = z.object({
+  ${[...textSchemaFields, ...imageSchemaFields].join(",\n  ")}
+});
+const generatedSlideHtml = ${JSON.stringify(tokenizedHtml)};
+const textTokenKeys = ${JSON.stringify(textTokens.map((token) => token.key))};
+const textTokenDefaults = ${JSON.stringify(Object.fromEntries(textTokens.map((token) => [token.key, token.value])))};
+const imageTokenKeys = ${JSON.stringify(imageTokens.map((token) => token.key))};
+const imageTokenDefaults = ${JSON.stringify(Object.fromEntries(imageTokens.map((token) => [token.key, token.url])))};
 
-const dynamicSlideLayout = () => (
-  <div
-    style={{ width: "1280px", height: "720px", position: "relative", overflow: "hidden", background: "#ffffff" }}
-    dangerouslySetInnerHTML={{ __html: EDITED_TEMPLATE_HTML }}
-  />
-);
+const escapeHtml = (value) => String(value ?? "")
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#39;");
+
+const applyThemeToHtml = (html, theme) => {
+  const colors = theme?.data?.colors;
+  if (!colors) return html;
+
+  const replacements = [
+    ["rgb(131, 24, 67)", colors.primary],
+    ["#831843", colors.primary],
+    ["rgb(244, 114, 182)", colors.graph_0 || colors.primary],
+    ["#f472b6", colors.graph_0 || colors.primary],
+    ["rgb(31, 16, 32)", colors.background],
+    ["#1f1020", colors.background],
+    ["rgb(253, 242, 248)", colors.background_text],
+    ["#fdf2f8", colors.background_text],
+    ["rgba(131, 24, 67, 0.8)", colors.primary],
+    ["rgba(244, 114, 182, 0.12)", colors.card],
+  ].filter((entry) => entry[1]);
+
+  return replacements.reduce((nextHtml, [from, to]) => nextHtml.split(from).join(to), html);
+};
+
+const dynamicSlideLayout = ({ data = {} }) => {
+  const textHtml = textTokenKeys.reduce((nextHtml, key) => (
+    nextHtml.split("{{" + key + "}}").join(escapeHtml(data[key] ?? textTokenDefaults[key] ?? ""))
+  ), generatedSlideHtml);
+  const imageHtml = imageTokenKeys.reduce((nextHtml, key) => (
+    nextHtml.split("{{" + key + "}}").join(escapeHtml(data[key]?.__image_url__ ?? imageTokenDefaults[key] ?? ""))
+  ), textHtml);
+  const fallbackImageUrl = imageTokenKeys.map((key) => data[key]?.__image_url__ ?? imageTokenDefaults[key]).find(Boolean) ?? "";
+  const cleanedHtml = imageHtml
+    .replace(/\\{\\{image_\\d+\\}\\}/g, escapeHtml(fallbackImageUrl))
+    .replace(/\\/static\\/images\\/placeholder\\.jpg/g, escapeHtml(fallbackImageUrl));
+  const html = applyThemeToHtml(cleanedHtml, data.__theme__);
+
+  return (
+    <div
+      className="relative h-full w-full overflow-hidden [&>*]:mx-auto"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+};
 
 export default dynamicSlideLayout;
 `;
@@ -2949,7 +3073,7 @@ const GroupLayoutPreview = () => {
                   </div>
 
                   <div className="flex justify-center bg-gray-100 p-2 sm:p-4 md:p-6">
-                    {isAdmin && customTemplateId ? (
+                    {customTemplateId ? (
                       <AdminEditableLayout
                         layout={layout}
                         templateId={customTemplateId}
