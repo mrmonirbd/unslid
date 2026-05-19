@@ -1,7 +1,6 @@
 import React from "react";
 
 import UploadPage from "./components/UploadPage";
-import Header from "@/app/(presentation-generator)/(dashboard)/dashboard/components/Header";
 import DashboardSidebar from "@/app/(presentation-generator)/(dashboard)/Components/DashboardSidebar";
 import { Metadata } from "next";
 
@@ -44,18 +43,11 @@ export const metadata: Metadata = {
 
 const page = () => {
   return (
-    <div className="flex h-dvh flex-col-reverse overflow-hidden bg-[#fbf9ff] md:flex-row">
-      <DashboardSidebar />
-      <div className="relative min-h-0 min-w-0 flex-1 overflow-y-auto">
-        {/* <Header /> */}
-        <div className="mb-8 mt-8 flex flex-col items-center justify-center px-4 text-center">
-          {/* <h1 className="font-unbounded text-[64px] font-normal text-[#101323]">Unslid</h1> */}
-          <p className="font-syne text-xl text-[#101323CC]">
-            Choose a design, set preferences, and generate polished slides.
-          </p>
-        </div>
+    <div className="flex h-dvh flex-col overflow-hidden bg-[#fbf9ff] text-slate-950 md:flex-row">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.08),transparent_32%),linear-gradient(180deg,#fbf9ff_0%,#ffffff_48%,#f8fafc_100%)] md:h-screen">
         <UploadPage />
       </div>
+      <DashboardSidebar />
     </div>
   );
 };
