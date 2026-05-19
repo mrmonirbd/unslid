@@ -9,6 +9,7 @@ interface SupportingDocProps {
     onFilesChange: (files: File[]) => void
     accept?: string
     multiple?: boolean
+    'data-testid'?: string
 }
 
 const PDF_TYPES = ['.pdf']
@@ -137,16 +138,16 @@ const SupportingDoc = ({
     }
 
     return (
-        <div className="space-y-2" data-testid="attachments-uploader">
+        <div className="space-y-3" data-testid="attachments-uploader">
             <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600 font-syne">
+                <p className="text-sm font-medium text-slate-500 font-syne">
                     {hasFiles ? `${filteredFiles.length} attachment${filteredFiles.length > 1 ? 's' : ''}` : 'No attachments yet'}
                 </p>
                 <button
                     type="button"
                     onClick={handleClearFiles}
                     disabled={!hasFiles}
-                    className={`text-sm font-medium font-syne ${!hasFiles ? 'cursor-not-allowed text-gray-400' : 'text-red-600 hover:text-red-700'}`}
+                    className={`text-sm font-semibold font-syne ${!hasFiles ? 'cursor-not-allowed text-slate-300' : 'text-red-500 hover:text-red-600'}`}
                     data-testid="attachments-clear-button"
                     aria-disabled={!hasFiles}
                 >
@@ -155,7 +156,7 @@ const SupportingDoc = ({
             </div>
 
             <label
-                className={`mt-1 block cursor-pointer rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors ${isDragging ? 'border-[#5146E5] bg-[#5146E5]/5' : 'border-gray-200 hover:border-[#5146E5]'}`}
+                className={`mt-1 block cursor-pointer rounded-xl border border-dashed px-4 py-8 text-center shadow-sm transition-all ${isDragging ? 'border-violet-400 bg-violet-50' : 'border-slate-200 bg-white hover:border-violet-300 hover:bg-violet-50/40'}`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
@@ -169,10 +170,13 @@ const SupportingDoc = ({
                     data-testid="file-upload-input"
                 />
                 <div className="flex flex-col items-center gap-2">
-                    <Paperclip className="h-6 w-6 text-[#5146E5]" />
-                    <p className="text-sm font-medium text-gray-800 font-syne">
-                        Drag and drop PDF, TXT, PPTX, DOCX, or <span className="text-[#5146E5]">click to browse</span>
+                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+                        <Paperclip className="h-5 w-5" />
+                    </span>
+                    <p className="text-sm font-semibold text-slate-800 font-syne">
+                        Drop PDF, TXT, PPTX, DOCX, or <span className="text-violet-600">browse files</span>
                     </p>
+                    <p className="text-xs font-medium text-slate-400">Use files only when they should guide the deck content.</p>
                 </div>
             </label>
 
@@ -182,28 +186,28 @@ const SupportingDoc = ({
                         {filteredFiles.map((file, idx) => (
                             <li
                                 key={`${file.name}-${idx}`}
-                                className="flex items-center gap-3 rounded-md border border-gray-200 px-3 py-2"
+                                className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm"
                                 data-testid="attached-file-item"
                             >
                                 {previewUrls[idx] ? (
                                     <img src={previewUrls[idx] as string} alt="Preview" className="h-10 w-10 flex-none rounded object-cover" />
                                 ) : (
-                                    <div className="flex h-10 w-10 flex-none items-center justify-center rounded bg-gray-100 text-gray-600">
+                                    <div className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-slate-100 text-slate-500">
                                         <File className="h-5 w-5" />
                                     </div>
                                 )}
 
                                 <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-medium text-gray-900 font-syne" title={file.name}>
+                                    <p className="truncate text-sm font-semibold text-slate-900 font-syne" title={file.name}>
                                         {file.name}
                                     </p>
-                                    <p className="text-xs text-gray-500 font-syne">{formatFileSize(file.size)}</p>
+                                    <p className="text-xs text-slate-500 font-syne">{formatFileSize(file.size)}</p>
                                 </div>
 
                                 <button
                                     type="button"
                                     onClick={() => handleRemoveFileAt(idx)}
-                                    className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded text-red-600 hover:bg-red-50 hover:text-red-700"
+                                    className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-lg text-red-500 hover:bg-red-50 hover:text-red-600"
                                     aria-label={`Remove ${file.name}`}
                                     data-testid="remove-file-button"
                                 >
