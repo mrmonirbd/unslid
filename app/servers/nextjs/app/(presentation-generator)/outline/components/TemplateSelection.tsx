@@ -18,6 +18,7 @@ export interface DesignerTemplateSelection {
   type: "designer";
   id: number;
   name: string;
+  color_scheme?: Record<string, string> | null;
 }
 
 interface PptxDesignerTemplate extends DesignerTemplateSelection {
@@ -273,7 +274,7 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
               className={`${isSelected ? "border-2 border-purple-500" : ""} cursor-pointer relative hover:shadow-lg transition-all duration-200 group overflow-hidden ${template.locked ? "opacity-80" : ""}`}
               onClick={() => {
                 if (template.locked) return;
-                onSelectTemplate({ type: "designer", id: template.id, name: template.name });
+                onSelectTemplate({ type: "designer", id: template.id, name: template.name, color_scheme: template.color_scheme });
               }}
             >
               {template.locked && (

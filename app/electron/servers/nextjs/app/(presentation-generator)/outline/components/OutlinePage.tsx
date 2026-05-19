@@ -16,6 +16,65 @@ import { useOutlineManagement } from "../hooks/useOutlineManagement";
 import { usePresentationGeneration } from "../hooks/usePresentationGeneration";
 import TemplateSelection from "./TemplateSelection";
 import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
+import type { LoaderTheme } from "@/components/ui/overlay-loader";
+
+const NAMED_TEMPLATE_PALETTES: Record<string, LoaderTheme> = {
+  modern: {
+    accentColor: "#2563EB",
+    secondaryColor: "#22D3EE",
+    backgroundColor: "#07111F",
+    surfaceColor: "#0F2742",
+  },
+  standard: {
+    accentColor: "#4F46E5",
+    secondaryColor: "#60A5FA",
+    backgroundColor: "#0B1020",
+    surfaceColor: "#182033",
+  },
+  swift: {
+    accentColor: "#F97316",
+    secondaryColor: "#FACC15",
+    backgroundColor: "#160E08",
+    surfaceColor: "#2A170A",
+  },
+  general: {
+    accentColor: "#65A30D",
+    secondaryColor: "#A3E635",
+    backgroundColor: "#0C1308",
+    surfaceColor: "#17220F",
+  },
+  mega: {
+    accentColor: "#DB2777",
+    secondaryColor: "#F59E0B",
+    backgroundColor: "#170814",
+    surfaceColor: "#2A1023",
+  },
+};
+
+const getLoaderTheme = (
+  selectedTemplate: TemplateLayoutsWithSettings | string | null
+): LoaderTheme => {
+  if (!selectedTemplate) return {};
+  if (typeof selectedTemplate === "string") {
+    return {
+      name: "Custom template",
+      accentColor: "#7E3AF2",
+      secondaryColor: "#10B981",
+      backgroundColor: "#0D0716",
+      surfaceColor: "#171024",
+    };
+  }
+
+  const paletteKey =
+    Object.keys(NAMED_TEMPLATE_PALETTES).find((key) =>
+      `${selectedTemplate.id} ${selectedTemplate.name}`.toLowerCase().includes(key)
+    ) || "standard";
+
+  return {
+    ...NAMED_TEMPLATE_PALETTES[paletteKey],
+    name: selectedTemplate.name,
+  };
+};
 
 const OutlinePage: React.FC = () => {
   const { presentation_id, outlines } = useSelector(
@@ -33,6 +92,7 @@ const OutlinePage: React.FC = () => {
     selectedTemplate,
     setActiveTab
   );
+  const loaderTheme = React.useMemo(() => getLoaderTheme(selectedTemplate), [selectedTemplate]);
   if (!presentation_id) {
     return <EmptyStateView />;
   }
@@ -45,6 +105,7 @@ const OutlinePage: React.FC = () => {
         text={loadingState.message}
         showProgress={loadingState.showProgress}
         duration={loadingState.duration}
+        theme={loaderTheme}
       />
 
       <Wrapper className="h-full flex flex-col w-full">

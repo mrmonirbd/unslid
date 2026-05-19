@@ -4,9 +4,11 @@ import React, { useEffect, useState, useRef } from 'react';
 interface ProgressBarProps {
     duration: number;
     onComplete?: () => void;
+    accentColor?: string;
+    secondaryColor?: string;
 }
 
-export const ProgressBar = ({ duration, onComplete }: ProgressBarProps) => {
+export const ProgressBar = ({ duration, onComplete, accentColor = "#9034EA", secondaryColor = "#5146E5" }: ProgressBarProps) => {
     const [progress, setProgress] = useState(0);
     const progressInterval = useRef<NodeJS.Timeout | null>(null);
     const startTime = useRef<number>(Date.now());
@@ -52,9 +54,10 @@ export const ProgressBar = ({ duration, onComplete }: ProgressBarProps) => {
             </div>
             <div className="w-full bg-white rounded-full h-2 overflow-hidden">
                 <div
-                    className="h-full bg-gradient-to-r from-[#9034EA] via-[#5146E5] to-[#9034EA] rounded-full animate-gradient transition-all duration-300 ease-out"
+                    className="h-full rounded-full animate-gradient transition-all duration-300 ease-out"
                     style={{
                         width: `${progress}%`,
+                        backgroundImage: `linear-gradient(90deg, ${accentColor}, ${secondaryColor}, ${accentColor})`,
                         backgroundSize: '200% 100%',
                     }}
                 />
@@ -77,4 +80,4 @@ export const ProgressBar = ({ duration, onComplete }: ProgressBarProps) => {
             `}</style>
         </div>
     );
-}; 
+};
