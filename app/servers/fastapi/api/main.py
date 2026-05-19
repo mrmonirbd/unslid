@@ -170,9 +170,10 @@ async def serve_private_image(
 
     stored_path = f"/app_data/images/{image_path}"
     legacy_absolute_path = str(requested)
-    assets = await session.scalars(
+    assets_result = await session.scalars(
         select(ImageAsset).where(ImageAsset.path.in_([stored_path, legacy_absolute_path]))
     )
+    assets = list(assets_result)
     image_asset = next(
         (
             asset
@@ -181,7 +182,12 @@ async def serve_private_image(
         ),
         None,
     )
-    if not image_asset:
+    # Some transient preview images (for example PPTX/PDF slide imports used by
+    # custom-template creation) are written directly to app_data/images and are
+    # not persisted as ImageAsset rows. They still need to render in the active
+    # authenticated workspace, so serve existing unregistered files after the
+    # path has been constrained to the images directory.
+    if not image_asset and assets:
         raise HTTPException(status_code=404, detail="Image not found")
 
     return FileResponse(str(requested))
