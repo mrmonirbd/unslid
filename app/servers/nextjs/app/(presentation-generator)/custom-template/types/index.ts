@@ -112,6 +112,7 @@ export interface SlideContentDisplayProps {
   onTouchMove: (e: React.TouchEvent<HTMLCanvasElement>) => void;
   onTouchEnd: (e: React.TouchEvent<HTMLCanvasElement>) => void;
   retrySlide: (slideNumber: number) => void;
+  onEnterEditMode?: () => void;
 }
 
 export interface HtmlEditorProps {

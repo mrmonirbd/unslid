@@ -170,6 +170,7 @@ const EachSlide: React.FC<EachSlideProps> = ({
           eraserMode={eraserMode}
           isDrawing={isDrawing}
           didYourDraw={didYourDraw}
+          onEnterEditMode={handleEditClick}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
