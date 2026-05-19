@@ -4,7 +4,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-dvh items-center justify-center overflow-y-auto overflow-x-hidden bg-[linear-gradient(115deg,#b7f3ee_0%,#f9fbff_44%,#d7b6ff_100%)] p-4 font-syne text-slate-950">
+    <div className="relative flex min-h-dvh items-center justify-center overflow-y-auto overflow-x-hidden bg-[radial-gradient(circle_at_top,#1f2937_0%,#050505_42%,#000_100%)] p-4 font-syne text-slate-50">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="relative text-center mb-8">
@@ -17,9 +17,9 @@ export default function AuthLayout({
                 <rect x="14" y="14" width="7" height="7" rx="1" />
               </svg>
             </div>
-            <span className="text-slate-950 font-bold text-xl tracking-tight">Unslid</span>
+            <span className="text-white font-bold text-xl tracking-tight">Unslid</span>
           </div>
-          <p className="text-slate-600 text-sm">AI-powered presentations in seconds</p>
+          <p className="text-slate-300 text-sm">AI-powered presentations in seconds</p>
         </div>
         <div className="relative">{children}</div>
       </div>

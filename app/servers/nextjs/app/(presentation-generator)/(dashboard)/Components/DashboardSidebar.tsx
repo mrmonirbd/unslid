@@ -41,7 +41,7 @@ const RailLink = ({ href, label, icon: Icon, active, highlight }: RailLinkProps)
           ? "text-violet-600 hover:text-violet-700"
           : "text-slate-600 hover:text-violet-700"
     }`}
-    title= 'dsdsdsd'
+    title= {label}
   >
     <span
       className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
