@@ -19,6 +19,86 @@ import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils"
 import { Separator } from "@/components/ui/separator";
 import { useSearchParams } from "next/navigation";
 import { setPresentationId } from "@/store/slices/presentationGeneration";
+import type { LoaderTheme } from "@/components/ui/overlay-loader";
+
+const NAMED_TEMPLATE_PALETTES: Record<string, LoaderTheme> = {
+  modern: {
+    accentColor: "#2563EB",
+    secondaryColor: "#22D3EE",
+    backgroundColor: "#07111F",
+    surfaceColor: "#0F2742",
+  },
+  standard: {
+    accentColor: "#4F46E5",
+    secondaryColor: "#60A5FA",
+    backgroundColor: "#0B1020",
+    surfaceColor: "#182033",
+  },
+  swift: {
+    accentColor: "#F97316",
+    secondaryColor: "#FACC15",
+    backgroundColor: "#160E08",
+    surfaceColor: "#2A170A",
+  },
+  general: {
+    accentColor: "#65A30D",
+    secondaryColor: "#A3E635",
+    backgroundColor: "#0C1308",
+    surfaceColor: "#17220F",
+  },
+  mega: {
+    accentColor: "#DB2777",
+    secondaryColor: "#F59E0B",
+    backgroundColor: "#170814",
+    surfaceColor: "#2A1023",
+  },
+};
+
+const pickColor = (scheme: Record<string, string> | null | undefined, keys: string[], fallback: string) => {
+  if (!scheme) return fallback;
+  const entries = Object.entries(scheme);
+  for (const key of keys) {
+    const direct = scheme[key];
+    if (direct) return direct;
+    const match = entries.find(([entryKey]) => entryKey.toLowerCase().includes(key.toLowerCase()));
+    if (match?.[1]) return match[1];
+  }
+  return fallback;
+};
+
+const getLoaderTheme = (
+  selectedTemplate: TemplateLayoutsWithSettings | string | DesignerTemplateSelection | null
+): LoaderTheme => {
+  if (!selectedTemplate) return {};
+  if (typeof selectedTemplate === "string") {
+    return {
+      name: "Custom template",
+      accentColor: "#7E3AF2",
+      secondaryColor: "#10B981",
+      backgroundColor: "#0D0716",
+      surfaceColor: "#171024",
+    };
+  }
+  if ("type" in selectedTemplate) {
+    return {
+      name: selectedTemplate.name,
+      accentColor: pickColor(selectedTemplate.color_scheme, ["accent", "primary", "theme"], "#7E3AF2"),
+      secondaryColor: pickColor(selectedTemplate.color_scheme, ["secondary", "highlight", "chart"], "#22D3EE"),
+      backgroundColor: pickColor(selectedTemplate.color_scheme, ["background", "dark", "base"], "#08080B"),
+      surfaceColor: pickColor(selectedTemplate.color_scheme, ["surface", "card", "muted"], "#111827"),
+    };
+  }
+
+  const paletteKey =
+    Object.keys(NAMED_TEMPLATE_PALETTES).find((key) =>
+      `${selectedTemplate.id} ${selectedTemplate.name}`.toLowerCase().includes(key)
+    ) || "standard";
+
+  return {
+    ...NAMED_TEMPLATE_PALETTES[paletteKey],
+    name: selectedTemplate.name,
+  };
+};
 
 const OutlinePage: React.FC = () => {
   const dispatch = useDispatch();
@@ -47,6 +127,7 @@ const OutlinePage: React.FC = () => {
     selectedTemplate,
     setActiveTab
   );
+  const loaderTheme = React.useMemo(() => getLoaderTheme(selectedTemplate), [selectedTemplate]);
   if (!activePresentationId) {
     return <EmptyStateView />;
   }
@@ -60,6 +141,7 @@ const OutlinePage: React.FC = () => {
         text={loadingState.message}
         showProgress={loadingState.showProgress}
         duration={loadingState.duration}
+        theme={loaderTheme}
       />
 
       <Wrapper className="h-full  flex flex-col w-full relative px-5 sm:px-10 lg:px-20 ">
