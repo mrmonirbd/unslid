@@ -28,6 +28,7 @@ export const SlideContentDisplay: React.FC<SlideContentDisplayProps> = ({
   onTouchMove,
   onTouchEnd,
   retrySlide,
+  onEnterEditMode,
 }) => {
   // Don't show slide content when in HTML edit mode
   if (isHtmlEditMode) {
@@ -61,17 +62,24 @@ export const SlideContentDisplay: React.FC<SlideContentDisplayProps> = ({
         )}
         <div
           ref={slideDisplayRef}
+          onClick={() => {
+            if (!isEditMode && !isHtmlEditMode) {
+              onEnterEditMode?.();
+            }
+          }}
           className={[
             "relative mx-auto w-full max-w-[1280px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm",
             "[&_.imported-slide-canvas]:block [&_.imported-slide-canvas]:w-full [&_.imported-slide-canvas]:max-w-none [&_.imported-slide-canvas]:min-h-[240px] sm:[&_.imported-slide-canvas]:min-h-[360px] lg:[&_.imported-slide-canvas]:min-h-0",
             "[&_.imported-original-bg]:block [&_.imported-edit-bg]:block",
-            "[&_.imported-slide-canvas:focus-within_.imported-original-bg]:opacity-100 [&_.imported-slide-canvas:focus-within_.imported-edit-bg]:!opacity-0 [&_.imported-slide-canvas:focus-within_.imported-editable-layer]:!opacity-100",
-            "[&_.imported-editable-text]:box-border [&_.imported-editable-text]:cursor-text [&_.imported-editable-text]:rounded-sm [&_.imported-editable-text]:transition-shadow [&_.imported-editable-text]:[text-size-adjust:100%] [&_.imported-editable-text]:[-webkit-text-size-adjust:100%] [&_.imported-editable-text:focus]:bg-white/95 [&_.imported-editable-text:focus]:outline [&_.imported-editable-text:focus]:outline-2 [&_.imported-editable-text:focus]:outline-blue-500 [&_.imported-editable-text:focus]:outline-offset-1",
+            "[&_.imported-editable-text]:box-border",
+            !isEditMode
+              ? "[&_.imported-editable-layer]:opacity-0 [&_.imported-editable-layer]:pointer-events-none [&_.imported-editable-text]:pointer-events-none [&_.imported-slide-canvas:focus-within_.imported-original-bg]:opacity-100 [&_.imported-slide-canvas:focus-within_.imported-edit-bg]:opacity-0 [&_.imported-slide-canvas:focus-within_.imported-editable-layer]:opacity-0"
+              : "",
             slide.modified
-              ? "[&_.imported-original-bg]:opacity-100 [&_.imported-edit-bg]:!opacity-0 [&_.imported-editable-layer]:z-40 [&_.imported-editable-layer]:!opacity-100"
+              ? "[&_.imported-original-bg]:opacity-100 [&_.imported-edit-bg]:!opacity-0"
               : "",
             isEditMode
-              ? "[&_.imported-original-bg]:opacity-100 [&_.imported-edit-bg]:!opacity-0 [&_.imported-editable-layer]:z-40 [&_.imported-editable-layer]:!opacity-100 [&_.imported-editable-layer]:pointer-events-auto [&_.imported-editable-text]:pointer-events-auto [&_.imported-editable-text]:text-transparent [&_.imported-editable-text]:caret-blue-600 [&_.imported-editable-text]:outline [&_.imported-editable-text]:outline-1 [&_.imported-editable-text]:outline-blue-400 [&_.imported-editable-text]:outline-offset-1 [&_.imported-editable-text:focus]:text-transparent"
+              ? "[&_.imported-original-bg]:opacity-0 [&_.imported-edit-bg]:opacity-100 [&_.imported-editable-layer]:z-40 [&_.imported-editable-layer]:opacity-100 [&_.imported-editable-layer]:pointer-events-auto [&_.imported-editable-text]:pointer-events-auto [&_.imported-editable-text]:cursor-text [&_.imported-editable-text]:rounded-sm [&_.imported-editable-text]:outline [&_.imported-editable-text]:outline-1 [&_.imported-editable-text]:outline-blue-400 [&_.imported-editable-text]:outline-offset-1 [&_.imported-editable-text]:transition-shadow [&_.imported-editable-text]:[text-size-adjust:100%] [&_.imported-editable-text]:[-webkit-text-size-adjust:100%] [&_.imported-editable-text:focus]:outline-2 [&_.imported-editable-text:focus]:outline-blue-500"
               : "",
           ].join(" ")}
         >
