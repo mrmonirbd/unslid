@@ -15,15 +15,11 @@ import { SaveLayoutButton } from "./components/SaveLayoutButton";
 import { SaveLayoutModal } from "./components/SaveLayoutModal";
 import EachSlide from "./components/EachSlide/NewEachSlide";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
-import { useUser } from "@/app/hooks/useUser";
 import { CheckCircle2, FileText, LayoutPanelLeft, UploadCloud } from "lucide-react";
 import CommonFooter from "@/components/CommonFooter";
 
 const CustomTemplatePage = () => {
   const router = useRouter();
-  const { user } = useUser();
-  const isAdmin = !!user?.is_admin;
-
 
   // Custom hooks for different concerns
   const { slides, setSlides, completedSlides } = useCustomLayout();
@@ -185,7 +181,7 @@ const CustomTemplatePage = () => {
                     isProcessing={slides.some((s) => s.processing)}
                     retrySlide={retrySlide}
                     setSlides={setSlides}
-                    canEditHtml={isAdmin}
+                    canEditHtml
                     onSlideUpdate={(updatedSlideData) =>
                       handleSlideUpdate(index, updatedSlideData)
                     }

@@ -155,9 +155,94 @@ const dynamicSlideLayout = ({ data = {} }) => {
 `;
   };
 
+  const cleanGeneratedCode = (value: string) => (
+    value
+      .replace(/```tsx/g, "")
+      .replace(/```typescript/g, "")
+      .replace(/```javascript/g, "")
+      .replace(/```/g, "")
+      .trim()
+  );
+
+  const ensureStructuredLayoutMetadata = (
+    reactComponent: string,
+    slide: ProcessedSlide,
+    slideNumber: number,
+    generatedHtml: string
+  ) => {
+    const code = cleanGeneratedCode(reactComponent);
+    const metadata = [
+      code.includes("const layoutId") ? "" : `const layoutId = "${slideNumber}";`,
+      code.includes("const layoutName") ? "" : `const layoutName = "Slide${slideNumber}";`,
+      code.includes("const layoutDescription")
+        ? ""
+        : `const layoutDescription = "Imported structured slide ${slideNumber}";`,
+      code.includes("const Schema") ? "" : "const Schema = z.object({});",
+      code.includes("const generatedSlideHtml")
+        ? ""
+        : `const generatedSlideHtml = ${JSON.stringify(generatedHtml)};`,
+    ].filter(Boolean).join("\n");
+
+    return `${metadata}\n${code}`;
+  };
+
+  const convertSlideToStructuredReact = async (slide: ProcessedSlide, slideNumber: number) => {
+    const slideToHtmlResponse = await fetch("/api/v1/ppt/slide-to-html/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image: slide.screenshot_url,
+        xml: slide.xml_content || "",
+        fonts: slide.normalized_fonts || [],
+      }),
+    });
+
+    if (!slideToHtmlResponse.ok) {
+      throw new Error(`Slide-to-HTML failed: ${slideToHtmlResponse.statusText}`);
+    }
+
+    const slideToHtmlData = await slideToHtmlResponse.json();
+    const generatedHtml = cleanGeneratedCode(slideToHtmlData.html || "");
+    if (!slideToHtmlData.success || !generatedHtml) {
+      throw new Error("Slide-to-HTML returned no HTML");
+    }
+
+    const htmlToReactResponse = await fetch("/api/v1/ppt/html-to-react/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        html: generatedHtml,
+        image: slide.screenshot_url,
+      }),
+    });
+
+    if (!htmlToReactResponse.ok) {
+      throw new Error(`HTML-to-React failed: ${htmlToReactResponse.statusText}`);
+    }
+
+    const htmlToReactData = await htmlToReactResponse.json();
+    const reactComponent = cleanGeneratedCode(htmlToReactData.react_component || "");
+    if (!htmlToReactData.success || !reactComponent) {
+      throw new Error("HTML-to-React returned no component");
+    }
+
+    return ensureStructuredLayoutMetadata(reactComponent, slide, slideNumber, generatedHtml);
+  };
+
   const convertSlideToReact = async (slide: ProcessedSlide, presentationId: string, FontUrls: string[]) => {
     const slideNumber = Number(slide.slide_number) || 1;
-    const layoutCode = buildDynamicImportedLayoutCode(slide, slideNumber);
+    let layoutCode = "";
+
+    try {
+      layoutCode = await convertSlideToStructuredReact(slide, slideNumber);
+      toast.success(`Generated editable HTML code for slide ${slide.slide_number}`);
+    } catch (error) {
+      console.warn(`Falling back to imported overlay layout for slide ${slide.slide_number}:`, error);
+      layoutCode = buildDynamicImportedLayoutCode(slide, slideNumber);
+      toast(`Saved slide ${slide.slide_number} with fallback layout`, {
+        description: error instanceof Error ? error.message : "Structured conversion failed",
+      });
+    }
 
     return {
       presentation: presentationId,

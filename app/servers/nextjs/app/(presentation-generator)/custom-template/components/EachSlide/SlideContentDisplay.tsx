@@ -30,6 +30,59 @@ export const SlideContentDisplay: React.FC<SlideContentDisplayProps> = ({
   retrySlide,
   onEnterEditMode,
 }) => {
+  const focusEditableTextAtPoint = (clientX: number, clientY: number) => {
+    if (typeof document === "undefined") return false;
+    const editableText = document
+      .elementsFromPoint(clientX, clientY)
+      .find((element) => element.classList.contains("imported-editable-text")) as HTMLElement | undefined;
+
+    if (!editableText) return false;
+
+    editableText.focus();
+    const documentWithCaret = document as Document & {
+      caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+      caretRangeFromPoint?: (x: number, y: number) => Range | null;
+    };
+    const pointRange =
+      documentWithCaret.caretPositionFromPoint?.(clientX, clientY) ||
+      documentWithCaret.caretRangeFromPoint?.(clientX, clientY);
+    const range = document.createRange();
+
+    if (pointRange && "offsetNode" in pointRange && pointRange.offsetNode) {
+      range.setStart(pointRange.offsetNode, pointRange.offset);
+    } else if (pointRange && "startContainer" in pointRange) {
+      range.setStart(pointRange.startContainer, pointRange.startOffset);
+    } else {
+      range.selectNodeContents(editableText);
+      range.collapse(false);
+    }
+
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    return true;
+  };
+
+  const handleCanvasMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (focusEditableTextAtPoint(event.clientX, event.clientY)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    onMouseDown(event);
+  };
+
+  const handleCanvasTouchStart = (event: React.TouchEvent<HTMLCanvasElement>) => {
+    const touch = event.touches[0];
+    if (touch && focusEditableTextAtPoint(touch.clientX, touch.clientY)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    onTouchStart(event);
+  };
+
   // Don't show slide content when in HTML edit mode
   if (isHtmlEditMode) {
     return null;
@@ -83,7 +136,11 @@ export const SlideContentDisplay: React.FC<SlideContentDisplayProps> = ({
               : "",
           ].join(" ")}
         >
-          <div ref={slideContentRef}>
+          <div
+            ref={slideContentRef}
+            className={isEditMode ? "relative z-40" : undefined}
+            style={isEditMode ? { pointerEvents: "none" } : undefined}
+          >
             <SlideContent slide={slide} onHtmlChange={onHtmlChange} />
           </div>
           {isEditMode && (
@@ -95,16 +152,16 @@ export const SlideContentDisplay: React.FC<SlideContentDisplayProps> = ({
                 position: "absolute",
                 top: 0,
                 left: 0,
-                zIndex: 30,
+                zIndex: 35,
                 cursor: eraserMode ? "grab" : "crosshair",
                 pointerEvents: "auto",
                 touchAction: "none",
               }}
-              onMouseDown={onMouseDown}
+              onMouseDown={handleCanvasMouseDown}
               onMouseMove={onMouseMove}
               onMouseUp={onMouseUp}
               onMouseLeave={onMouseUp}
-              onTouchStart={onTouchStart}
+              onTouchStart={handleCanvasTouchStart}
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
               onContextMenu={(e) => e.preventDefault()}
