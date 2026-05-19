@@ -17,6 +17,7 @@ import EachSlide from "./components/EachSlide/NewEachSlide";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { useUser } from "@/app/hooks/useUser";
 import { CheckCircle2, FileText, LayoutPanelLeft, UploadCloud } from "lucide-react";
+import CommonFooter from "@/components/CommonFooter";
 
 const CustomTemplatePage = () => {
   const router = useRouter();
@@ -209,6 +210,7 @@ const CustomTemplatePage = () => {
             isSaving={isSavingLayout}
           />
         </div>
+        <CommonFooter />
       </div>
       <DashboardSidebar />
     </div>

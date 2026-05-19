@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { useUser } from "@/app/hooks/useUser";
 import { createClient } from "@/lib/auth/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, Bell, CreditCard, Download, ExternalLink, Eye, EyeOff, Palette, ReceiptText, ShieldCheck, Upload, UserRound } from "lucide-react";
+import { AlertTriangle, Bell, CreditCard, Download, ExternalLink, Eye, EyeOff, Palette, ReceiptText, ShieldCheck, Upload, UserRound, Settings2 } from "lucide-react";
 
 const GOOGLE_FONTS = [
   "Inter", "Roboto", "Open Sans", "Lato", "Montserrat", "Poppins",
@@ -257,9 +257,9 @@ export default function AccountSettingsPage() {
 
   const inputCls = "w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition";
   const saveBtnCls = "px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all shadow-sm shadow-violet-500/20";
-  const sectionCls = "bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm";
-  const sectionHeaderCls = "px-6 py-4 border-b border-slate-100 flex items-center gap-2";
-  const tabTriggerCls = "rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-none transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 data-[state=active]:border-violet-300 data-[state=active]:bg-violet-50 data-[state=active]:text-violet-700 data-[state=active]:shadow-sm";
+  const sectionCls = "overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-sm";
+  const sectionHeaderCls = "flex items-center gap-2 border-b border-slate-200 px-4 py-4 md:px-5";
+  const tabTriggerCls = "rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 data-[state=active]:border-violet-300 data-[state=active]:bg-violet-50 data-[state=active]:text-violet-700";
 
   if (loading) return (
     <div className="flex items-center justify-center py-24">
@@ -268,14 +268,62 @@ export default function AccountSettingsPage() {
   );
 
   return (
-    <div className="max-w-2xl mx-auto px-8 py-10">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Account settings</h1>
-        <p className="text-slate-500 text-sm mt-1">Manage your general settings, security, preferences, and orders</p>
+    <div className="min-h-full px-4 pb-8 font-syne sm:px-6 md:px-8 md:pb-12">
+      <div className="pt-8 pb-6">
+        <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-start">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Account settings</h1>
+            <p className="mt-1 text-sm text-slate-500">Manage profile, security, brand preferences, and order history.</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <div className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold text-slate-600 shadow-sm sm:px-4">
+              <UserRound className="h-4 w-4 text-violet-500" />
+              {user?.full_name || "Account"}
+            </div>
+            <div className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold capitalize text-slate-600 shadow-sm sm:px-4">
+              <CreditCard className="h-4 w-4 text-emerald-500" />
+              {billingStatus?.plan ?? "free"}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 grid max-w-3xl grid-cols-1 gap-3 min-[520px]:grid-cols-3 sm:gap-4">
+          <div className="rounded-xl border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
+            <div className="mb-1 flex items-center gap-2">
+              <UserRound className="h-4 w-4 text-violet-500" />
+              <span className="text-xs font-medium text-slate-500">Profile</span>
+            </div>
+            <p className="truncate text-lg font-bold text-slate-900">{name || "Not set"}</p>
+            <p className="mt-0.5 truncate text-xs text-slate-400">{user?.email}</p>
+          </div>
+
+          <div className="rounded-xl border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
+            <div className="mb-1 flex items-center gap-2">
+              <Palette className="h-4 w-4 text-emerald-500" />
+              <span className="text-xs font-medium text-slate-500">Brand kit</span>
+            </div>
+            <p className="truncate text-lg font-bold text-slate-900">{brandKit.brand_name || "Default"}</p>
+            <p className="mt-0.5 text-xs text-slate-400">{brandKit.logo_url ? "logo uploaded" : "no logo yet"}</p>
+          </div>
+
+          <div className="rounded-xl border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
+            <div className="mb-1 flex items-center gap-2">
+              <Settings2 className="h-4 w-4 text-violet-500" />
+              <span className="text-xs font-medium text-slate-500">Preferences</span>
+            </div>
+            <p className="text-lg font-bold text-slate-900">
+              {Object.values(notifPrefs).filter(Boolean).length}/2 on
+            </p>
+            <p className="mt-0.5 text-xs text-slate-400">email notifications</p>
+          </div>
+        </div>
       </div>
 
-      <Tabs defaultValue="general" className="w-full">
-        <TabsList className="mb-6 grid h-auto w-full grid-cols-2 gap-2 bg-transparent p-0 sm:grid-cols-4">
+      <div className="mb-6 border-t border-slate-200" />
+
+      <Tabs defaultValue="general" className="w-full max-w-5xl">
+        <TabsList className="mb-6 grid h-auto w-full grid-cols-2 gap-2 bg-transparent p-0 sm:grid-cols-4 lg:max-w-3xl">
           <TabsTrigger value="general" className={tabTriggerCls}>
             General
           </TabsTrigger>
