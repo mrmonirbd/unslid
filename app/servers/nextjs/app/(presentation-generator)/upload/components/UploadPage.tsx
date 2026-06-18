@@ -4,7 +4,6 @@
  * This component handles the presentation generation upload process, allowing users to:
  * - Configure presentation settings (slides, language)
  * - Input prompts
- * - Upload supporting documents
  * 
  * @component
  */
@@ -16,13 +15,11 @@ import { useDispatch } from "react-redux";
 import { clearOutlines, setPresentationId } from "@/store/slices/presentationGeneration";
 import { PromptInput } from "./PromptInput";
 import { LanguageType, PresentationConfig, ToneType, VerbosityType } from "../type";
-import SupportingDoc from "./SupportingDoc";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, FileText, GalleryVertical, Settings2, Sparkles, UploadCloud, Zap } from "lucide-react";
+import { ChevronRight, FileText, GalleryVertical, Settings2, Sparkles, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { PresentationGenerationApi } from "../../services/api/presentation-generation";
 import { OverlayLoader } from "@/components/ui/overlay-loader";
-import { setPptGenUploadState } from "@/store/slices/presentationGenUpload";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { ConfigurationSelects } from "./ConfigurationSelects";
 import { useUser } from "@/app/hooks/useUser";
@@ -54,7 +51,6 @@ const UploadPage = () => {
   const isFreePlan = (user?.plan ?? "free").toLowerCase() === "free";
 
   // State management
-  const [files, setFiles] = useState<File[]>([]);
   const [showFreeLimitDialog, setShowFreeLimitDialog] = useState(false);
   const [config, setConfig] = useState<PresentationConfig>({
     slides: "5",
@@ -93,7 +89,7 @@ const UploadPage = () => {
   };
 
   /**
-   * Validates the current configuration and files
+   * Validates the current configuration
    * @returns boolean indicating if the configuration is valid
    */
   const validateConfiguration = (): boolean => {
@@ -102,8 +98,8 @@ const UploadPage = () => {
       return false;
     }
 
-    if (!config.prompt.trim() && files.length === 0) {
-      toast.error("No Prompt or Document Provided");
+    if (!config.prompt.trim()) {
+      toast.error("Please provide a prompt");
       return false;
     }
 
@@ -133,52 +129,10 @@ const UploadPage = () => {
         return;
       }
 
-      const hasUploadedAssets = files.length > 0;
-
-      if (hasUploadedAssets) {
-        await handleDocumentProcessing();
-      } else {
-        await handleDirectPresentationGeneration();
-      }
+      await handleDirectPresentationGeneration();
     } catch (error) {
       handleGenerationError(error);
     }
-  };
-
-  /**
-   * Handles document processing
-   */
-  const handleDocumentProcessing = async () => {
-    setLoadingState({
-      isLoading: true,
-      message: "Processing documents...",
-      showProgress: true,
-      duration: 90,
-      extra_info: files.length > 0 ? "It might take a few minutes for large documents." : "",
-    });
-
-    let documents = [];
-
-    if (files.length > 0) {
-      trackEvent(MixpanelEvent.Upload_Upload_Documents_API_Call);
-      const uploadResponse = await PresentationGenerationApi.uploadDoc(files);
-      documents = uploadResponse;
-    }
-
-    const promises: Promise<any>[] = [];
-
-    if (documents.length > 0) {
-      trackEvent(MixpanelEvent.Upload_Decompose_Documents_API_Call);
-      promises.push(PresentationGenerationApi.decomposeDocuments(documents));
-    }
-    const responses = await Promise.all(promises);
-    dispatch(setPptGenUploadState({
-      config,
-      files: responses,
-    }));
-    dispatch(clearOutlines())
-    trackEvent(MixpanelEvent.Navigation, { from: pathname, to: "/documents-preview" });
-    router.push("/documents-preview");
   };
 
   /**
@@ -292,7 +246,7 @@ const UploadPage = () => {
               Create presentation
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              Start from a prompt, supporting files, or both.
+              Start from a prompt and configure how the deck should be generated.
             </p>
           </div>
 
@@ -303,12 +257,12 @@ const UploadPage = () => {
             </div>
             <div className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold text-slate-600 shadow-sm sm:px-4">
               <Sparkles className="h-4 w-4 text-emerald-500" />
-              {files.length > 0 ? `${files.length} file${files.length > 1 ? "s" : ""}` : "Prompt mode"}
+              Prompt mode
             </div>
           </div>
         </div>
 
-        <div className="mt-6 grid max-w-3xl grid-cols-1 gap-3 min-[520px]:grid-cols-3 sm:gap-4">
+        <div className="mt-6 grid max-w-2xl grid-cols-1 gap-3 min-[520px]:grid-cols-2 sm:gap-4">
           <div className="rounded-xl border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
             <div className="mb-1 flex items-center gap-2">
               <FileText className="h-4 w-4 text-violet-500" />
@@ -316,15 +270,6 @@ const UploadPage = () => {
             </div>
             <p className="text-lg font-bold text-slate-900">Prompt</p>
             <p className="mt-0.5 text-xs text-slate-400">Idea or full brief</p>
-          </div>
-
-          <div className="rounded-xl border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
-            <div className="mb-1 flex items-center gap-2">
-              <UploadCloud className="h-4 w-4 text-emerald-500" />
-              <span className="text-xs font-medium text-slate-500">Sources</span>
-            </div>
-            <p className="text-lg font-bold text-slate-900">{files.length || "None"}</p>
-            <p className="mt-0.5 text-xs text-slate-400">optional attachments</p>
           </div>
 
           <div className="rounded-xl border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
@@ -353,34 +298,21 @@ const UploadPage = () => {
           />
         </div>
 
-        <div className="grid gap-0 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-          <div className="border-b border-slate-200 p-4 md:p-5 lg:border-b-0 lg:border-r">
+        <div>
+          <div className="p-4 md:p-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold text-slate-700">Content brief</h3>
                 <p className="mt-1 text-xs text-slate-400">Describe the story, audience, and outcome.</p>
               </div>
               <span className="hidden rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 sm:inline-flex">
-                Required without files
+                Required
               </span>
             </div>
             <PromptInput
               value={config.prompt}
               onChange={(value) => handleConfigChange("prompt", value)}
               data-testid="prompt-input"
-            />
-          </div>
-
-          <div className="p-4 md:p-5">
-            <div className="mb-3">
-              <h3 className="text-sm font-semibold text-slate-700">Attachments</h3>
-              <p className="mt-1 text-xs text-slate-400">Add source documents when the deck should follow existing material.</p>
-            </div>
-
-            <SupportingDoc
-              files={[...files]}
-              onFilesChange={setFiles}
-              data-testid="file-upload-input"
             />
           </div>
         </div>
