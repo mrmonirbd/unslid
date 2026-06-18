@@ -7,7 +7,7 @@ const CreateCustomTemplate = () => {
     return (
         <div
             onClick={() => {
-                router.push('/custom-template')
+                router.push('/upload')
             }}
             className='relative h-[280px] w-full overflow-hidden rounded-lg border border-[#EDEEEF] cursor-pointer font-syne bg-white'>
             <div className='relative h-[210px] flex justify-center items-center '>
