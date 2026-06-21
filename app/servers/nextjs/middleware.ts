@@ -7,6 +7,7 @@ const PUBLIC_ROUTES = [
   "/reset-password",
   "/auth/callback",
   "/google062401a5f7c9cb81.html",
+  "/sitemap.xml",
 ];
 
 const PUBLIC_PREFIXES = [
