@@ -6,6 +6,7 @@ const PUBLIC_ROUTES = [
   "/forgot-password",
   "/reset-password",
   "/auth/callback",
+  "/google062401a5f7c9cb81.html",
 ];
 
 const PUBLIC_PREFIXES = [
