@@ -15,6 +15,58 @@ from models.sql.plan_ai_config import PlanAIConfig
 from utils.crypto import decrypt_value, encrypt_value
 
 PLANS = ["free", "pro", "team"]
+VALID_IMAGE_PROVIDERS = {
+    "pexels",
+    "pixabay",
+    "dall-e-3",
+    "gpt-image-1.5",
+    "gemini_flash",
+    "nanobanana_pro",
+    "comfyui",
+    "none",
+}
+
+
+def _clean_env_value(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    cleaned = value.strip().strip("'\"")
+    return cleaned or None
+
+
+def _default_image_provider() -> str:
+    provider = _clean_env_value(os.getenv("IMAGE_PROVIDER"))
+    aliases = {
+        "ai": "gpt-image-1.5",
+        "openai": "gpt-image-1.5",
+        "dalle": "dall-e-3",
+        "dall-e": "dall-e-3",
+        "gpt_image_1_5": "gpt-image-1.5",
+        "google": "gemini_flash",
+    }
+    provider = aliases.get(provider or "", provider)
+    if provider in VALID_IMAGE_PROVIDERS:
+        return provider
+    if os.getenv("OPENAI_API_KEY"):
+        return "gpt-image-1.5"
+    if os.getenv("GOOGLE_API_KEY"):
+        return "gemini_flash"
+    if os.getenv("PEXELS_API_KEY"):
+        return "pexels"
+    if os.getenv("PIXABAY_API_KEY"):
+        return "pixabay"
+    return "none"
+
+
+def _default_image_api_key(provider: str) -> str:
+    return {
+        "dall-e-3": os.getenv("OPENAI_API_KEY", ""),
+        "gpt-image-1.5": os.getenv("OPENAI_API_KEY", ""),
+        "gemini_flash": os.getenv("GOOGLE_API_KEY", ""),
+        "nanobanana_pro": os.getenv("GOOGLE_API_KEY", ""),
+        "pexels": os.getenv("PEXELS_API_KEY", ""),
+        "pixabay": os.getenv("PIXABAY_API_KEY", ""),
+    }.get(provider, "")
 
 # Default config seeded on first startup (falls back to env vars)
 DEFAULT_CONFIGS = {
@@ -22,27 +74,27 @@ DEFAULT_CONFIGS = {
         "llm_provider": os.getenv("LLM", "openai"),
         "llm_model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
         "llm_api_key": os.getenv("OPENAI_API_KEY", ""),
-        "image_provider": os.getenv("IMAGE_PROVIDER", "pexels"),
+        "image_provider": _default_image_provider(),
         "image_model": None,
-        "image_api_key": os.getenv("PEXELS_API_KEY", ""),
+        "image_api_key": _default_image_api_key(_default_image_provider()),
         "llm_base_url": None,
     },
     "pro": {
         "llm_provider": os.getenv("LLM", "openai"),
         "llm_model": os.getenv("OPENAI_MODEL", "gpt-4.1"),
         "llm_api_key": os.getenv("OPENAI_API_KEY", ""),
-        "image_provider": os.getenv("IMAGE_PROVIDER", "pexels"),
+        "image_provider": _default_image_provider(),
         "image_model": None,
-        "image_api_key": os.getenv("PEXELS_API_KEY", ""),
+        "image_api_key": _default_image_api_key(_default_image_provider()),
         "llm_base_url": None,
     },
     "team": {
         "llm_provider": os.getenv("LLM", "openai"),
         "llm_model": os.getenv("OPENAI_MODEL", "gpt-4.1"),
         "llm_api_key": os.getenv("OPENAI_API_KEY", ""),
-        "image_provider": os.getenv("IMAGE_PROVIDER", "pexels"),
+        "image_provider": _default_image_provider(),
         "image_model": None,
-        "image_api_key": os.getenv("PEXELS_API_KEY", ""),
+        "image_api_key": _default_image_api_key(_default_image_provider()),
         "llm_base_url": None,
     },
 }

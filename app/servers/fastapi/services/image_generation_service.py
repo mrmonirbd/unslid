@@ -143,6 +143,11 @@ class ImageGenerationService:
                     )
             raise Exception(f"Image not found at {image_path}")
 
+        except HTTPException as e:
+            print(f"Error generating image: {e.detail}")
+            if self.raise_on_failure:
+                raise
+            return _placeholder_image_path(self.output_directory)
         except Exception as e:
             print(f"Error generating image: {e}")
             if self.raise_on_failure:
@@ -234,23 +239,81 @@ class ImageGenerationService:
 
     async def get_image_from_pexels(self, prompt: str) -> str:
         api_key = get_plan_config_value("PEXELS_API_KEY", get_pexels_api_key_env())
+        if not api_key:
+            raise HTTPException(
+                status_code=400,
+                detail="Pexels image provider is selected but PEXELS_API_KEY is not configured.",
+            )
+
         async with aiohttp.ClientSession(trust_env=True) as session:
             response = await session.get(
-                f"https://api.pexels.com/v1/search?query={prompt}&per_page=1",
+                "https://api.pexels.com/v1/search",
+                params={"query": prompt, "per_page": 1},
                 headers={"Authorization": f"{api_key}"},
             )
+            if response.status != 200:
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        "Pexels image provider failed. Check PEXELS_API_KEY "
+                        "or switch IMAGE_PROVIDER to gpt-image-1.5."
+                    ),
+                )
             data = await response.json()
-            image_url = data["photos"][0]["src"]["large"]
+            photos = data.get("photos") if isinstance(data, dict) else None
+            if not photos:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Pexels returned no image for this prompt.",
+                )
+            src = photos[0].get("src", {})
+            image_url = src.get("large") or src.get("original") or src.get("medium")
+            if not image_url:
+                raise HTTPException(
+                    status_code=502,
+                    detail="Pexels response did not include an image URL.",
+                )
             return image_url
 
     async def get_image_from_pixabay(self, prompt: str) -> str:
         api_key = get_plan_config_value("PIXABAY_API_KEY", get_pixabay_api_key_env())
+        if not api_key:
+            raise HTTPException(
+                status_code=400,
+                detail="Pixabay image provider is selected but PIXABAY_API_KEY is not configured.",
+            )
+
         async with aiohttp.ClientSession(trust_env=True) as session:
             response = await session.get(
-                f"https://pixabay.com/api/?key={api_key}&q={prompt}&image_type=photo&per_page=3"
+                "https://pixabay.com/api/",
+                params={
+                    "key": api_key,
+                    "q": prompt,
+                    "image_type": "photo",
+                    "per_page": 3,
+                },
             )
+            if response.status != 200:
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        "Pixabay image provider failed. Check PIXABAY_API_KEY "
+                        "or switch IMAGE_PROVIDER to gpt-image-1.5."
+                    ),
+                )
             data = await response.json()
-            image_url = data["hits"][0]["largeImageURL"]
+            hits = data.get("hits") if isinstance(data, dict) else None
+            if not hits:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Pixabay returned no image for this prompt.",
+                )
+            image_url = hits[0].get("largeImageURL") or hits[0].get("webformatURL")
+            if not image_url:
+                raise HTTPException(
+                    status_code=502,
+                    detail="Pixabay response did not include an image URL.",
+                )
             return image_url
 
     async def generate_image_comfyui(self, prompt: str, output_directory: str) -> str:
