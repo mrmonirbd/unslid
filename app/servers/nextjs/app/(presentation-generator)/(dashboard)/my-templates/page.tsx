@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, ArrowUpRight, Loader2, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -10,6 +10,7 @@ import { CustomTemplates, useCustomTemplatePreview, useCustomTemplateSummaries }
 import { CompiledLayout } from "@/app/hooks/compileLayout";
 import TemplateService from "../../services/api/template";
 import CreateCustomTemplate from "../templates/components/CreateCustomTemplate";
+import { withIframeSearch } from "../Components/IframeAwareShell";
 
 const PREVIEW_SCALE_STYLE = { width: "833.33%", height: "833.33%" };
 const PLACEHOLDERS = [0, 1, 2, 3];
@@ -31,11 +32,12 @@ function TemplateCard({
   onDeleted: () => void;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { previewLayouts, loading, totalLayouts } = useCustomTemplatePreview(template.id);
   const [deleting, setDeleting] = useState(false);
 
   const handleOpen = () => {
-    router.push(`/template-preview/${openTemplateId(template.id)}`);
+    router.push(withIframeSearch(`/template-preview/${openTemplateId(template.id)}`, searchParams));
   };
 
   const handleDelete = async (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -130,6 +132,7 @@ function TemplateCard({
 
 export default function MyTemplatesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { templates, loading, error, refetch } = useCustomTemplateSummaries();
   const [query, setQuery] = useState("");
 
@@ -167,7 +170,7 @@ export default function MyTemplatesPage() {
             <h2 className="text-2xl font-bold tracking-[-0.01em]">Create your custom designs</h2>
             <button
               type="button"
-              onClick={() => router.push("/custom-template")}
+              onClick={() => router.push(withIframeSearch("/custom-template", searchParams))}
               className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50"
               aria-label="Create template"
             >
@@ -204,7 +207,7 @@ export default function MyTemplatesPage() {
             {!query && (
               <button
                 type="button"
-                onClick={() => router.push("/custom-template")}
+                onClick={() => router.push(withIframeSearch("/custom-template", searchParams))}
                 className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-full bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
                 <Plus className="h-4 w-4" />

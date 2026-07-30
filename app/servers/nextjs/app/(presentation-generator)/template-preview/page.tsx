@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { ExternalLink, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ import {
   CustomTemplates,
 } from "@/app/hooks/useCustomTemplates";
 import { CompiledLayout } from "@/app/hooks/compileLayout";
-import DashboardSidebar from "../(dashboard)/Components/DashboardSidebar";
+import { IframeAwareShell, withIframeSearch } from "../(dashboard)/Components/IframeAwareShell";
 import TemplateService from "../services/api/template";
 
 // Component for rendering custom template card with lazy-loaded previews
@@ -26,14 +26,15 @@ const CustomTemplateCard = ({
   onDeleted: () => void;
 }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { previewLayouts, loading, totalLayouts } = useCustomTemplatePreview(template.id);
   const [deleting, setDeleting] = useState(false);
 
   const handleNavigate = () => {
     if (template.id.startsWith('custom-')) {
-      router.push(`/template-preview/${template.id}`);
+      router.push(withIframeSearch(`/template-preview/${template.id}`, searchParams));
     } else {
-      router.push(`/template-preview/custom-${template.id}`);
+      router.push(withIframeSearch(`/template-preview/custom-${template.id}`, searchParams));
     }
   }
 
@@ -147,6 +148,7 @@ const CustomTemplateCard = ({
 
 const LayoutPreview = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { templates: customTemplates, loading: customLoading, refetch: refetchCustomTemplates } = useCustomTemplateSummaries();
   useEffect(() => {
     const existingScript = document.querySelector('script[src*="tailwindcss.com"]');
@@ -162,8 +164,12 @@ const LayoutPreview = () => {
   const totalCustomLayouts = customTemplates.reduce((acc: number, t: CustomTemplates) => acc + t.layoutCount, 0);
 
   return (
-    <div className="flex h-dvh flex-col-reverse overflow-hidden bg-gray-50 md:flex-row">
-      <DashboardSidebar />
+    <IframeAwareShell
+      normalSidebar="start"
+      showFooter={false}
+      contentClassName="min-h-0 min-w-0 flex-1 overflow-y-auto md:h-screen"
+      iframeContentClassName="min-h-0 min-w-0 flex-1 overflow-y-auto"
+    >
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto md:h-screen">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <div className="text-center mb-8">
@@ -185,7 +191,7 @@ const LayoutPreview = () => {
                 <Card
                   key={template.id}
                   className="cursor-pointer hover:shadow-lg transition-all duration-200 group overflow-hidden"
-                  onClick={() => router.push(`/template-preview/${getTemplateRouteId(template)}`)}
+                  onClick={() => router.push(withIframeSearch(`/template-preview/${getTemplateRouteId(template)}`, searchParams))}
                 >
                   <div className="p-5">
                     <div className="flex items-center justify-between mb-2">
@@ -237,7 +243,7 @@ const LayoutPreview = () => {
             <h2 className="text-xl font-semibold text-gray-800 ">
               My Custom Templates
             </h2>
-            <a href="/custom-template" className="text-sm flex font-bold font-inter items-center justify-center gap-2  bg-[#5146E5] text-white px-4 py-2 rounded-md">
+            <a href={withIframeSearch("/custom-template", searchParams)} className="text-sm flex font-bold font-inter items-center justify-center gap-2  bg-[#5146E5] text-white px-4 py-2 rounded-md">
               <Plus className="w-4 h-4" /> Create new template
             </a>
           </div>
@@ -268,7 +274,7 @@ const LayoutPreview = () => {
         </section>
         </div>
       </div>
-    </div>
+    </IframeAwareShell>
   );
 };
 

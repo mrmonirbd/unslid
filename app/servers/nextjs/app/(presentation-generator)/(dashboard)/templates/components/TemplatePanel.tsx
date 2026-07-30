@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import {
     ArrowRight,
@@ -23,6 +23,7 @@ import { CompiledLayout } from "@/app/hooks/compileLayout";
 import CreateCustomTemplate from "./CreateCustomTemplate";
 import { api, BillingStatus, UserProfile } from "@/lib/api";
 import { useUser } from "@/app/hooks/useUser";
+import { withIframeSearch } from "../../Components/IframeAwareShell";
 import {
     Dialog,
     DialogContent,
@@ -193,6 +194,7 @@ const PricingModal = ({
     onOpenChange: (open: boolean) => void;
 }) => {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [pricing, setPricing] = useState(DEFAULT_PLAN_PRICING);
     const [loading, setLoading] = useState(false);
 
@@ -219,7 +221,7 @@ const PricingModal = ({
 
     const handleUpgrade = () => {
         onOpenChange(false);
-        router.push("/settings/billing");
+        router.push(withIframeSearch("/settings/billing", searchParams));
     };
 
     return (
@@ -436,17 +438,18 @@ function useSavedStaticLayoutHtml(userKey: string, templateId: string, layouts: 
 // Component for rendering custom template card with lazy-loaded previews
 export const CustomTemplateCard = React.memo(function CustomTemplateCard({ template }: { template: CustomTemplates }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const cardRef = useRef<HTMLDivElement>(null);
     const shouldLoadPreview = useInViewport(cardRef);
     const { previewLayouts, loading } = useCustomTemplatePreview(`${template.id}`, shouldLoadPreview);
     const handleOpen = useCallback(() => {
         if (template.id.startsWith('custom-')) {
-            router.push(`/template-preview/${template.id}`)
+            router.push(withIframeSearch(`/template-preview/${template.id}`, searchParams))
         } else {
-            router.push(`/template-preview/custom-${template.id}`)
+            router.push(withIframeSearch(`/template-preview/custom-${template.id}`, searchParams))
         }
     }
-        , [router, template.id]);
+        , [router, searchParams, template.id]);
 
     return (
         <Card
@@ -651,6 +654,7 @@ const EditedStaticTemplateCard = React.memo(function EditedStaticTemplateCard({
     userKey: string;
 }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const sourceLayouts = useMemo(() => sourceTemplate?.layouts ?? [], [sourceTemplate?.layouts]);
     const savedLayoutHtml = useSavedStaticLayoutHtml(userKey, template.templateId, sourceLayouts);
     const previewRouteId = sourceTemplate ? getTemplateRouteId(sourceTemplate) : template.templateId;
@@ -670,7 +674,7 @@ const EditedStaticTemplateCard = React.memo(function EditedStaticTemplateCard({
     return (
         <Card
             className={CARD_CLASS}
-            onClick={() => router.push(`/template-preview/${previewRouteId}`)}
+            onClick={() => router.push(withIframeSearch(`/template-preview/${previewRouteId}`, searchParams))}
         >
             <img src="/card_bg.svg" alt="" className={CARD_BACKGROUND_CLASS} />
             <div className="p-4 pb-0">
@@ -744,13 +748,14 @@ const DesignerTemplateCard = React.memo(function DesignerTemplateCard({
     onLockedOpen: () => void;
 }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const handleClick = useCallback(() => {
         if (template.locked) {
             onLockedOpen();
             return;
         }
-        router.push(`/template-preview/designer-${template.id}`);
-    }, [onLockedOpen, router, template.id, template.locked]);
+        router.push(withIframeSearch(`/template-preview/designer-${template.id}`, searchParams));
+    }, [onLockedOpen, router, searchParams, template.id, template.locked]);
 
     return (
         <Card
@@ -821,6 +826,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
     const [activeTag, setActiveTag] = useState<string | null>(null);
     const [pricingModalOpen, setPricingModalOpen] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { isLocked } = useTemplateTiers();
     const { user } = useUser();
     const userKey = String(user?.id || user?.email || "guest");
@@ -933,8 +939,8 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
         (isUserGeneratedOnly ? 0 : filteredInbuiltTemplates.length + filteredDesignerTemplates.length);
 
     const handleOpenPreview = useCallback((template: TemplateLayoutsWithSettings) => {
-        router.push(`/template-preview/${getTemplateRouteId(template)}`);
-    }, [router]);
+        router.push(withIframeSearch(`/template-preview/${getTemplateRouteId(template)}`, searchParams));
+    }, [router, searchParams]);
 
     const handleLockedTemplateOpen = useCallback(() => {
         setPricingModalOpen(true);
@@ -1046,7 +1052,7 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
                     <section className="mt-8">
                         <div className="mb-4 flex items-center justify-between">
                             <h2 className="text-2xl font-bold tracking-[-0.01em]">Create your custom designs</h2>
-                            <a href="/custom-template" className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50" aria-label="Create template">
+                            <a href={withIframeSearch("/custom-template", searchParams)} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50" aria-label="Create template">
                                 <ArrowRight className="h-4 w-4" />
                             </a>
                         </div>

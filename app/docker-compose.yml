@@ -93,6 +93,10 @@ services:
       - LLM=openai
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - LLM_PROVIDER=openai
+      - IFRAME_CRM_VALIDATE_URL=${IFRAME_CRM_VALIDATE_URL}
+      - IFRAME_CRM_BASE_URL=${IFRAME_CRM_BASE_URL}
+      - IFRAME_CRM_AUTH_TOKEN=${IFRAME_CRM_AUTH_TOKEN}
+      - IFRAME_CRM_API_KEY=${IFRAME_CRM_API_KEY}
     volumes:
       - app_data:/app_data
       - /run/user/1000/ollama/ollama.sock:/tmp/ollama.sock
@@ -174,6 +178,7 @@ services:
       # Directories for export temp files; /tmp is always writable
       - TEMP_DIRECTORY=/tmp/presenton
       - APP_DATA_DIRECTORY=/app_data
+      - IFRAME_FRAME_ANCESTORS=${IFRAME_FRAME_ANCESTORS:-}
     volumes:
       - ./servers/nextjs:/app          # mount source for hot reload
       - nextjs_nm:/app/node_modules    # keep container's node_modules intact

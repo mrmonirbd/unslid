@@ -1,6 +1,12 @@
 const TOKEN_KEY = "unslid_access_token";
 const COOKIE_NAME = "unslid_access_token";
 
+declare global {
+  interface Window {
+    __UNSLID_ACCESS_TOKEN?: string;
+  }
+}
+
 type AuthResponse<T = unknown> = Promise<{ data: T; error: { message: string } | null }>;
 type LocalUser = {
   id: string;
@@ -15,17 +21,44 @@ type LocalUser = {
 };
 
 function setToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token);
+  window.__UNSLID_ACCESS_TOKEN = token;
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    // Some embedded browsers restrict storage. The in-memory token still works for this page.
+  }
   document.cookie = `${COOKIE_NAME}=${encodeURIComponent(token)}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
 }
 
 function clearToken() {
-  localStorage.removeItem(TOKEN_KEY);
+  window.__UNSLID_ACCESS_TOKEN = undefined;
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Ignore restricted storage in embedded contexts.
+  }
   document.cookie = `${COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
 }
 
 function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  if (typeof window === "undefined") return null;
+
+  const params = new URLSearchParams(window.location.search);
+  const iframeToken = params.get("iframeToken");
+  if (iframeToken) {
+    setToken(iframeToken);
+    params.delete("iframeToken");
+    const nextSearch = params.toString();
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
+    window.history.replaceState(null, "", nextUrl);
+    return iframeToken;
+  }
+
+  try {
+    return window.__UNSLID_ACCESS_TOKEN || localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return window.__UNSLID_ACCESS_TOKEN || null;
+  }
 }
 
 async function authRequest(path: string, body: unknown, storeSession = true) {

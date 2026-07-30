@@ -95,6 +95,10 @@ services:
       - RESEND_API_KEY=${RESEND_API_KEY}
       - EMAIL_FROM=${EMAIL_FROM}
       - SENTRY_DSN=${SENTRY_DSN_FASTAPI}
+      - IFRAME_CRM_VALIDATE_URL=${IFRAME_CRM_VALIDATE_URL}
+      - IFRAME_CRM_BASE_URL=${IFRAME_CRM_BASE_URL}
+      - IFRAME_CRM_AUTH_TOKEN=${IFRAME_CRM_AUTH_TOKEN}
+      - IFRAME_CRM_API_KEY=${IFRAME_CRM_API_KEY}
     volumes:
       - app_data:/app_data
       - fastapi_chroma:/app/chroma
@@ -176,6 +180,7 @@ services:
         - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
         - NEXT_PUBLIC_LEGAL_DOMAIN=${NEXT_PUBLIC_LEGAL_DOMAIN}
         - NEXT_PUBLIC_GA_MEASUREMENT_ID=${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+        - IFRAME_FRAME_ANCESTORS=${IFRAME_FRAME_ANCESTORS:-}
     image: aipresentation-nextjs:latest
     container_name: nextjs
     restart: unless-stopped
@@ -192,6 +197,7 @@ services:
       - NEXT_PUBLIC_GA_MEASUREMENT_ID=${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
       - TEMP_DIRECTORY=/tmp/presenton
       - APP_DATA_DIRECTORY=/app_data
+      - IFRAME_FRAME_ANCESTORS=${IFRAME_FRAME_ANCESTORS:-}
     volumes:
       - app_data:/app_data
     networks:
@@ -270,6 +276,4 @@ volumes:
 networks:
   app-network:
     driver: bridge
-
-
 

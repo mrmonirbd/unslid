@@ -7,7 +7,7 @@ import PresentationMode from "./PresentationMode";
 import SidePanel from "./SidePanel";
 import SlideContent from "./SlideContent";
 import { Button } from "@/components/ui/button";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { AlertCircle } from "lucide-react";
 import {
@@ -26,6 +26,7 @@ import { useCollaboration } from "../hooks/useCollaboration";
 import ToolTip from "@/components/ToolTip";
 import { loadFonts } from "../../hooks/useFontLoad";
 import DashboardSidebar from "../../(dashboard)/Components/DashboardSidebar";
+import { IframeAwareShell } from "../../(dashboard)/Components/IframeAwareShell";
 
 const applyThemeToSlidesWrapper = (theme: any) => {
   const element = document.getElementById("presentation-slides-wrapper");
@@ -93,6 +94,8 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   presentation_id,
 }) => {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isIframe = searchParams.get("iframe") === "1";
   // State management
   const [loading, setLoading] = useState(true);
   const [selectedSlide, setSelectedSlide] = useState(0);
@@ -203,6 +206,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
   }
 
   return (
+  <IframeAwareShell normalSidebar="none" showFooter={false} iframeContentClassName="min-h-0 flex-1 overflow-y-auto bg-white">
   <div className="min-h-dvh bg-white font-syne md:h-screen md:overflow-y-auto">
         <div
         style={{
@@ -210,7 +214,7 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
         }}
         className="relative flex min-h-dvh flex-col gap-0 md:h-screen md:min-h-0 md:flex-row md:gap-6"
       >
-        <DashboardSidebar />
+        {!isIframe && <DashboardSidebar />}
         <div className="w-full md:w-[200px] md:shrink-0">
           <SidePanel
             selectedSlide={selectedSlide}
@@ -288,8 +292,9 @@ const PresentationPage: React.FC<PresentationPageProps> = ({
             </div>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+  </IframeAwareShell>
   );
 };
 

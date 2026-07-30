@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDispatch } from "react-redux";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import html2canvas from "html2canvas";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import TemplateService from "../../services/api/template";
 import { PresentationGenerationApi } from "../../services/api/presentation-generation";
-import DashboardSidebar from "../../(dashboard)/Components/DashboardSidebar";
+import { IframeAwareShell, withIframeSearch } from "../../(dashboard)/Components/IframeAwareShell";
 import { toast } from "sonner";
 import {
   CustomTemplateDetail,
@@ -412,12 +412,14 @@ function ResponsivePreviewFrame({
 
 function TemplatePreviewShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-dvh flex-col-reverse overflow-hidden bg-gray-50 md:flex-row">
-      <DashboardSidebar />
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto md:h-screen">
-        {children}
-      </div>
-    </div>
+    <IframeAwareShell
+      normalSidebar="start"
+      showFooter={false}
+      contentClassName="min-h-0 min-w-0 flex-1 overflow-y-auto md:h-screen"
+      iframeContentClassName="min-h-0 min-w-0 flex-1 overflow-y-auto"
+    >
+      {children}
+    </IframeAwareShell>
   );
 }
 
@@ -1835,6 +1837,7 @@ const GroupLayoutPreview = () => {
   const params = useParams();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const dispatch = useDispatch();
 
   const templateParams = params.slug as string;
@@ -1974,7 +1977,7 @@ const GroupLayoutPreview = () => {
 
   useEffect(() => {
     if (!isCustom && !isDesigner && staticGroup?.slug && templateParams === staticGroup.id) {
-      router.replace(`/template-preview/${staticGroup.slug}`);
+      router.replace(withIframeSearch(`/template-preview/${staticGroup.slug}`, searchParams));
     }
   }, [isCustom, isDesigner, router, staticGroup?.id, staticGroup?.slug, templateParams]);
 
@@ -2049,7 +2052,7 @@ const GroupLayoutPreview = () => {
           return;
         }
         if (found.locked) {
-          router.push("/settings/billing");
+          router.push(withIframeSearch("/settings/billing", searchParams));
           return;
         }
         setDesignerTemplate(found);
@@ -2086,7 +2089,7 @@ const GroupLayoutPreview = () => {
       const result = await TemplateService.deleteCustomTemplate(customTemplateId);
       if (result?.success) {
         toast.success("Template deleted successfully");
-        router.push("/template-preview");
+        router.push(withIframeSearch("/template-preview", searchParams));
       } else {
         toast.error("Failed to delete template");
       }
@@ -2322,7 +2325,7 @@ const GroupLayoutPreview = () => {
 
       dispatch(clearPresentationData());
       toast.success("Presentation started");
-      router.replace(`/presentation?id=${presentationId}&stream=true&type=standard`);
+      router.replace(withIframeSearch(`/presentation?id=${presentationId}&stream=true&type=standard`, searchParams));
     } catch (error: any) {
       if (generationRequestIdRef.current !== requestId) return;
       console.error("Template AI generation failed", error);
@@ -2438,7 +2441,7 @@ const GroupLayoutPreview = () => {
         <div className="flex flex-col items-center justify-center py-24">
           <h2 className="text-2xl font-bold text-red-600 mb-4">Error loading template</h2>
           <p className="text-gray-600 mb-4">{customError}</p>
-          <Button onClick={() => router.push("/template-preview")}>
+          <Button onClick={() => router.push(withIframeSearch("/template-preview", searchParams))}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Templates
           </Button>
@@ -2453,7 +2456,7 @@ const GroupLayoutPreview = () => {
         <div className="flex flex-col items-center justify-center py-24">
           <h2 className="text-2xl font-bold text-red-600 mb-4">Error loading template</h2>
           <p className="text-gray-600 mb-4">{designerError}</p>
-          <Button onClick={() => router.push("/template-preview")}>
+          <Button onClick={() => router.push(withIframeSearch("/template-preview", searchParams))}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Templates
           </Button>
@@ -2473,7 +2476,7 @@ const GroupLayoutPreview = () => {
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             Template not found
           </h2>
-          <Button onClick={() => router.push("/template-preview")}>
+          <Button onClick={() => router.push(withIframeSearch("/template-preview", searchParams))}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Templates
           </Button>
@@ -2557,7 +2560,7 @@ const GroupLayoutPreview = () => {
                 size="sm"
                 onClick={() => {
                   trackEvent(MixpanelEvent.TemplatePreview_All_Groups_Button_Clicked, { pathname });
-                  router.push("/template-preview");
+                  router.push(withIframeSearch("/template-preview", searchParams));
                 }}
                 className="flex items-center gap-2"
               >

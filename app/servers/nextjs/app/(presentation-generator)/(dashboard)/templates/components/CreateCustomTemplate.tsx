@@ -1,13 +1,15 @@
 import { Plus, Sparkles } from 'lucide-react'
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import React from 'react'
+import { withIframeSearch } from '../../Components/IframeAwareShell';
 
 const CreateCustomTemplate = () => {
     const router = useRouter();
+    const searchParams = useSearchParams();
     return (
         <div
             onClick={() => {
-                router.push('/upload')
+                router.push(withIframeSearch('/custom-template', searchParams))
             }}
             className='relative h-[280px] w-full overflow-hidden rounded-lg border border-[#EDEEEF] cursor-pointer font-syne bg-white'>
             <div className='relative h-[210px] flex justify-center items-center '>

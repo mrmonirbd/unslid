@@ -1,12 +1,16 @@
 "use client";
 
 import { onlinePresentationServiceDecks } from "@/app/presentation-decks/onlinePresentationServiceDecks";
-import DashboardSidebar from "../(dashboard)/Components/DashboardSidebar";
+import { IframeAwareShell } from "../(dashboard)/Components/IframeAwareShell";
 
 export default function ServiceDecksPage() {
   return (
-    <div className="flex h-dvh flex-col-reverse overflow-hidden bg-slate-50 md:flex-row">
-      <DashboardSidebar />
+    <IframeAwareShell
+      normalSidebar="start"
+      showFooter={false}
+      contentClassName="min-h-0 min-w-0 flex-1 overflow-y-auto"
+      iframeContentClassName="min-h-0 min-w-0 flex-1 overflow-y-auto"
+    >
       <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
         <header className="sticky top-0 z-20 border-b bg-white px-4 py-6 sm:px-8">
           <h1 className="text-3xl font-bold text-slate-950">100 Ready Presentation Service Decks</h1>
@@ -59,6 +63,6 @@ export default function ServiceDecksPage() {
           ))}
         </div>
       </main>
-    </div>
+    </IframeAwareShell>
   );
 }

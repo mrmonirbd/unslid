@@ -12,7 +12,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Loader2, Save } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { withIframeSearch } from "../../(dashboard)/Components/IframeAwareShell";
 
 interface SaveLayoutModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export const SaveLayoutModal: React.FC<SaveLayoutModalProps> = ({
   isSaving,
 }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [layoutName, setLayoutName] = useState("");
   const [description, setDescription] = useState("");
 
@@ -38,7 +40,7 @@ export const SaveLayoutModal: React.FC<SaveLayoutModalProps> = ({
     const id = await onSave(layoutName.trim(), description.trim());
     if (id) {
       // Redirect to the new template preview page
-      router.push(`/template-preview/custom-${id}`);
+      router.push(withIframeSearch(`/template-preview/custom-${id}`, searchParams));
     }
     // Reset form after navigation decision
     setLayoutName("");
@@ -123,4 +125,4 @@ export const SaveLayoutModal: React.FC<SaveLayoutModalProps> = ({
       </DialogContent>
     </Dialog>
   );
-}; 
+};

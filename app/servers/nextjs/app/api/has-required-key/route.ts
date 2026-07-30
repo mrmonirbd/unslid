@@ -7,7 +7,7 @@ export async function GET() {
   // In SaaS mode (CAN_CHANGE_KEYS=false), the platform admin configures all
   // API keys centrally — users never need to enter their own. Always report
   // that keys are available so the presentation flow proceeds unblocked.
-  const canChangeKeys = process.env.CAN_CHANGE_KEYS !== "false";
+  const canChangeKeys = process.env.CAN_CHANGE_KEYS === "true";
   if (!canChangeKeys) {
     return NextResponse.json({ hasKey: true });
   }

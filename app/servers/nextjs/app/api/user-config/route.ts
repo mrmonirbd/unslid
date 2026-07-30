@@ -3,7 +3,7 @@ import fs from "fs";
 import { LLMConfig } from "@/types/llm_config";
 
 const userConfigPath = process.env.USER_CONFIG_PATH!;
-const canChangeKeys = process.env.CAN_CHANGE_KEYS !== "false";
+const canChangeKeys = process.env.CAN_CHANGE_KEYS === "true";
 
 export async function GET() {
   if (!canChangeKeys) {

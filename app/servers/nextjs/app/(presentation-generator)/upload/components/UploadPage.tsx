@@ -10,7 +10,7 @@
 
 "use client";
 import React, { useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDispatch } from "react-redux";
 import { clearOutlines, setPresentationId } from "@/store/slices/presentationGeneration";
 import { PromptInput } from "./PromptInput";
@@ -31,6 +31,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { checkPresentationGenerationLimit } from "../../utils/presentationLimit";
+import { withIframeSearch } from "@/app/(presentation-generator)/(dashboard)/Components/IframeAwareShell";
 
 // Types for loading state
 interface LoadingState {
@@ -46,6 +47,7 @@ const FREE_SLIDE_OPTIONS = new Set<string>(["5", "8"]);
 const UploadPage = () => {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const dispatch = useDispatch();
   const { user } = useUser();
   const isFreePlan = (user?.plan ?? "free").toLowerCase() === "free";
@@ -164,7 +166,7 @@ const UploadPage = () => {
 
     dispatch(setPresentationId(createResponse.id));
     dispatch(clearOutlines())
-    const outlineUrl = `/outline?id=${encodeURIComponent(createResponse.id)}`;
+    const outlineUrl = withIframeSearch(`/outline?id=${encodeURIComponent(createResponse.id)}`, searchParams);
     trackEvent(MixpanelEvent.Navigation, { from: pathname, to: outlineUrl });
     router.push(outlineUrl);
   };
@@ -209,7 +211,7 @@ const UploadPage = () => {
             <Button
               onClick={() => {
                 setShowFreeLimitDialog(false);
-                router.push("/dashboard");
+                router.push(withIframeSearch("/dashboard", searchParams));
               }}
               variant="outline"
               className="w-full flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-50"
@@ -220,7 +222,7 @@ const UploadPage = () => {
             <Button
               onClick={() => {
                 setShowFreeLimitDialog(false);
-                router.push("/settings/billing");
+                router.push(withIframeSearch("/settings/billing", searchParams));
               }}
               className="w-full flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white"
             >

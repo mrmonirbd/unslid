@@ -85,8 +85,10 @@ export function ConfigurationInitializer({ children }: { children: ReactNode }) 
   }, []);
 
   const setLoadingToFalseAfterNavigatingTo = (pathname: string) => {
+    let attempts = 0;
     const interval = setInterval(() => {
-      if (window.location.pathname === pathname) {
+      attempts += 1;
+      if (window.location.pathname === pathname || attempts >= 20) {
         clearInterval(interval);
         setIsLoading(false);
       }

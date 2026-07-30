@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useDispatch } from "react-redux";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { clearPresentationData } from "@/store/slices/presentationGeneration";
 import { PresentationGenerationApi } from "../../services/api/presentation-generation";
@@ -11,6 +11,7 @@ import { templates } from "@/app/presentation-templates";
 import { getCustomTemplateDetails } from "@/app/hooks/useCustomTemplates";
 import type { DesignerTemplateSelection } from "../components/TemplateSelection";
 import { api } from "@/lib/api";
+import { withIframeSearch } from "@/app/(presentation-generator)/(dashboard)/Components/IframeAwareShell";
 
 const DEFAULT_LOADING_STATE: LoadingState = {
   message: "",
@@ -81,6 +82,7 @@ export const usePresentationGeneration = (
 ) => {
   const dispatch = useDispatch();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loadingState, setLoadingState] = useState<LoadingState>(DEFAULT_LOADING_STATE);
 
   const validateInputs = useCallback(() => {
@@ -250,7 +252,7 @@ export const usePresentationGeneration = (
       if (response) {
         dispatch(clearPresentationData());
         clearTheme();
-        router.replace(`/presentation?id=${presentationId}&stream=true&type=standard`);
+        router.replace(withIframeSearch(`/presentation?id=${presentationId}&stream=true&type=standard`, searchParams));
       }
     } catch (error: any) {
       console.error('Error In Presentation Generation(prepare).', error);
@@ -260,7 +262,7 @@ export const usePresentationGeneration = (
     } finally {
       setLoadingState(DEFAULT_LOADING_STATE);
     }
-  }, [validateInputs, presentationId, outlines, dispatch, router, selectedTemplate]);
+  }, [validateInputs, presentationId, outlines, dispatch, router, searchParams, selectedTemplate]);
 
   return { loadingState, handleSubmit };
 }; 

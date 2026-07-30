@@ -48,6 +48,7 @@ from api.v1.webhook.router import API_V1_WEBHOOK_ROUTER
 from api.v1.mock.router import API_V1_MOCK_ROUTER
 from api.v1.jobs.router import JOBS_ROUTER
 from api.v1.billing.router import BILLING_ROUTER, WEBHOOK_ROUTER
+from api.v1.iframe import IFRAME_ROUTER
 from api.v1.account.router import ACCOUNT_ROUTER
 from api.v1.account.share_viewer import SHARE_VIEWER_ROUTER
 from api.v1.org.router import ORG_ROUTER
@@ -139,6 +140,7 @@ if os.getenv("ENVIRONMENT", "development") == "development":
 app.include_router(JOBS_ROUTER, prefix="/api/v1")
 app.include_router(BILLING_ROUTER, prefix="/api/v1")
 app.include_router(WEBHOOK_ROUTER, prefix="/api/v1")
+app.include_router(IFRAME_ROUTER, prefix="/api/v1")
 app.include_router(ACCOUNT_ROUTER, prefix="/api/v1")
 app.include_router(SHARE_VIEWER_ROUTER, prefix="/api/v1")
 app.include_router(ORG_ROUTER, prefix="/api/v1")
@@ -196,7 +198,7 @@ async def serve_private_image(
 app.mount("/app_data", StaticFiles(directory=str(_app_data_dir)), name="app-data")
 
 # Brand logo static files
-_logo_dir = pathlib.Path("/app_data/brand_logos")
+_logo_dir = _app_data_dir / "brand_logos"
 _logo_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/api/v1/brand-logo", StaticFiles(directory=str(_logo_dir)), name="brand-logos")
 

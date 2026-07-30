@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useCallback, memo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { TemplateLayoutsWithSettings } from "@/app/presentation-templates/utils";
 import { templates } from "@/app/presentation-templates";
@@ -11,6 +11,7 @@ import { FileDown, Loader2, Lock } from "lucide-react";
 import { CustomTemplateCard } from "./CustomTemplateCard";
 import CreateCustomTemplate from "../../(dashboard)/templates/components/CreateCustomTemplate";
 import { api, UserProfile } from "@/lib/api";
+import { withIframeSearch } from "@/app/(presentation-generator)/(dashboard)/Components/IframeAwareShell";
 
 const FREE_BUILT_IN_TEMPLATE_LIMIT = 10;
 
@@ -129,6 +130,7 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
   onSelectTemplate
 }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   useEffect(() => {
     const existingScript = document.querySelector(
       'script[src*="tailwindcss.com"]'
@@ -177,8 +179,8 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
   );
 
   const handleLockedSelect = useCallback(() => {
-    router.push("/settings/billing");
-  }, [router]);
+    router.push(withIframeSearch("/settings/billing", searchParams));
+  }, [router, searchParams]);
 
   const isBuiltInTemplateLocked = useCallback(
     (templateIndex: number) => {

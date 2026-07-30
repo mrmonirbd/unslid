@@ -9,7 +9,7 @@ import { useFontManagement } from "./hooks/useFontManagement";
 import { useFileUpload } from "./hooks/useFileUpload";
 import { useSlideProcessing } from "./hooks/useSlideProcessing";
 import { useLayoutSaving } from "./hooks/useLayoutSaving";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FileUploadSection } from "./components/FileUploadSection";
 import { SaveLayoutButton } from "./components/SaveLayoutButton";
 import { SaveLayoutModal } from "./components/SaveLayoutModal";
@@ -17,9 +17,12 @@ import EachSlide from "./components/EachSlide/NewEachSlide";
 import { trackEvent, MixpanelEvent } from "@/utils/mixpanel";
 import { CheckCircle2, FileText, LayoutPanelLeft, UploadCloud } from "lucide-react";
 import CommonFooter from "@/components/CommonFooter";
+import { IframeAwareShell, withIframeSearch } from "../(dashboard)/Components/IframeAwareShell";
 
 const CustomTemplatePage = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isIframe = searchParams.get("iframe") === "1";
 
   // Custom hooks for different concerns
   const { slides, setSlides, completedSlides } = useCustomLayout();
@@ -46,7 +49,7 @@ const CustomTemplatePage = () => {
     trackEvent(MixpanelEvent.CustomTemplate_Save_Templates_API_Call);
     const id = await saveLayout(layoutName, description);
     if (id) {
-      router.push(`/template-preview/custom-${id}`);
+      router.push(withIframeSearch(`/template-preview/custom-${id}`, searchParams));
     }
     return id;
   };
@@ -82,6 +85,7 @@ const CustomTemplatePage = () => {
   }, []);
 
   return (
+    <IframeAwareShell normalSidebar="none" showFooter={false}>
     <div className="flex h-dvh flex-col overflow-hidden bg-[#fbf9ff] text-slate-950 md:flex-row">
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.08),transparent_32%),linear-gradient(180deg,#fbf9ff_0%,#ffffff_48%,#f8fafc_100%)] md:h-screen">
         <div className="min-h-full px-4 pb-24 font-syne sm:px-6 md:px-8 md:pb-12">
@@ -206,10 +210,11 @@ const CustomTemplatePage = () => {
             isSaving={isSavingLayout}
           />
         </div>
-        <CommonFooter />
+        {!isIframe && <CommonFooter />}
       </div>
-      <DashboardSidebar />
+      {!isIframe && <DashboardSidebar />}
     </div>
+    </IframeAwareShell>
   );
 };
 

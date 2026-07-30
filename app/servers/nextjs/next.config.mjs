@@ -4,16 +4,13 @@
 // Falls back to localhost:8000 for local bare-metal dev (outside Docker).
 const FASTAPI_INTERNAL = process.env.FASTAPI_INTERNAL_URL ?? "http://localhost:8000";
 const isProd = process.env.NODE_ENV === "production";
+const iframeFrameAncestors = process.env.IFRAME_FRAME_ANCESTORS?.trim();
 
 // Security headers — applied to all routes in production
 const securityHeaders = [
   {
     key: "X-DNS-Prefetch-Control",
     value: "on",
-  },
-  {
-    key: "X-Frame-Options",
-    value: "DENY",
   },
   {
     key: "X-Content-Type-Options",
@@ -33,6 +30,14 @@ const securityHeaders = [
         {
           key: "Strict-Transport-Security",
           value: "max-age=63072000; includeSubDomains; preload",
+        },
+      ]
+    : []),
+  ...(iframeFrameAncestors
+    ? [
+        {
+          key: "Content-Security-Policy",
+          value: `frame-ancestors ${iframeFrameAncestors}`,
         },
       ]
     : []),

@@ -24,6 +24,7 @@ from models.sql.user import UserModel
 from models.sql.organization import OrganizationModel
 from models.sql.org_member import OrgMemberModel, OrgInvitationModel
 from models.sql.api_key import ApiKeyModel
+from models.sql.iframe_customer import IframeCustomer
 from models.sql.presentation_share import PresentationShareModel
 from models.sql.plan_ai_config import PlanAIConfig
 from models.sql.user_ai_preferences import UserAIPreferences
@@ -64,8 +65,9 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-# Container DB (Lives inside the container)
-container_db_url = "sqlite+aiosqlite:////app/container.db"
+# Container DB (Lives inside the container or local app data directory)
+container_db_path = os.path.join(os.getenv("APP_DATA_DIRECTORY") or "/tmp/unslid", "container.db")
+container_db_url = "sqlite+aiosqlite:///" + container_db_path
 container_db_engine: AsyncEngine = create_async_engine(
     container_db_url, connect_args={"check_same_thread": False}
 )
@@ -88,6 +90,7 @@ async def create_db_and_tables():
                 tables=[
                     # SaaS multi-tenant tables (create first — referenced by FKs)
                     UserModel.__table__,
+                    IframeCustomer.__table__,
                     OrganizationModel.__table__,
                     OrgMemberModel.__table__,
                     OrgInvitationModel.__table__,
