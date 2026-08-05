@@ -23,7 +23,7 @@ import { CompiledLayout } from "@/app/hooks/compileLayout";
 import CreateCustomTemplate from "./CreateCustomTemplate";
 import { api, BillingStatus, UserProfile } from "@/lib/api";
 import { useUser } from "@/app/hooks/useUser";
-import { withIframeSearch } from "../../Components/IframeAwareShell";
+import { isIframeMode, withIframeSearch } from "../../Components/IframeAwareShell";
 import {
     Dialog,
     DialogContent,
@@ -345,7 +345,7 @@ function useInViewport(ref: React.RefObject<Element>, rootMargin = "240px") {
     return isVisible;
 }
 
-function useTemplateTiers() {
+function useTemplateTiers(iframeMode = false) {
     const [tiers, setTiers] = useState<TemplateTierEntry[]>([]);
     const [plan, setPlan] = useState<string>("free");
     const [loaded, setLoaded] = useState(false);
@@ -369,6 +369,7 @@ function useTemplateTiers() {
 
     const isLocked = useCallback(
         (templateId: string, templateIndex?: number): boolean => {
+            if (iframeMode) return false;
             // Only lock if tiers are loaded, template is premium, and user is free
             if (!loaded) return false;
             if (plan === "pro" || plan === "team") return false;
@@ -377,7 +378,7 @@ function useTemplateTiers() {
             }
             return tierMap[templateId] === "premium";
         },
-        [loaded, plan, tierMap],
+        [iframeMode, loaded, plan, tierMap],
     );
 
     return { isLocked, plan, loaded };
@@ -749,20 +750,21 @@ const DesignerTemplateCard = React.memo(function DesignerTemplateCard({
 }) {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const locked = template.locked && !isIframeMode(searchParams);
     const handleClick = useCallback(() => {
-        if (template.locked) {
+        if (locked) {
             onLockedOpen();
             return;
         }
         router.push(withIframeSearch(`/template-preview/designer-${template.id}`, searchParams));
-    }, [onLockedOpen, router, searchParams, template.id, template.locked]);
+    }, [locked, onLockedOpen, router, searchParams, template.id]);
 
     return (
         <Card
-            className={`${CARD_CLASS} ${template.locked ? "opacity-80" : ""}`}
+            className={`${CARD_CLASS} ${locked ? "opacity-80" : ""}`}
             onClick={handleClick}
         >
-            {template.locked && (
+            {locked && (
                 <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/40 gap-2">
                     <div className="bg-white/90 rounded-full p-2.5 shadow">
                         <Lock className="w-5 h-5 text-amber-600" />
@@ -800,7 +802,7 @@ const DesignerTemplateCard = React.memo(function DesignerTemplateCard({
                 <div className="min-w-0">
                     <h3 className="text-sm font-bold text-gray-900 capitalize flex items-center gap-1.5">
                         {template.name}
-                        {template.locked && <Lock className="w-3 h-3 text-amber-500 shrink-0" />}
+                        {locked && <Lock className="w-3 h-3 text-amber-500 shrink-0" />}
                     </h3>
                     {template.description && (
                         <p className="mt-1 line-clamp-1 text-xs text-gray-600">{template.description}</p>
@@ -827,7 +829,8 @@ const LayoutPreview = ({ layout = "shelf" }: { layout?: TemplatePanelLayout }) =
     const [pricingModalOpen, setPricingModalOpen] = useState(false);
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { isLocked } = useTemplateTiers();
+    const iframeMode = isIframeMode(searchParams);
+    const { isLocked } = useTemplateTiers(iframeMode);
     const { user } = useUser();
     const userKey = String(user?.id || user?.email || "guest");
     const editedStaticTemplates = useEditedStaticTemplates(userKey);

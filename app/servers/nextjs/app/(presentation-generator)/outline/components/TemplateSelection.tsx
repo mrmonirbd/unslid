@@ -11,7 +11,7 @@ import { FileDown, Loader2, Lock } from "lucide-react";
 import { CustomTemplateCard } from "./CustomTemplateCard";
 import CreateCustomTemplate from "../../(dashboard)/templates/components/CreateCustomTemplate";
 import { api, UserProfile } from "@/lib/api";
-import { withIframeSearch } from "@/app/(presentation-generator)/(dashboard)/Components/IframeAwareShell";
+import { isIframeMode, withIframeSearch } from "@/app/(presentation-generator)/(dashboard)/Components/IframeAwareShell";
 
 const FREE_BUILT_IN_TEMPLATE_LIMIT = 10;
 
@@ -131,6 +131,7 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
 }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const iframeMode = isIframeMode(searchParams);
   useEffect(() => {
     const existingScript = document.querySelector(
       'script[src*="tailwindcss.com"]'
@@ -184,11 +185,12 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
 
   const isBuiltInTemplateLocked = useCallback(
     (templateIndex: number) => {
+      if (iframeMode) return false;
       if (!planLoaded) return false;
       if (plan === "pro" || plan === "team") return false;
       return templateIndex >= FREE_BUILT_IN_TEMPLATE_LIMIT;
     },
-    [plan, planLoaded]
+    [iframeMode, plan, planLoaded]
   );
 
   // Derive the selected custom template id only when selectedTemplate changes
@@ -270,16 +272,17 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {designerTemplates.map((template) => {
           const isSelected = selectedDesignerId === template.id;
+          const locked = template.locked && !iframeMode;
           return (
             <Card
               key={`designer-${template.id}`}
-              className={`${isSelected ? "border-2 border-purple-500" : ""} cursor-pointer relative hover:shadow-lg transition-all duration-200 group overflow-hidden ${template.locked ? "opacity-80" : ""}`}
+              className={`${isSelected ? "border-2 border-purple-500" : ""} cursor-pointer relative hover:shadow-lg transition-all duration-200 group overflow-hidden ${locked ? "opacity-80" : ""}`}
               onClick={() => {
-                if (template.locked) return;
+                if (locked) return;
                 onSelectTemplate({ type: "designer", id: template.id, name: template.name, color_scheme: template.color_scheme });
               }}
             >
-              {template.locked && (
+              {locked && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40">
                   <Lock className="h-5 w-5 text-white" />
                 </div>
@@ -317,7 +320,7 @@ const TemplateSelection: React.FC<TemplateSelectionProps> = memo(({
         })}
       </div>
     );
-  }, [designerLoading, designerTemplates, onSelectTemplate, selectedDesignerId]);
+  }, [designerLoading, designerTemplates, iframeMode, onSelectTemplate, selectedDesignerId]);
 
   return (
     <div className="space-y-[30px] mb-4">

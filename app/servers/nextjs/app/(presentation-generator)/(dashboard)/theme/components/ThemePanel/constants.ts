@@ -26,7 +26,197 @@ export const FONT_OPTIONS: any[] = [
   { name: 'Roboto', displayName: 'Roboto', cssUrl: 'https://fonts.googleapis.com/css2?family=Roboto:wght@100..900&display=swap' }
 ]
 
-export const DEFAULT_THEMES: any[] = [
+const GENERATED_THEME_TARGET = 210;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
+const hslToHex = (hue: number, saturation: number, lightness: number) => {
+  const normalizedHue = ((hue % 360) + 360) % 360;
+  const s = clamp(saturation, 0, 100) / 100;
+  const l = clamp(lightness, 0, 100) / 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((normalizedHue / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r1, g1, b1] =
+    normalizedHue < 60 ? [c, x, 0] :
+    normalizedHue < 120 ? [x, c, 0] :
+    normalizedHue < 180 ? [0, c, x] :
+    normalizedHue < 240 ? [0, x, c] :
+    normalizedHue < 300 ? [x, 0, c] :
+    [c, 0, x];
+
+  const toHex = (value: number) =>
+    Math.round((value + m) * 255).toString(16).padStart(2, "0");
+
+  return `#${toHex(r1)}${toHex(g1)}${toHex(b1)}`;
+};
+
+const hexToRgb = (hex: string) => {
+  const normalized = hex.replace("#", "");
+  const value = normalized.length === 3
+    ? normalized.split("").map((char) => char + char).join("")
+    : normalized;
+  const parsed = Number.parseInt(value, 16);
+  if (!Number.isFinite(parsed)) return { r: 15, g: 23, b: 42 };
+  return {
+    r: (parsed >> 16) & 255,
+    g: (parsed >> 8) & 255,
+    b: parsed & 255,
+  };
+};
+
+const mixHex = (from: string, to: string, weight = 0.5) => {
+  const a = hexToRgb(from);
+  const b = hexToRgb(to);
+  const mix = (left: number, right: number) =>
+    Math.round(left * (1 - weight) + right * weight).toString(16).padStart(2, "0");
+  return `#${mix(a.r, b.r)}${mix(a.g, b.g)}${mix(a.b, b.b)}`;
+};
+
+const getRelativeLuminance = (hex: string) => {
+  const { r, g, b } = hexToRgb(hex);
+  const channel = (value: number) => {
+    const normalized = value / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+};
+
+const readableText = (hex: string) =>
+  getRelativeLuminance(hex) > 0.52 ? "#111827" : "#ffffff";
+
+const themeNameWords = [
+  "Prism", "Vector", "Lumen", "Pulse", "Summit", "Orbit", "Signal", "Bloom", "Atlas", "Nova",
+  "Lucid", "Kinetic", "Frame", "Aster", "Vertex", "Cipher", "Quartz", "Flux", "Studio", "Halo",
+];
+
+const makeGraphColors = (hue: number, dark: boolean) =>
+  Object.fromEntries(
+    Array.from({ length: 10 }, (_, index) => [
+      `graph_${index}`,
+      hslToHex(
+        hue + index * 27 + (index % 2 ? 18 : 0),
+        clamp(78 - index * 3, 42, 84),
+        dark ? clamp(66 - index * 4, 32, 70) : clamp(42 + index * 4, 38, 78)
+      ),
+    ])
+  );
+
+const createGeneratedTheme = (index: number) => {
+  const hue = (index * 137.508 + 19) % 360;
+  const mode = index % 12;
+  const dark = mode === 2 || mode === 5 || mode === 8 || mode === 11;
+
+  const palettes = [
+    {
+      primary: hslToHex(hue, 78, 42),
+      background: hslToHex(hue + 26, 48, 98),
+      card: hslToHex(hue, 76, 92),
+      stroke: hslToHex(hue, 32, 82),
+    },
+    {
+      primary: hslToHex(hue + 12, 86, 38),
+      background: hslToHex(hue + 178, 42, 96),
+      card: hslToHex(hue + 24, 80, 88),
+      stroke: hslToHex(hue + 24, 36, 78),
+    },
+    {
+      primary: hslToHex(hue, 84, 62),
+      background: hslToHex(hue + 220, 42, 9),
+      card: hslToHex(hue + 20, 54, 20),
+      stroke: hslToHex(hue + 20, 34, 30),
+    },
+    {
+      primary: hslToHex(hue + 180, 82, 46),
+      background: hslToHex(hue, 30, 97),
+      card: hslToHex(hue + 180, 58, 90),
+      stroke: hslToHex(hue + 180, 35, 78),
+    },
+    {
+      primary: hslToHex(hue + 290, 75, 47),
+      background: hslToHex(hue + 20, 72, 97),
+      card: hslToHex(hue + 28, 80, 89),
+      stroke: hslToHex(hue + 28, 38, 77),
+    },
+    {
+      primary: hslToHex(hue + 82, 92, 55),
+      background: hslToHex(hue + 245, 44, 8),
+      card: hslToHex(hue + 252, 48, 18),
+      stroke: hslToHex(hue + 252, 36, 29),
+    },
+    {
+      primary: hslToHex(hue + 18, 88, 50),
+      background: hslToHex(hue + 62, 52, 94),
+      card: hslToHex(hue + 112, 56, 86),
+      stroke: hslToHex(hue + 112, 36, 74),
+    },
+    {
+      primary: hslToHex(hue + 315, 78, 43),
+      background: hslToHex(hue + 315, 40, 96),
+      card: hslToHex(hue + 5, 70, 90),
+      stroke: hslToHex(hue + 5, 34, 78),
+    },
+    {
+      primary: hslToHex(hue + 130, 88, 59),
+      background: hslToHex(hue + 230, 46, 10),
+      card: hslToHex(hue + 190, 48, 22),
+      stroke: hslToHex(hue + 190, 34, 34),
+    },
+    {
+      primary: hslToHex(hue + 215, 82, 44),
+      background: hslToHex(hue + 15, 36, 98),
+      card: hslToHex(hue + 210, 64, 90),
+      stroke: hslToHex(hue + 210, 34, 78),
+    },
+    {
+      primary: hslToHex(hue + 34, 82, 47),
+      background: hslToHex(hue + 88, 44, 95),
+      card: hslToHex(hue + 54, 76, 88),
+      stroke: hslToHex(hue + 54, 36, 76),
+    },
+    {
+      primary: hslToHex(hue + 265, 88, 64),
+      background: hslToHex(hue + 214, 38, 11),
+      card: hslToHex(hue + 260, 45, 22),
+      stroke: hslToHex(hue + 260, 34, 34),
+    },
+  ];
+
+  const palette = palettes[mode];
+  const graphColors = makeGraphColors(hue + 12, dark);
+  const font = FONT_OPTIONS[(index * 7 + mode) % FONT_OPTIONS.length];
+
+  return {
+    id: `generated-palette-${String(index + 1).padStart(3, "0")}`,
+    name: `${themeNameWords[index % themeNameWords.length]} ${String(index + 1).padStart(3, "0")}`,
+    description: "Generated color template with a distinct accent, surface, chart scale, and readable text pairing.",
+    logo: null,
+    logo_url: null,
+    company_name: null,
+    data: {
+      colors: {
+        primary: palette.primary,
+        background: palette.background,
+        card: mixHex(palette.card, palette.background, mode % 2 ? 0.18 : 0.08),
+        stroke: palette.stroke,
+        primary_text: readableText(palette.primary),
+        background_text: readableText(palette.background),
+        ...graphColors,
+      },
+      fonts: {
+        textFont: {
+          name: font.name,
+          url: font.cssUrl,
+        }
+      }
+    }
+  };
+};
+
+const CURATED_DEFAULT_THEMES: any[] = [
   {
     id: "edge-yellow",
     name: "Edge Yellow",
@@ -203,3 +393,13 @@ export const DEFAULT_THEMES: any[] = [
     }
   }
 ]
+
+export const GENERATED_COLOR_THEMES: any[] = Array.from(
+  { length: GENERATED_THEME_TARGET - CURATED_DEFAULT_THEMES.length },
+  (_, index) => createGeneratedTheme(index)
+);
+
+export const DEFAULT_THEMES: any[] = [
+  ...CURATED_DEFAULT_THEMES,
+  ...GENERATED_COLOR_THEMES,
+];

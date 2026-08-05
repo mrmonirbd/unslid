@@ -25,7 +25,7 @@ const navItems = [
   { href: "/theme", label: "Theme", icon: Palette },
 ];
 
-function isIframeMode(searchParams: SearchParamsLike) {
+export function isIframeMode(searchParams: SearchParamsLike) {
   return searchParams.get("iframe") === "1";
 }
 

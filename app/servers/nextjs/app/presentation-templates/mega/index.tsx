@@ -276,7 +276,7 @@ const getMegaTheme = (cfg: MegaConfig) => ({
   fg: `var(--background-text, ${cfg.fg})`,
   soft: `var(--card-color, ${cfg.soft})`,
   stroke: `var(--stroke, ${cfg.soft})`,
-  primaryText: "var(--primary-text, #ffffff)",
+  primaryText: `var(--primary-text, ${getReadableTextColor(cfg.accent)})`,
   headingFont: "var(--heading-font-family, Inter, Arial, sans-serif)",
   bodyFont: "var(--body-font-family, Inter, Arial, sans-serif)",
 });
@@ -300,10 +300,27 @@ const alpha = (hex: string, opacity: number) => {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
+const getRelativeLuminance = (hex: string) => {
+  const { r, g, b } = hexToRgb(hex);
+  const channel = (value: number) => {
+    const normalized = value / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+};
+
+const getReadableTextColor = (hex: string) =>
+  getRelativeLuminance(hex) > 0.52 ? "#111827" : "#ffffff";
+
 const getShellBackground = (cfg: MegaConfig) => {
-  const mode = cfg.visualMode % 8;
+  const mode = cfg.visualMode % 12;
   const accent = alpha(cfg.accent, 0.28);
+  const accentLight = alpha(cfg.accent, 0.14);
+  const accentStrong = alpha(cfg.accent, 0.42);
   const soft = alpha(cfg.soft, 0.78);
+  const line = alpha(cfg.fg, 0.08);
 
   const backgrounds = [
     `radial-gradient(circle at 10% 12%, ${accent} 0, transparent 30%), radial-gradient(circle at 92% 84%, ${soft} 0, transparent 34%), ${cfg.bg}`,
@@ -314,13 +331,17 @@ const getShellBackground = (cfg: MegaConfig) => {
     `linear-gradient(160deg, ${cfg.bg} 0%, ${cfg.bg} 62%, ${alpha(cfg.accent, 0.2)} 62%, ${alpha(cfg.accent, 0.2)} 100%)`,
     `radial-gradient(circle at 78% 22%, ${accent} 0, transparent 22%), radial-gradient(circle at 14% 78%, ${soft} 0, transparent 28%), ${cfg.bg}`,
     `repeating-linear-gradient(135deg, transparent 0 18px, ${alpha(cfg.soft, 0.22)} 18px 19px), ${cfg.bg}`,
+    `linear-gradient(180deg, ${accentLight} 0 22%, transparent 22% 100%), linear-gradient(90deg, ${cfg.bg} 0 58%, ${soft} 58% 100%)`,
+    `repeating-linear-gradient(0deg, transparent 0 34px, ${line} 34px 36px), linear-gradient(135deg, ${cfg.bg}, ${alpha(cfg.soft, 0.54)})`,
+    `linear-gradient(120deg, ${cfg.bg} 0 38%, ${accentStrong} 38% 39%, ${soft} 39% 72%, ${cfg.bg} 72% 100%)`,
+    `conic-gradient(from 90deg at 16% 84%, ${soft}, ${cfg.bg} 32%, ${accentLight} 58%, ${cfg.bg} 82%, ${soft})`,
   ];
 
   return backgrounds[mode];
 };
 
 const shellRadius = (cfg: MegaConfig) => {
-  const radii = ["rounded-xl", "rounded-none", "rounded-[28px]", "rounded-lg", "rounded-[40px]", "rounded-sm", "rounded-2xl", "rounded-[20px]"];
+  const radii = ["rounded-xl", "rounded-none", "rounded-[28px]", "rounded-lg", "rounded-[40px]", "rounded-sm", "rounded-2xl", "rounded-[20px]", "rounded-[6px]", "rounded-[34px]", "rounded-md", "rounded-[18px]"];
   return radii[cfg.visualMode % radii.length];
 };
 
@@ -1666,6 +1687,146 @@ const styles = [
   { suffix: "MonoPop", accent: "#111827", bg: "#ffffff", fg: "#111827", soft: "#e5e7eb" },
 ];
 
+type MegaStyle = (typeof styles)[number];
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
+const hslToHex = (hue: number, saturation: number, lightness: number) => {
+  const normalizedHue = ((hue % 360) + 360) % 360;
+  const s = clamp(saturation, 0, 100) / 100;
+  const l = clamp(lightness, 0, 100) / 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((normalizedHue / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r1, g1, b1] =
+    normalizedHue < 60 ? [c, x, 0] :
+    normalizedHue < 120 ? [x, c, 0] :
+    normalizedHue < 180 ? [0, c, x] :
+    normalizedHue < 240 ? [0, x, c] :
+    normalizedHue < 300 ? [x, 0, c] :
+    [c, 0, x];
+
+  const toHex = (value: number) =>
+    Math.round((value + m) * 255).toString(16).padStart(2, "0");
+
+  return `#${toHex(r1)}${toHex(g1)}${toHex(b1)}`;
+};
+
+const mixHex = (from: string, to: string, weight = 0.5) => {
+  const a = hexToRgb(from);
+  const b = hexToRgb(to);
+  const mix = (left: number, right: number) =>
+    Math.round(left * (1 - weight) + right * weight).toString(16).padStart(2, "0");
+  return `#${mix(a.r, b.r)}${mix(a.g, b.g)}${mix(a.b, b.b)}`;
+};
+
+const generatedStyleNames = [
+  "Prism", "Quartz", "Pulse", "Signal", "Lucid", "Orbit", "Vector", "Bloom", "Atlas", "Nova",
+  "Frame", "Verve", "Kinetic", "Studio", "Aster", "Cipher", "Summit", "Flux", "Halo", "Vertex",
+];
+
+const createGeneratedMegaStyle = (index: number, variant = 0): MegaStyle => {
+  const hue = (index * 137.508 + variant * 41 + 17) % 360;
+  const altHue = hue + 46 + (index % 5) * 14;
+  const mode = (index + variant * 3) % 12;
+  const suffix = `${generatedStyleNames[index % generatedStyleNames.length]} ${String(index + 1).padStart(3, "0")}`;
+
+  const light = {
+    fg: hslToHex(hue + 210, 42, 13),
+    bg: hslToHex(altHue, 50, 98),
+    soft: hslToHex(hue, 76, 92),
+    accent: hslToHex(hue, 78, 42),
+  };
+  const dark = {
+    fg: hslToHex(hue + 34, 58, 96),
+    bg: hslToHex(hue + 220, 42, 9),
+    soft: hslToHex(hue + 20, 54, 20),
+    accent: hslToHex(hue, 84, 62),
+  };
+
+  const variants: MegaStyle[] = [
+    { suffix, ...light },
+    {
+      suffix,
+      accent: hslToHex(hue + 10, 86, 38),
+      bg: hslToHex(hue + 178, 42, 96),
+      fg: hslToHex(hue + 214, 48, 14),
+      soft: hslToHex(hue + 24, 80, 88),
+    },
+    { suffix, ...dark },
+    {
+      suffix,
+      accent: hslToHex(hue + 180, 82, 46),
+      bg: hslToHex(hue, 30, 97),
+      fg: hslToHex(hue + 235, 45, 12),
+      soft: hslToHex(hue + 180, 58, 90),
+    },
+    {
+      suffix,
+      accent: hslToHex(hue + 290, 75, 47),
+      bg: hslToHex(hue + 20, 72, 97),
+      fg: hslToHex(hue + 240, 45, 15),
+      soft: hslToHex(hue + 28, 80, 89),
+    },
+    {
+      suffix,
+      accent: hslToHex(hue + 82, 92, 55),
+      bg: hslToHex(hue + 245, 44, 8),
+      fg: hslToHex(hue + 58, 68, 96),
+      soft: hslToHex(hue + 252, 48, 18),
+    },
+    {
+      suffix,
+      accent: hslToHex(hue + 18, 88, 50),
+      bg: hslToHex(hue + 62, 52, 94),
+      fg: hslToHex(hue + 225, 42, 13),
+      soft: hslToHex(hue + 112, 56, 86),
+    },
+    {
+      suffix,
+      accent: hslToHex(hue + 315, 78, 43),
+      bg: hslToHex(hue + 315, 40, 96),
+      fg: hslToHex(hue + 220, 42, 12),
+      soft: hslToHex(hue + 5, 70, 90),
+    },
+    {
+      suffix,
+      accent: hslToHex(hue + 130, 88, 59),
+      bg: hslToHex(hue + 230, 46, 10),
+      fg: hslToHex(hue + 88, 62, 96),
+      soft: hslToHex(hue + 190, 48, 22),
+    },
+    {
+      suffix,
+      accent: hslToHex(hue + 215, 82, 44),
+      bg: hslToHex(hue + 15, 36, 98),
+      fg: hslToHex(hue + 235, 42, 14),
+      soft: hslToHex(hue + 210, 64, 90),
+    },
+    {
+      suffix,
+      accent: hslToHex(hue + 34, 82, 47),
+      bg: hslToHex(hue + 88, 44, 95),
+      fg: hslToHex(hue + 238, 48, 13),
+      soft: hslToHex(hue + 54, 76, 88),
+    },
+    {
+      suffix,
+      accent: hslToHex(hue + 265, 88, 64),
+      bg: hslToHex(hue + 214, 38, 11),
+      fg: hslToHex(hue + 54, 66, 96),
+      soft: hslToHex(hue + 260, 45, 22),
+    },
+  ];
+
+  const selected = variants[mode];
+  return {
+    ...selected,
+    soft: mixHex(selected.soft, selected.bg, mode % 2 ? 0.24 : 0.1),
+  };
+};
+
 const kindLabels: Record<MegaKind, string> = {
   personalPortfolio: "Personal Portfolio",
   redEditorial: "Red Editorial",
@@ -1756,24 +1917,20 @@ const categoryKindMap: Record<string, MegaKind> = {
 };
 
 const makeConfig = (deck: (typeof onlinePresentationServiceDecks)[number], index: number, variant = 0): MegaConfig => {
-  const style = styles[index % styles.length];
-  const fashionStyle = deck.id === "fashion-lookbook"
-    ? { accent: "#111111", bg: "#f7f1ea", fg: "#181411", soft: "#e8d8c8" }
-    : null;
-  const accent = fashionStyle?.accent || (index % 3 === 0 ? style.accent : deck.accent || style.accent);
+  const style = createGeneratedMegaStyle(index, variant);
   const fallbackKind = kinds[index % kinds.length];
   return {
     id: `mega-${String(index + 1).padStart(3, "0")}-${deck.id}`,
     name: deck.title,
     description: `${deck.category} presentation template for ${deck.audience}. ${deck.summary}`,
     kind: categoryKindMap[deck.category] || fallbackKind,
-    accent,
-    bg: fashionStyle?.bg || style.bg,
-    fg: fashionStyle?.fg || style.fg,
-    soft: fashionStyle?.soft || style.soft,
+    accent: style.accent,
+    bg: style.bg,
+    fg: style.fg,
+    soft: style.soft,
     imageUrl: localMegaImage(variant ? `${deck.id}-studio-${variant}` : deck.id),
-    curve: index,
-    visualMode: deck.id === "fashion-lookbook" ? 5 : index % 8,
+    curve: index * 3 + variant,
+    visualMode: (index * 7 + variant * 5) % 12,
   };
 };
 
@@ -1794,7 +1951,7 @@ const baseConfigs: MegaConfig[] = onlinePresentationServiceDecks.map((deck, inde
 
 const expansionConfigs: MegaConfig[] = onlinePresentationServiceDecks.map((deck, index) => {
   const configIndex = index + onlinePresentationServiceDecks.length;
-  const style = styles[(index * 7 + 11) % styles.length];
+  const style = createGeneratedMegaStyle(configIndex, 9);
   const angle = secondCollectionAngles[index % secondCollectionAngles.length];
   const baseKind = kinds[(index * 5 + 3) % kinds.length];
   return {
@@ -1802,12 +1959,12 @@ const expansionConfigs: MegaConfig[] = onlinePresentationServiceDecks.map((deck,
     name: `${deck.title} ${angle}`,
     description: `${deck.category} ${angle.toLowerCase()} for ${deck.audience}. A second-generation layout direction with different pacing, visuals, and slide structure.`,
     kind: baseKind,
-    accent: index % 2 ? style.accent : deck.accent || style.accent,
+    accent: style.accent,
     bg: style.bg,
     fg: style.fg,
     soft: style.soft,
     curve: configIndex * 2,
-    visualMode: (configIndex * 3 + 1) % 8,
+    visualMode: (configIndex * 5 + 3) % 12,
   };
 });
 

@@ -19,7 +19,7 @@ import html2canvas from "html2canvas";
 import { MixpanelEvent, trackEvent } from "@/utils/mixpanel";
 import TemplateService from "../../services/api/template";
 import { PresentationGenerationApi } from "../../services/api/presentation-generation";
-import { IframeAwareShell, withIframeSearch } from "../../(dashboard)/Components/IframeAwareShell";
+import { IframeAwareShell, isIframeMode, withIframeSearch } from "../../(dashboard)/Components/IframeAwareShell";
 import { toast } from "sonner";
 import {
   CustomTemplateDetail,
@@ -2051,7 +2051,7 @@ const GroupLayoutPreview = () => {
           setDesignerTemplate(null);
           return;
         }
-        if (found.locked) {
+        if (found.locked && !isIframeMode(searchParams)) {
           router.push(withIframeSearch("/settings/billing", searchParams));
           return;
         }
